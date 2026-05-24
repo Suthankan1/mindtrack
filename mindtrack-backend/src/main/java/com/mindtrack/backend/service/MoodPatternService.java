@@ -1,5 +1,6 @@
 package com.mindtrack.backend.service;
 
+import com.mindtrack.backend.ai.GeminiService;
 import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.model.StressPattern;
 import com.mindtrack.backend.model.User;
@@ -23,14 +24,17 @@ public class MoodPatternService {
     private final MoodEntryRepository moodEntryRepository;
     private final StressPatternRepository stressPatternRepository;
     private final UserRepository userRepository;
+    private final GeminiService geminiService;
 
     public MoodPatternService(
             MoodEntryRepository moodEntryRepository,
             StressPatternRepository stressPatternRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            GeminiService geminiService) {
         this.moodEntryRepository = moodEntryRepository;
         this.stressPatternRepository = stressPatternRepository;
         this.userRepository = userRepository;
+        this.geminiService = geminiService;
     }
 
     /**
@@ -67,19 +71,60 @@ public class MoodPatternService {
             }
         }
 
-        String aiInsight;
-        if (average < 2.5) {
-            aiInsight = "High stress week detected";
-        } else if (average > 3.5) {
-            aiInsight = "Great week! Keep it up";
-        } else {
-            aiInsight = "Stable mood pattern. Continue tracking to see trends.";
+        // Build scoreBreakdown by counting how many entries had each score (1-5)
+        Map<Integer, Long> counts = entries.stream()
+                .collect(Collectors.groupingBy(MoodEntry::getMoodScore, Collectors.counting()));
+        String scoreBreakdown = java.util.stream.IntStream.rangeClosed(1, 5)
+                .mapToObj(score -> score + ": " + counts.getOrDefault(score, 0L))
+                .collect(Collectors.joining(", "));
+
+        // Build topTags by finding the 3 most frequent tags from all entries this week
+        List<String> allTags = entries.stream()
+                .filter(e -> e.getTags() != null)
+                .flatMap(e -> e.getTags().stream())
+                .collect(Collectors.toList());
+
+        Map<String, Long> tagFrequencies = allTags.stream()
+                .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()));
+
+        String topTags = tagFrequencies.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(3)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.joining(", "));
+
+        if (topTags.isEmpty()) {
+            topTags = "None";
         }
+
+        int entryCount = entries.size();
+        String peakDayStr = peakDay != null ? peakDay.name() : "N/A";
+
+        String geminiPrompt = String.format("""
+        You are a compassionate mental health companion inside the MindTrack app.
+        Analyze this user's mood data from the past week and give a warm, personalized insight.
+
+        Mood entries this week: %d entries
+        Average mood score: %.1f / 5.0
+        Peak stress day (lowest average): %s
+        Mood score breakdown: %s
+        Most used tags: %s
+
+        Write a 2-3 sentence insight that:
+        1. Acknowledges their specific week pattern
+        2. Highlights one positive or actionable observation
+        3. Gives one gentle, practical suggestion
+
+        Tone: warm, non-clinical, encouraging. Like a knowledgeable friend, not a doctor.
+        Maximum 60 words. Do NOT use bullet points.
+        """, entryCount, average, peakDayStr, scoreBreakdown, topTags);
+
+        String aiInsight = geminiService.generateInsight(geminiPrompt);
 
         StressPattern pattern = StressPattern.builder()
                 .user(user)
                 .weeklyAverage(average)
-                .peakStressDay(peakDay != null ? peakDay.name() : "N/A")
+                .peakStressDay(peakDayStr)
                 .aiInsight(aiInsight)
                 .weekStartDate(start.toLocalDate())
                 .weekEndDate(end.toLocalDate())

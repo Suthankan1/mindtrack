@@ -8,7 +8,8 @@ class BreatheScreen extends StatefulWidget {
   State<BreatheScreen> createState() => _BreatheScreenState();
 }
 
-class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProviderStateMixin {
+class _BreatheScreenState extends State<BreatheScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _glowAnimation;
@@ -20,16 +21,20 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4), // 4 seconds inhale / 4 seconds exhale
+      duration: const Duration(
+        seconds: 4,
+      ), // 4 seconds inhale / 4 seconds exhale
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.4).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.4,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    _glowAnimation = Tween<double>(begin: 4.0, end: 25.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _glowAnimation = Tween<double>(
+      begin: 4.0,
+      end: 25.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -117,12 +122,14 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
                           shape: BoxShape.circle,
                           color: AppColors.primaryColor.withValues(alpha: 0.06),
                           border: Border.all(
-                            color: AppColors.primaryColor.withValues(alpha: 0.15),
+                            color: AppColors.primaryColor.withValues(
+                              alpha: 0.15,
+                            ),
                             width: 1,
                           ),
                         ),
                       ),
-                      
+
                       // Intermediate glowing ring
                       Container(
                         width: 140 * _scaleAnimation.value,
@@ -132,7 +139,9 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
                           color: AppColors.primaryColor.withValues(alpha: 0.08),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryColor.withValues(alpha: 0.2),
+                              color: AppColors.primaryColor.withValues(
+                                alpha: 0.2,
+                              ),
                               blurRadius: _glowAnimation.value,
                               spreadRadius: _glowAnimation.value / 2,
                             ),
@@ -156,7 +165,9 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryColor.withValues(alpha: 0.4),
+                                color: AppColors.primaryColor.withValues(
+                                  alpha: 0.4,
+                                ),
                                 blurRadius: 15,
                                 offset: const Offset(0, 4),
                               ),
@@ -175,9 +186,9 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
                   );
                 },
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               // Prompt state text
               Text(
                 _breatheState,
@@ -187,16 +198,18 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
                   letterSpacing: 0.5,
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               Text(
-                _isPlaying ? 'Hold for a moment at the peak' : 'Tap the circle to begin session',
+                _isPlaying
+                    ? 'Hold for a moment at the peak'
+                    : 'Tap the circle to begin session',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppColors.textMuted,
                 ),
               ),
-              
+
               const Spacer(),
 
               // Quick Info Stats Row
@@ -204,13 +217,21 @@ class _BreatheScreenState extends State<BreatheScreen> with SingleTickerProvider
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildStat(context, 'Inhale', '4 secs'),
-                  Container(width: 1, height: 24, color: AppColors.borderOverlay),
+                  Container(
+                    width: 1,
+                    height: 24,
+                    color: AppColors.borderOverlay,
+                  ),
                   _buildStat(context, 'Hold', '4 secs'),
-                  Container(width: 1, height: 24, color: AppColors.borderOverlay),
+                  Container(
+                    width: 1,
+                    height: 24,
+                    color: AppColors.borderOverlay,
+                  ),
                   _buildStat(context, 'Exhale', '4 secs'),
                 ],
               ),
-              
+
               const SizedBox(height: 24),
             ],
           ),

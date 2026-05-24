@@ -14,17 +14,17 @@ class DioService {
   String? _token;
 
   DioService()
-      : _dio = Dio(
-          BaseOptions(
-            baseUrl: _determineBaseUrl(),
-            connectTimeout: const Duration(seconds: 10),
-            receiveTimeout: const Duration(seconds: 10),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          ),
-        ) {
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: _determineBaseUrl(),
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      ) {
     _init();
   }
 
@@ -56,7 +56,9 @@ class DioService {
           // If we get an Unauthorized 401 or 403, our token might have expired.
           // Let's clear the token and try to re-authenticate if we are not already trying to authenticate.
           final isAuthPath = e.requestOptions.path.contains('/api/auth/');
-          if ((e.response?.statusCode == 401 || e.response?.statusCode == 403) && !isAuthPath) {
+          if ((e.response?.statusCode == 401 ||
+                  e.response?.statusCode == 403) &&
+              !isAuthPath) {
             try {
               final authenticated = await _authenticate();
               if (authenticated) {
@@ -79,13 +81,13 @@ class DioService {
   /// Attempts to log in. If user doesn't exist, registers them, then logs in.
   Future<bool> _authenticate() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // 1. Try to Login
     try {
-      final response = await _dio.post('/api/auth/login', data: {
-        'email': _kAuthEmail,
-        'password': _kAuthPassword,
-      });
+      final response = await _dio.post(
+        '/api/auth/login',
+        data: {'email': _kAuthEmail, 'password': _kAuthPassword},
+      );
 
       if (response.statusCode == 200 && response.data != null) {
         _token = response.data['accessToken'] as String?;
@@ -96,16 +98,21 @@ class DioService {
         }
       }
     } on DioException catch (e) {
-      debugPrint('DioService: Login failed, attempting auto-registration. Status: ${e.response?.statusCode}');
+      debugPrint(
+        'DioService: Login failed, attempting auto-registration. Status: ${e.response?.statusCode}',
+      );
     }
 
     // 2. Try to Register (Fallback)
     try {
-      final response = await _dio.post('/api/auth/register', data: {
-        'email': _kAuthEmail,
-        'password': _kAuthPassword,
-        'anonymousMode': false,
-      });
+      final response = await _dio.post(
+        '/api/auth/register',
+        data: {
+          'email': _kAuthEmail,
+          'password': _kAuthPassword,
+          'anonymousMode': false,
+        },
+      );
 
       if (response.statusCode == 201 && response.data != null) {
         _token = response.data['accessToken'] as String?;
@@ -116,7 +123,9 @@ class DioService {
         }
       }
     } on DioException catch (e) {
-      debugPrint('DioService: Registration failed. Status: ${e.response?.statusCode}, Error: ${e.response?.data}');
+      debugPrint(
+        'DioService: Registration failed. Status: ${e.response?.statusCode}, Error: ${e.response?.data}',
+      );
     }
 
     return false;
@@ -125,14 +134,16 @@ class DioService {
   /// Ensures a valid authentication token exists before making secure calls.
   Future<void> ensureAuthenticated() async {
     if (_token != null) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_kTokenKey);
     if (_token != null) return;
 
     final authenticated = await _authenticate();
     if (!authenticated) {
-      throw Exception('DioService: Failed to establish automatic secure handshake.');
+      throw Exception(
+        'DioService: Failed to establish automatic secure handshake.',
+      );
     }
   }
 
@@ -155,7 +166,10 @@ class DioService {
   Future<List<dynamic>> getMoodHistory({int days = 30}) async {
     await ensureAuthenticated();
     try {
-      final response = await _dio.get('/api/mood/history', queryParameters: {'days': days});
+      final response = await _dio.get(
+        '/api/mood/history',
+        queryParameters: {'days': days},
+      );
       if (response.statusCode == 200 && response.data != null) {
         return response.data as List<dynamic>;
       }
@@ -167,20 +181,25 @@ class DioService {
   }
 
   /// Logs a new mood entry.
-  Future<Map<String, dynamic>> logMood(int score, {String note = 'Logged via mobile app', List<String> tags = const []}) async {
+  Future<Map<String, dynamic>> logMood(
+    int score, {
+    String note = 'Logged via mobile app',
+    List<String> tags = const [],
+  }) async {
     await ensureAuthenticated();
     try {
-      final response = await _dio.post('/api/mood/log', data: {
-        'moodScore': score,
-        'note': note,
-        'tags': tags,
-      });
+      final response = await _dio.post(
+        '/api/mood/log',
+        data: {'moodScore': score, 'note': note, 'tags': tags},
+      );
 
       if (response.statusCode == 201 && response.data != null) {
         debugPrint('DioService: Mood logged successfully. Score: $score');
         return response.data as Map<String, dynamic>;
       }
-      throw Exception('DioService: Failed to log mood. Status: ${response.statusCode}');
+      throw Exception(
+        'DioService: Failed to log mood. Status: ${response.statusCode}',
+      );
     } catch (e) {
       debugPrint('DioService: Error logging mood: $e');
       rethrow;

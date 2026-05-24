@@ -14,11 +14,11 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
-    
+
     // Deduct standard margin to build a premium floating nav bar
-    final double barWidth = screenWidth - 32; 
+    final double barWidth = screenWidth - 32;
     final double itemWidth = barWidth / 4;
-    
+
     // Sizing for our sliding pill capsule
     final double pillWidth = itemWidth * 0.85;
     final double pillHeight = 46;
@@ -91,7 +91,9 @@ class CustomBottomNavBar extends StatelessWidget {
                             duration: const Duration(milliseconds: 180),
                             child: Icon(
                               item['icon'] as IconData,
-                              color: isSelected ? AppColors.primaryColor : AppColors.navBarUnselected,
+                              color: isSelected
+                                  ? AppColors.primaryColor
+                                  : AppColors.navBarUnselected,
                               size: 24,
                             ),
                           ),
@@ -99,9 +101,13 @@ class CustomBottomNavBar extends StatelessWidget {
                           Text(
                             item['label'] as String,
                             style: TextStyle(
-                              color: isSelected ? AppColors.primaryColor : AppColors.navBarUnselected,
+                              color: isSelected
+                                  ? AppColors.primaryColor
+                                  : AppColors.navBarUnselected,
                               fontSize: 10,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ],

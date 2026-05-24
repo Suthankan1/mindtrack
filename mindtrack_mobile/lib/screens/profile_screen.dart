@@ -32,7 +32,10 @@ class ProfileScreen extends StatelessWidget {
                     height: 72,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryColor, width: 2),
+                      border: Border.all(
+                        color: AppColors.primaryColor,
+                        width: 2,
+                      ),
                       gradient: const RadialGradient(
                         colors: [
                           AppColors.primaryColor,
@@ -42,7 +45,11 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: const CircleAvatar(
                       backgroundColor: Colors.transparent,
-                      child: Icon(Icons.person_outline, size: 36, color: Colors.white),
+                      child: Icon(
+                        Icons.person_outline,
+                        size: 36,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 20),
@@ -86,7 +93,10 @@ class ProfileScreen extends StatelessWidget {
                         color: AppColors.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.palette, color: AppColors.primaryColor),
+                      child: const Icon(
+                        Icons.palette,
+                        color: AppColors.primaryColor,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -111,9 +121,15 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.primaryColor, width: 1.5),
+                        border: Border.all(
+                          color: AppColors.primaryColor,
+                          width: 1.5,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Text(
@@ -164,13 +180,21 @@ class ProfileScreen extends StatelessWidget {
                 context: context,
                 icon: Icons.cloud_done,
                 title: 'Backup & Cloud Sync',
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textMuted),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
               ),
               _buildSettingItem(
                 context: context,
                 icon: Icons.info_outline,
                 title: 'About MindTrack',
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textMuted),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
           ),
@@ -202,9 +226,7 @@ class ProfileScreen extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.titleMedium?.copyWith(color: Colors.white),
             ),
           ),
           trailing,

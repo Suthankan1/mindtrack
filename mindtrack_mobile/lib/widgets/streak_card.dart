@@ -10,7 +10,8 @@ class StreakCard extends ConsumerStatefulWidget {
   ConsumerState<StreakCard> createState() => _StreakCardState();
 }
 
-class _StreakCardState extends ConsumerState<StreakCard> with SingleTickerProviderStateMixin {
+class _StreakCardState extends ConsumerState<StreakCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _glowScale;
 
@@ -21,7 +22,9 @@ class _StreakCardState extends ConsumerState<StreakCard> with SingleTickerProvid
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    final isTest = RegExp(r'package:flutter_test').hasMatch(StackTrace.current.toString());
+    final isTest = RegExp(
+      r'package:flutter_test',
+    ).hasMatch(StackTrace.current.toString());
     if (!isTest) {
       _pulseController.repeat(reverse: true);
     } else {
@@ -52,10 +55,7 @@ class _StreakCardState extends ConsumerState<StreakCard> with SingleTickerProvid
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderOverlay),
         gradient: LinearGradient(
-          colors: [
-            AppColors.surfaceColor,
-            AppColors.surfaceColor.withBlue(45),
-          ],
+          colors: [AppColors.surfaceColor, AppColors.surfaceColor.withBlue(45)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -64,7 +64,7 @@ class _StreakCardState extends ConsumerState<StreakCard> with SingleTickerProvid
             color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -89,7 +89,7 @@ class _StreakCardState extends ConsumerState<StreakCard> with SingleTickerProvid
                             color: Colors.amber.withValues(alpha: 0.15),
                             blurRadius: 12,
                             spreadRadius: 2,
-                          )
+                          ),
                         ],
                       ),
                     ),
@@ -145,8 +145,8 @@ class _StreakCardState extends ConsumerState<StreakCard> with SingleTickerProvid
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  streak > 0 
-                      ? 'Keep protecting your emotional consistency spark.' 
+                  streak > 0
+                      ? 'Keep protecting your emotional consistency spark.'
                       : 'Log your mood today to ignite a new calm streak.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppColors.textMuted,

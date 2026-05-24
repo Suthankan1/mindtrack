@@ -7,11 +7,18 @@ import '../screens/profile_screen.dart';
 import 'bottom_nav_bar.dart';
 
 // Navigator Keys for proper routing control
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final GlobalKey<NavigatorState> _homeNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'homeNav');
-final GlobalKey<NavigatorState> _journalNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'journalNav');
-final GlobalKey<NavigatorState> _breatheNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'breatheNav');
-final GlobalKey<NavigatorState> _profileNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'profileNav');
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'root',
+);
+final GlobalKey<NavigatorState> _homeNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'homeNav',
+);
+final GlobalKey<NavigatorState> _journalNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'journalNav');
+final GlobalKey<NavigatorState> _breatheNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'breatheNav');
+final GlobalKey<NavigatorState> _profileNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'profileNav');
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -42,9 +49,8 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/home',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: HomeScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: HomeScreen()),
               ),
             ],
           ),
@@ -55,9 +61,8 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/journal',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: JournalScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: JournalScreen()),
               ),
             ],
           ),
@@ -68,9 +73,8 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/breathe',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: BreatheScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: BreatheScreen()),
               ),
             ],
           ),
@@ -81,9 +85,8 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/profile',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: ProfileScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProfileScreen()),
               ),
             ],
           ),

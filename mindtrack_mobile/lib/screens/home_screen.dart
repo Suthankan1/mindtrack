@@ -49,7 +49,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.primaryColor, size: 18),
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.primaryColor,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Daily calm secure in ledger.',
@@ -76,12 +80,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
+                const Icon(
+                  Icons.error_outline,
+                  color: AppColors.errorColor,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Handshake failed. Ensure local backend is active.',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -157,20 +168,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       height: 48,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primaryColor, width: 1.5),
+                        border: Border.all(
+                          color: AppColors.primaryColor,
+                          width: 1.5,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryColor.withValues(alpha: 0.15),
+                            color: AppColors.primaryColor.withValues(
+                              alpha: 0.15,
+                            ),
                             blurRadius: 10,
                             spreadRadius: 1,
-                          )
+                          ),
                         ],
                       ),
                       child: const CircleAvatar(
                         backgroundColor: AppColors.surfaceColor,
-                        child: Icon(Icons.person_outline, color: AppColors.primaryColor),
+                        child: Icon(
+                          Icons.person_outline,
+                          color: AppColors.primaryColor,
+                        ),
                       ),
-                    )
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -223,7 +242,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (_isLogging)
                           Positioned.fill(
                             child: Container(
-                              color: Colors.transparent, // Disable interactions visually
+                              color: Colors
+                                  .transparent, // Disable interactions visually
                             ),
                           ),
                       ],

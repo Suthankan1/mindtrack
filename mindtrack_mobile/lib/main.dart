@@ -6,12 +6,10 @@ import 'theme/app_theme.dart';
 void main() {
   // Ensure that Flutter widget bindings are initialized before starting any platform channels (like Shared Preferences or Local Notifications)
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   runApp(
     // ProviderScope stores the state of all Riverpod providers
-    const ProviderScope(
-      child: MindTrackApp(),
-    ),
+    const ProviderScope(child: MindTrackApp()),
   );
 }
 
@@ -26,10 +24,10 @@ class MindTrackApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'MindTrack Mobile',
       debugShowCheckedModeBanner: false,
-      
+
       // Inject the Cosmic Calm theme
       theme: activeTheme,
-      
+
       // Inject go_router configuration
       routerConfig: AppRouter.router,
     );

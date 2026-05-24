@@ -18,7 +18,8 @@ class MoodFaceButton extends StatefulWidget {
   State<MoodFaceButton> createState() => _MoodFaceButtonState();
 }
 
-class _MoodFaceButtonState extends State<MoodFaceButton> with SingleTickerProviderStateMixin {
+class _MoodFaceButtonState extends State<MoodFaceButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
 
@@ -29,9 +30,10 @@ class _MoodFaceButtonState extends State<MoodFaceButton> with SingleTickerProvid
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.9,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
   }
 
   @override
@@ -97,12 +99,12 @@ class _MoodFaceButtonState extends State<MoodFaceButton> with SingleTickerProvid
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: widget.isSelected 
-                    ? moodColor.withValues(alpha: 0.15) 
+                color: widget.isSelected
+                    ? moodColor.withValues(alpha: 0.15)
                     : AppColors.surfaceColor,
                 border: Border.all(
-                  color: widget.isSelected 
-                      ? moodColor 
+                  color: widget.isSelected
+                      ? moodColor
                       : AppColors.borderOverlay,
                   width: widget.isSelected ? 2.0 : 1.5,
                 ),
@@ -112,7 +114,7 @@ class _MoodFaceButtonState extends State<MoodFaceButton> with SingleTickerProvid
                           color: moodColor.withValues(alpha: 0.3),
                           blurRadius: 12,
                           spreadRadius: 1,
-                        )
+                        ),
                       ]
                     : [],
               ),
@@ -129,7 +131,9 @@ class _MoodFaceButtonState extends State<MoodFaceButton> with SingleTickerProvid
               _getMoodLabel(),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: widget.isSelected ? moodColor : AppColors.textMuted,
-                fontWeight: widget.isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: widget.isSelected
+                    ? FontWeight.bold
+                    : FontWeight.normal,
                 fontSize: 10,
               ),
             ),
@@ -145,10 +149,7 @@ class MoodFacePainter extends CustomPainter {
   final int score;
   final Color color;
 
-  MoodFacePainter({
-    required this.score,
-    required this.color,
-  });
+  MoodFacePainter({required this.score, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -166,12 +167,28 @@ class MoodFacePainter extends CustomPainter {
       case 1:
         // Awful: Sad slanted eyebrows/eyes and deep frown mouth
         // Left eye
-        canvas.drawLine(Offset(w * 0.25, h * 0.35), Offset(w * 0.4, h * 0.4), paint);
-        canvas.drawCircle(Offset(w * 0.3, h * 0.45), 1.5, paint..style = PaintingStyle.fill);
+        canvas.drawLine(
+          Offset(w * 0.25, h * 0.35),
+          Offset(w * 0.4, h * 0.4),
+          paint,
+        );
+        canvas.drawCircle(
+          Offset(w * 0.3, h * 0.45),
+          1.5,
+          paint..style = PaintingStyle.fill,
+        );
         // Right eye
         paint.style = PaintingStyle.stroke;
-        canvas.drawLine(Offset(w * 0.75, h * 0.35), Offset(w * 0.6, h * 0.4), paint);
-        canvas.drawCircle(Offset(w * 0.7, h * 0.45), 1.5, paint..style = PaintingStyle.fill);
+        canvas.drawLine(
+          Offset(w * 0.75, h * 0.35),
+          Offset(w * 0.6, h * 0.4),
+          paint,
+        );
+        canvas.drawCircle(
+          Offset(w * 0.7, h * 0.45),
+          1.5,
+          paint..style = PaintingStyle.fill,
+        );
 
         // Frown Mouth
         paint.style = PaintingStyle.stroke;
@@ -204,12 +221,24 @@ class MoodFacePainter extends CustomPainter {
       case 3:
         // Neutral: Straight eyes and straight line mouth
         // Eyes (two small dots or simple small horizontal lines)
-        canvas.drawCircle(Offset(w * 0.3, h * 0.42), 2, paint..style = PaintingStyle.fill);
-        canvas.drawCircle(Offset(w * 0.7, h * 0.42), 2, paint..style = PaintingStyle.fill);
+        canvas.drawCircle(
+          Offset(w * 0.3, h * 0.42),
+          2,
+          paint..style = PaintingStyle.fill,
+        );
+        canvas.drawCircle(
+          Offset(w * 0.7, h * 0.42),
+          2,
+          paint..style = PaintingStyle.fill,
+        );
 
         // Straight mouth
         paint.style = PaintingStyle.stroke;
-        canvas.drawLine(Offset(w * 0.32, h * 0.68), Offset(w * 0.68, h * 0.68), paint);
+        canvas.drawLine(
+          Offset(w * 0.32, h * 0.68),
+          Offset(w * 0.68, h * 0.68),
+          paint,
+        );
         break;
 
       case 4:

@@ -27,11 +27,11 @@ class MoodEntry {
       userId: json['userId'] as String? ?? '',
       moodScore: json['moodScore'] as int? ?? 3,
       note: json['note'] as String? ?? '',
-      timestamp: json['timestamp'] != null 
-          ? DateTime.parse(json['timestamp'] as String) 
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
           : DateTime.now(),
-      tags: json['tags'] != null 
-          ? List<String>.from(json['tags'] as List<dynamic>) 
+      tags: json['tags'] != null
+          ? List<String>.from(json['tags'] as List<dynamic>)
           : const [],
     );
   }
@@ -74,7 +74,9 @@ class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
     final dio = ref.watch(dioServiceProvider);
     try {
       final list = await dio.getMoodHistory(days: 30);
-      return list.map((json) => MoodEntry.fromJson(json as Map<String, dynamic>)).toList();
+      return list
+          .map((json) => MoodEntry.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       debugPrint('MoodHistoryNotifier: Error fetching mood history: $e');
       return [];
@@ -87,7 +89,9 @@ class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
     state = await AsyncValue.guard(() async {
       final dio = ref.watch(dioServiceProvider);
       final list = await dio.getMoodHistory(days: 30);
-      return list.map((json) => MoodEntry.fromJson(json as Map<String, dynamic>)).toList();
+      return list
+          .map((json) => MoodEntry.fromJson(json as Map<String, dynamic>))
+          .toList();
     });
   }
 
@@ -102,9 +106,10 @@ class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
 }
 
 /// Riverpod provider for mood history logs
-final moodHistoryProvider = AsyncNotifierProvider<MoodHistoryNotifier, List<MoodEntry>>(
-  MoodHistoryNotifier.new,
-);
+final moodHistoryProvider =
+    AsyncNotifierProvider<MoodHistoryNotifier, List<MoodEntry>>(
+      MoodHistoryNotifier.new,
+    );
 
 /// Utility Provider to calculate the current mood streak from history (matching web dashboard logic)
 final streakCountProvider = Provider<int>((ref) {
@@ -127,10 +132,13 @@ final streakCountProvider = Provider<int>((ref) {
       }
 
       final todayStr = getFormattedDate(checkDate);
-      final yesterdayStr = getFormattedDate(checkDate.subtract(const Duration(days: 1)));
+      final yesterdayStr = getFormattedDate(
+        checkDate.subtract(const Duration(days: 1)),
+      );
 
       // If user hasn't logged today AND hasn't logged yesterday, streak is broken (0)
-      if (!uniqueDates.contains(todayStr) && !uniqueDates.contains(yesterdayStr)) {
+      if (!uniqueDates.contains(todayStr) &&
+          !uniqueDates.contains(yesterdayStr)) {
         return 0;
       }
 
@@ -139,7 +147,9 @@ final streakCountProvider = Provider<int>((ref) {
         final dateStr = getFormattedDate(iterDate);
         if (uniqueDates.contains(dateStr)) {
           streak++;
-          iterDate = iterDate.subtract(const Duration(days: 1)); // subtract 1 day
+          iterDate = iterDate.subtract(
+            const Duration(days: 1),
+          ); // subtract 1 day
         } else {
           break;
         }
@@ -155,11 +165,15 @@ class MoodActions {
   final Ref _ref;
   MoodActions(this._ref);
 
-  Future<void> logMood(int score) async {
+  Future<void> logMood(
+    int score, {
+    String note = 'Logged via mobile app',
+    List<String> tags = const [],
+  }) async {
     final dio = _ref.read(dioServiceProvider);
-    
+
     // 1. Send POST request
-    final jsonResult = await dio.logMood(score);
+    final jsonResult = await dio.logMood(score, note: note, tags: tags);
     final newEntry = MoodEntry.fromJson(jsonResult);
 
     // 2. Synchronize states reactively

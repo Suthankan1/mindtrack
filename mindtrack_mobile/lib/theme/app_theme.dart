@@ -8,10 +8,10 @@ class AppColors {
   static const Color surfaceColor = Color(0xFF12122A);
   static const Color primaryColor = Color(0xFF00D2C8);
   static const Color errorColor = Color(0xFFFF6B6B);
-  
+
   static const Color navBarBackground = Color(0xFF1C1C3A);
   static const Color navBarUnselected = Color(0xFF6B6B9A);
-  
+
   // Auxiliary styles for visual depth
   static const Color textMuted = Color(0xFF8B8BBA);
   static const Color borderOverlay = Color(0xFF23234A);
@@ -67,7 +67,7 @@ class AppTheme {
       primaryColor: AppColors.primaryColor,
       cardColor: AppColors.surfaceColor,
       dividerColor: AppColors.borderOverlay,
-      
+
       colorScheme: const ColorScheme.dark(
         surface: AppColors.surfaceColor,
         primary: AppColors.primaryColor,
@@ -87,7 +87,7 @@ class AppTheme {
           side: BorderSide(color: AppColors.borderOverlay, width: 1),
         ),
       ),
-      
+
       // Bottom navigation theme settings (fallback)
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.navBarBackground,
@@ -114,4 +114,6 @@ class ThemeNotifier extends Notifier<ThemeData> {
 }
 
 /// Modernized Riverpod 3.x NotifierProvider for active ThemeData
-final themeProvider = NotifierProvider<ThemeNotifier, ThemeData>(ThemeNotifier.new);
+final themeProvider = NotifierProvider<ThemeNotifier, ThemeData>(
+  ThemeNotifier.new,
+);

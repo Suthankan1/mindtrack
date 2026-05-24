@@ -55,7 +55,7 @@ class WaveSpark extends ConsumerWidget {
 
                 // Get last 7 entries chronologically (oldest to newest)
                 final last7 = entries.take(7).toList().reversed.toList();
-                
+
                 final List<FlSpot> spots = [];
                 if (last7.length == 1) {
                   // If only 1 spot, add an extra dummy spot to form a straight line
@@ -64,7 +64,9 @@ class WaveSpark extends ConsumerWidget {
                   spots.add(FlSpot(1, val));
                 } else {
                   for (int i = 0; i < last7.length; i++) {
-                    spots.add(FlSpot(i.toDouble(), last7[i].moodScore.toDouble()));
+                    spots.add(
+                      FlSpot(i.toDouble(), last7[i].moodScore.toDouble()),
+                    );
                   }
                 }
 
@@ -72,7 +74,8 @@ class WaveSpark extends ConsumerWidget {
                   LineChartData(
                     gridData: const FlGridData(show: false),
                     titlesData: const FlTitlesData(
-                      show: false, // Keep it completely minimal and pure sparkline-like
+                      show:
+                          false, // Keep it completely minimal and pure sparkline-like
                     ),
                     borderData: FlBorderData(show: false),
                     minX: 0,
@@ -81,9 +84,12 @@ class WaveSpark extends ConsumerWidget {
                     maxY: 5.5,
                     lineTouchData: LineTouchData(
                       touchTooltipData: LineTouchTooltipData(
-                        getTooltipColor: (touchedSpot) => AppColors.navBarBackground,
+                        getTooltipColor: (touchedSpot) =>
+                            AppColors.navBarBackground,
                         tooltipBorderRadius: BorderRadius.circular(8),
-                        tooltipBorder: const BorderSide(color: AppColors.borderOverlay),
+                        tooltipBorder: const BorderSide(
+                          color: AppColors.borderOverlay,
+                        ),
                         getTooltipItems: (touchedSpots) {
                           return touchedSpots.map((spot) {
                             final idx = spot.x.toInt();
@@ -165,7 +171,20 @@ class WaveSpark extends ConsumerWidget {
 
   String _getFormattedDate(DateTime date) {
     final local = date.toLocal();
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[local.month - 1]} ${local.day}';
   }
 
@@ -181,7 +200,9 @@ class WaveSpark extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isError ? 'Failed to synchronize logs' : 'No records logged in this timeframe',
+            isError
+                ? 'Failed to synchronize logs'
+                : 'No records logged in this timeframe',
             style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
           ),
         ],

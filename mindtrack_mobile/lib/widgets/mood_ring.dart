@@ -4,16 +4,14 @@ import '../theme/app_theme.dart';
 class MoodRing extends StatefulWidget {
   final int? moodScore;
 
-  const MoodRing({
-    super.key,
-    required this.moodScore,
-  });
+  const MoodRing({super.key, required this.moodScore});
 
   @override
   State<MoodRing> createState() => _MoodRingState();
 }
 
-class _MoodRingState extends State<MoodRing> with SingleTickerProviderStateMixin {
+class _MoodRingState extends State<MoodRing>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _scaleAnim;
   late Animation<double> _glowOpacityAnim;
@@ -25,7 +23,9 @@ class _MoodRingState extends State<MoodRing> with SingleTickerProviderStateMixin
       vsync: this,
       duration: const Duration(milliseconds: 2500),
     );
-    final isTest = RegExp(r'package:flutter_test').hasMatch(StackTrace.current.toString());
+    final isTest = RegExp(
+      r'package:flutter_test',
+    ).hasMatch(StackTrace.current.toString());
     if (!isTest) {
       _pulseController.repeat(reverse: true);
     } else {
@@ -33,17 +33,11 @@ class _MoodRingState extends State<MoodRing> with SingleTickerProviderStateMixin
     }
 
     _scaleAnim = Tween<double>(begin: 0.96, end: 1.04).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _glowOpacityAnim = Tween<double>(begin: 0.15, end: 0.4).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
 
@@ -117,7 +111,9 @@ class _MoodRingState extends State<MoodRing> with SingleTickerProviderStateMixin
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: activeColor.withValues(alpha: _glowOpacityAnim.value),
+                          color: activeColor.withValues(
+                            alpha: _glowOpacityAnim.value,
+                          ),
                           blurRadius: 35,
                           spreadRadius: 8,
                         ),
@@ -147,18 +143,23 @@ class _MoodRingState extends State<MoodRing> with SingleTickerProviderStateMixin
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(5.0), // Width of the gradient border
+                    padding: const EdgeInsets.all(
+                      5.0,
+                    ), // Width of the gradient border
                     child: Container(
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.backgroundColor, // Cutout background to create ring
+                        color: AppColors
+                            .backgroundColor, // Cutout background to create ring
                       ),
                       child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              widget.moodScore != null ? '${widget.moodScore}' : '?',
+                              widget.moodScore != null
+                                  ? '${widget.moodScore}'
+                                  : '?',
                               style: theme.textTheme.displayLarge?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -174,7 +175,9 @@ class _MoodRingState extends State<MoodRing> with SingleTickerProviderStateMixin
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              widget.moodScore != null ? 'today\'s mood' : 'not logged',
+                              widget.moodScore != null
+                                  ? 'today\'s mood'
+                                  : 'not logged',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: AppColors.textMuted,
                                 letterSpacing: 0.5,

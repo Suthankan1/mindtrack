@@ -32,6 +32,23 @@
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
+
+  /* Fix: ensure input text is always white on dark backgrounds */
+  input, textarea, select {
+    color: #F3F4F6;
+    caret-color: #00D2C8;
+  }
+
+  /* Fix: override browser autofill background that makes text invisible */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 40px #0A0A14 inset !important;
+    -webkit-text-fill-color: #F3F4F6 !important;
+    caret-color: #00D2C8;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 /* Custom Scrollbar */

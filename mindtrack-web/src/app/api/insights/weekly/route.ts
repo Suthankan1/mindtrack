@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { getMockEntries } from "@/lib/mockStore";
 import axios from "axios";
+
+export const dynamic = "force-dynamic";
 
 interface MoodEntry {
   moodScore: number;
@@ -82,17 +85,26 @@ export async function GET() {
 
     // Try fetching actual mood history from Spring Boot backend
     let entries: MoodEntry[] = [];
-    try {
-      const response = await axios.get(`${process.env.BACKEND_URL}/api/mood/history`, {
-        params: { days: 30 },
-        headers: {
-          Authorization: `Bearer ${session.user.accessToken}`,
-        },
-      });
-      entries = response.data || [];
-    } catch (backendError) {
-      console.warn("Spring Boot backend offline or failed. Serving rich synthetic data instead.", backendError);
-      return NextResponse.json(getSyntheticData());
+    
+    if (session.user.accessToken === "demo-mock-jwt-token-data") {
+      // In demo mode, bypass the backend and read from the mock store
+      entries = getMockEntries(30);
+    } else {
+      try {
+        const response = await axios.get(`${process.env.BACKEND_URL}/api/mood/history`, {
+          params: { days: 30 },
+          headers: {
+            Authorization: `Bearer ${session.user.accessToken}`,
+          },
+        });
+        entries = response.data || [];
+      } catch (backendError) {
+        console.warn(
+          "Spring Boot backend offline or failed on weekly insights telemetry fetch. Serving local mock data instead.",
+          backendError
+        );
+        entries = getMockEntries(30);
+      }
     }
 
     // If less than 3 entries, provide synthetic charts + a loading helper text to ensure a stunning first impression

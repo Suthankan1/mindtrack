@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, AlertTriangle, ArrowRight, BrainCircuit, Sparkles } from "lucide-react";
 
@@ -190,7 +191,7 @@ export default function LoginPage() {
         {/* Footer text */}
         <p className="text-center text-xs text-muted mt-8">
           Don&apos;t have an account?{" "}
-          <a href="#" className="text-accent-teal hover:underline font-semibold">Sign up</a>
+          <Link href="/register" className="text-accent-teal hover:underline font-semibold">Sign up</Link>
         </p>
       </div>
     </div>

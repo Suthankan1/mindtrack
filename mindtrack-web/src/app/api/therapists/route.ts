@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export interface Therapist {
   id: string;
   name: string;

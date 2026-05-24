@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -179,6 +181,134 @@ public class AiInsightController {
             fallback.put("confidence", 0.0);
             fallback.put("supportMessage", "We are here to support you in every step of your journey.");
             return ResponseEntity.ok(fallback);
+        }
+    }
+
+    /**
+     * POST /api/ai/coping/suggest
+     *
+     * Recommends a personalized coping technique using Gemini based on user mood context.
+     *
+     * @param request        the coping suggestion payload
+     * @param authentication the authenticated user's Spring Security context
+     * @return a parsed JSON map containing the recommended technique, duration, reason, and encouragement.
+     */
+    @PostMapping("/coping/suggest")
+    public ResponseEntity<Map<String, Object>> getCopingSuggestion(
+            @RequestBody CopingSuggestRequest request,
+            Authentication authentication) {
+
+        // Validate user authentication
+        String email = authentication.getName();
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        int moodScore = request.getMoodScore();
+        String timeOfDay = request.getTimeOfDay();
+        double recentAverage = request.getRecentAverage();
+        java.util.List<String> lastTags = request.getLastTags();
+        if (lastTags == null) {
+            lastTags = java.util.Collections.emptyList();
+        }
+
+        String prompt = String.format("""
+        You are a mental wellness coach inside MindTrack app.
+        A user needs a coping recommendation right now.
+
+        Current mood: %d / 5 (1=very stressed, 5=great)
+        Time of day: %s
+        Recent 7-day average mood: %.1f / 5
+        Recent activity tags: %s
+
+        Choose the SINGLE best coping technique for right now from this list:
+        - breathing_478: 4-7-8 breathing (best for acute anxiety/panic)
+        - breathing_box: Box breathing 4-4-4-4 (best for stress and focus)
+        - breathing_deep: Deep breathing 5-5 (best for general tension)
+        - grounding: 5-4-3-2-1 sensory grounding (best for overwhelm and dissociation)
+        - journaling: Guided journal prompt (best for emotional processing)
+        - walk: Short mindful walk suggestion (best for low energy or afternoon slump)
+
+        Respond ONLY with valid JSON (no markdown):
+        {
+          "technique": "technique_id_from_list",
+          "reason": "one sentence explaining why this fits right now",
+          "durationMinutes": 5,
+          "encouragement": "one warm sentence to motivate them to start"
+        }
+        """, moodScore, timeOfDay, recentAverage, String.join(", ", lastTags));
+
+        String rawResponse = geminiService.generateInsight(prompt);
+        if (rawResponse == null || rawResponse.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to call AI service");
+        }
+
+        try {
+            // Strip markdown fences
+            String cleanedResponse = rawResponse.trim();
+            if (cleanedResponse.startsWith("```json")) {
+                cleanedResponse = cleanedResponse.substring(7);
+            } else if (cleanedResponse.startsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(3);
+            }
+            if (cleanedResponse.endsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3);
+            }
+            cleanedResponse = cleanedResponse.trim();
+
+            Map<String, Object> parsed = objectMapper.readValue(cleanedResponse, Map.class);
+            return ResponseEntity.ok(parsed);
+        } catch (Exception e) {
+            System.err.println("Failed to parse Gemini coping suggestion response: " + e.getMessage() + "\nRaw response: " + rawResponse);
+            
+            // Graceful fallback response on parse failure
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("technique", "breathing_deep");
+            fallback.put("reason", "A deep, mindful breath is always a perfect way to center yourself.");
+            fallback.put("durationMinutes", 5);
+            fallback.put("encouragement", "Take a moment just for yourself right now.");
+            return ResponseEntity.ok(fallback);
+        }
+    }
+
+    /**
+     * Request DTO for AI coping suggestions.
+     */
+    public static class CopingSuggestRequest {
+        private int moodScore;
+        private String timeOfDay;
+        private double recentAverage;
+        private java.util.List<String> lastTags;
+
+        public int getMoodScore() {
+            return moodScore;
+        }
+
+        public void setMoodScore(int moodScore) {
+            this.moodScore = moodScore;
+        }
+
+        public String getTimeOfDay() {
+            return timeOfDay;
+        }
+
+        public void setTimeOfDay(String timeOfDay) {
+            this.timeOfDay = timeOfDay;
+        }
+
+        public double getRecentAverage() {
+            return recentAverage;
+        }
+
+        public void setRecentAverage(double recentAverage) {
+            this.recentAverage = recentAverage;
+        }
+
+        public java.util.List<String> getLastTags() {
+            return lastTags;
+        }
+
+        public void setLastTags(java.util.List<String> lastTags) {
+            this.lastTags = lastTags;
         }
     }
 }

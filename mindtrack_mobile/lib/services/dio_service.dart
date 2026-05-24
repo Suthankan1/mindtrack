@@ -268,6 +268,40 @@ class DioService {
       rethrow;
     }
   }
+
+  /// Fetches an AI-powered coping suggestion from the API.
+  Future<Map<String, dynamic>> getAiCopingSuggestion({
+    required int moodScore,
+    required String timeOfDay,
+    double recentAverage = 3.0,
+    List<String> lastTags = const [],
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.post(
+        '/api/ai/coping/suggest',
+        data: {
+          'moodScore': moodScore,
+          'timeOfDay': timeOfDay,
+          'recentAverage': recentAverage,
+          'lastTags': lastTags,
+        },
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to fetch coping suggestion: status ${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error fetching AI coping suggestion: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for DioService singleton

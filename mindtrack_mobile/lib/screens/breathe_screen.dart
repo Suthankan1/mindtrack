@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../widgets/breathing_orb.dart';
 import '../services/dio_service.dart';
+import '../providers/mood_provider.dart';
 
 enum BreathingPhase { inhale, holdFull, exhale, holdEmpty }
 
@@ -182,6 +183,11 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
   // Secondary overlay for mindfulness completion report
   bool _showCompletionCard = false;
 
+  // AI Recommendation State Variables
+  bool _isLoadingRecommendation = false;
+  Map<String, dynamic>? _aiRecommendation;
+  String? _recommendationError;
+
   @override
   void initState() {
     super.initState();
@@ -209,6 +215,11 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
       if (status == AnimationStatus.completed) {
         _advanceStep();
       }
+    });
+
+    // Fetch AI recommendation on screen initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchAiRecommendation();
     });
   }
 
@@ -407,6 +418,271 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
     return '$minutes:$seconds';
   }
 
+  String _getTimeOfDay() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'morning';
+    } else if (hour >= 12 && hour < 17) {
+      return 'afternoon';
+    } else if (hour >= 17 && hour < 21) {
+      return 'evening';
+    } else {
+      return 'night';
+    }
+  }
+
+  Future<void> _fetchAiRecommendation() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingRecommendation = true;
+      _recommendationError = null;
+    });
+
+    try {
+      // Get current mood from todayMoodProvider
+      final todayMood = ref.read(todayMoodProvider).value;
+      final moodScore = todayMood ?? 3; // Default to 3 if no log today
+
+      final timeOfDay = _getTimeOfDay();
+
+      // Compute recent average and last tags from mood history
+      final history = ref.read(moodHistoryProvider).value ?? [];
+      double recentAverage = 3.0;
+      List<String> lastTags = [];
+
+      if (history.isNotEmpty) {
+        final now = DateTime.now();
+        final sevenDaysAgo = now.subtract(const Duration(days: 7));
+        final recentEntries = history.where((e) => e.timestamp.isAfter(sevenDaysAgo)).toList();
+
+        if (recentEntries.isNotEmpty) {
+          final sum = recentEntries.map((e) => e.moodScore).reduce((a, b) => a + b);
+          recentAverage = sum / recentEntries.length;
+          lastTags = recentEntries.expand((e) => e.tags).toSet().toList();
+        } else {
+          final sum = history.map((e) => e.moodScore).reduce((a, b) => a + b);
+          recentAverage = sum / history.length;
+          lastTags = history.expand((e) => e.tags).toSet().toList();
+        }
+      }
+
+      final dio = ref.read(dioServiceProvider);
+      final suggestion = await dio.getAiCopingSuggestion(
+        moodScore: moodScore,
+        timeOfDay: timeOfDay,
+        recentAverage: recentAverage,
+        lastTags: lastTags,
+      );
+
+      if (mounted) {
+        setState(() {
+          _aiRecommendation = suggestion;
+          _isLoadingRecommendation = false;
+
+          // Pre-select recommended technique if applicable
+          final tech = suggestion['technique'] as String?;
+          int? recommendedIndex;
+          if (tech == 'breathing_478') {
+            recommendedIndex = 0;
+          } else if (tech == 'breathing_box') {
+            recommendedIndex = 1;
+          } else if (tech == 'breathing_deep') {
+            recommendedIndex = 2;
+          }
+
+          if (recommendedIndex != null && recommendedIndex != _selectedTechniqueIndex) {
+            _changeTechnique(recommendedIndex);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('BreatheScreen: Failed to get AI coping suggestion: $e');
+      if (mounted) {
+        setState(() {
+          _recommendationError = e.toString();
+          _isLoadingRecommendation = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildAiRecommendationCard(ThemeData theme) {
+    if (_isLoadingRecommendation) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceColor.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.borderOverlay,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(AppColors.primaryColor),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Personalizing your sanctuary with Gemini...',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_aiRecommendation == null) {
+      return const SizedBox.shrink();
+    }
+
+    final suggestion = _aiRecommendation!;
+    final techniqueId = suggestion['technique'] as String? ?? '';
+    final reason = suggestion['reason'] as String? ?? '';
+    final encouragement = suggestion['encouragement'] as String? ?? '';
+    final duration = suggestion['durationMinutes'] as int? ?? 5;
+
+    String humanName = 'Mindful Exercise';
+    IconData techniqueIcon = Icons.spa_rounded;
+    if (techniqueId == 'breathing_478') {
+      humanName = '4-7-8 Breathing';
+      techniqueIcon = Icons.air_rounded;
+    } else if (techniqueId == 'breathing_box') {
+      humanName = 'Box Breathing (4-4-4-4)';
+      techniqueIcon = Icons.grid_view_rounded;
+    } else if (techniqueId == 'breathing_deep') {
+      humanName = 'Deep Breathing (5-5)';
+      techniqueIcon = Icons.favorite_rounded;
+    } else if (techniqueId == 'grounding') {
+      humanName = '5-4-3-2-1 Sensory Grounding';
+      techniqueIcon = Icons.self_improvement_rounded;
+    } else if (techniqueId == 'journaling') {
+      humanName = 'Guided Journal Prompt';
+      techniqueIcon = Icons.edit_note_rounded;
+    } else if (techniqueId == 'walk') {
+      humanName = 'Mindful Nature Walk';
+      techniqueIcon = Icons.directions_walk_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.surfaceColor,
+              AppColors.surfaceColor.withValues(alpha: 0.7),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.35),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryColor.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 16,
+                      color: AppColors.primaryColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'RECOMMENDED FOR YOU',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: AppColors.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${duration}m',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  techniqueIcon,
+                  size: 24,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    humanName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              reason,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              encouragement,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -489,6 +765,10 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
                 ),
 
                 const SizedBox(height: 16),
+
+                _buildAiRecommendationCard(theme),
+
+                const SizedBox(height: 8),
 
                 // Technique Selection Chips
                 Padding(

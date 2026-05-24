@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import { 
   AreaChart, 
@@ -22,7 +23,11 @@ import {
   CalendarDays,
   RefreshCw,
   AlertCircle,
-  Tag
+  Tag,
+  Check,
+  AlertOctagon,
+  Info,
+  X
 } from "lucide-react";
 
 // Types corresponding to backend DTO response
@@ -44,12 +49,21 @@ interface UserStatsResponse {
   joinedDaysAgo: number;
 }
 
+interface Toast {
+  message: string;
+  type: "success" | "error" | "info";
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   
   // React client-side hydration lock
   const [mounted, setMounted] = useState(false);
   
+  // Toast state
+  const [toast, setToast] = useState<Toast | null>(null);
+
   // Data State
   const [entries, setEntries] = useState<MoodEntryResponse[]>([]);
   const [stats, setStats] = useState<UserStatsResponse>({
@@ -72,6 +86,14 @@ export default function DashboardPage() {
 
   // Available tag selections
   const availableTags = ["Sleep", "Work", "Exercise", "Mindfulness", "Social", "Nutrition"];
+
+  // Show toast notification
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -96,7 +118,7 @@ export default function DashboardPage() {
         Authorization: `Bearer ${session.user.accessToken}`,
       };
       
-      const [historyRes, statsData] = await Promise.all([
+      const [historyRes] = await Promise.all([
         axios.get("/api/mood/history?days=30", { headers }).then(res => res.data),
         fetchUserStats()
       ]);
@@ -148,13 +170,37 @@ export default function DashboardPage() {
       setNewNote("");
       setSelectedTags([]);
       setLogSuccess(true);
+      showToast("Mood log saved successfully!", "success");
       setTimeout(() => setLogSuccess(false), 3000);
       
       // Instantly refresh all analytical charts & values
       await fetchHistory();
     } catch (err: unknown) {
       console.error("Error saving daily log:", err);
-      setError("Failed to save entry. Please verify connection to server.");
+      if (axios.isAxiosError(err) && err.response) {
+        const status = err.response.status;
+        if (status === 429) {
+          showToast("You've already logged 5 times this hour. Please try again later.", "error");
+        } else if (status === 400) {
+          let message = "Invalid entry validation error.";
+          if (err.response.data?.errors) {
+            const fieldErrors = Object.values(err.response.data.errors) as string[];
+            message = fieldErrors.join(" ");
+          } else if (err.response.data?.error) {
+            message = err.response.data.error;
+          } else if (typeof err.response.data === "string") {
+            message = err.response.data;
+          }
+          showToast(message, "error");
+        } else if (status === 401) {
+          showToast("Session expired. Redirecting to sign-in...", "error");
+          router.push("/login");
+        } else {
+          showToast(err.response.data?.error || err.message || "Failed to save entry. Please try again.", "error");
+        }
+      } else {
+        showToast("Failed to save entry. Please verify connection to server.", "error");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -780,6 +826,39 @@ export default function DashboardPage() {
         </motion.div>
 
       </motion.div>
+
+      {/* Absolute floating toast alert system */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl border backdrop-blur-xl shadow-2xl max-w-sm ${
+              toast.type === "success"
+                ? "bg-[#0A2A22]/80 border-accent-teal/30 text-accent-teal shadow-[0_0_24px_rgba(0,210,200,0.15)]"
+                : toast.type === "error"
+                ? "bg-[#3A0F0F]/80 border-accent-coral/30 text-accent-coral shadow-[0_0_24px_rgba(255,107,107,0.15)]"
+                : "bg-[#12122A]/90 border-white/10 text-gray-300"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <Check className="w-5 h-5 shrink-0" />
+            ) : toast.type === "error" ? (
+              <AlertOctagon className="w-5 h-5 shrink-0" />
+            ) : (
+              <Info className="w-5 h-5 shrink-0" />
+            )}
+            <p className="text-xs font-semibold leading-relaxed">{toast.message}</p>
+            <button
+              onClick={() => setToast(null)}
+              className="ml-2 p-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/40 hover:text-white transition-all"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

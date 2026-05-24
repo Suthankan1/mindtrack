@@ -86,7 +86,7 @@ public class MoodControllerTest {
         MoodLogRequest request = new MoodLogRequest();
         request.setMoodScore(4);
         request.setNote("Feeling good today!");
-        request.setTags(List.of("happy", "productive"));
+        request.setTags(List.of("Sleep", "Work"));
 
         mockMvc.perform(post("/api/mood/log")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -96,7 +96,7 @@ public class MoodControllerTest {
                 .andExpect(jsonPath("$.userId", is(testUser.getId().toString())))
                 .andExpect(jsonPath("$.moodScore", is(4)))
                 .andExpect(jsonPath("$.note", is("Feeling good today!")))
-                .andExpect(jsonPath("$.tags", hasItems("happy", "productive")))
+                .andExpect(jsonPath("$.tags", hasItems("Sleep", "Work")))
                 .andExpect(jsonPath("$.timestamp", notNullValue()));
 
         // Verify Streak was initialized/updated
@@ -119,6 +119,36 @@ public class MoodControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", is("Validation Failed")))
                 .andExpect(jsonPath("$.errors.moodScore", is("Mood score must be between 1 and 5")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void logMood_TagValidationError() throws Exception {
+        MoodLogRequest request = new MoodLogRequest();
+        request.setMoodScore(4);
+        request.setTags(List.of("Sleep", "HACK")); // "HACK" is not a valid tag
+
+        mockMvc.perform(post("/api/mood/log")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Validation Failed")))
+                .andExpect(jsonPath("$.errors.tagsValid", is("Tags must be one of: Sleep, Work, Exercise, Social, Mindfulness, Nutrition, Other")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void logMood_TooManyTagsError() throws Exception {
+        MoodLogRequest request = new MoodLogRequest();
+        request.setMoodScore(4);
+        request.setTags(List.of("Sleep", "Work", "Exercise", "Social", "Mindfulness", "Nutrition")); // 6 tags
+
+        mockMvc.perform(post("/api/mood/log")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Validation Failed")))
+                .andExpect(jsonPath("$.errors.tags", is("Maximum 5 tags per entry")));
     }
 
     @Test

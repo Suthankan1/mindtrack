@@ -48,6 +48,104 @@ interface WeeklyInsightsResponse {
   timeOfDay: TimeOfDayItem[];
 }
 
+type ToastState = {
+  message: string;
+  type: "success" | "error";
+} | null;
+
+const sanitizePdfText = (value: string) =>
+  value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const escapePdfText = (value: string) =>
+  sanitizePdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+
+const wrapPdfText = (text: string, maxLength = 92) => {
+  const words = sanitizePdfText(text).split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length > maxLength) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = nextLine;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+};
+
+const createWeeklyReportPdf = (insights: WeeklyInsightsResponse, userEmail?: string | null) => {
+  const createdAt = new Date();
+  const lines = [
+    { text: "MindTrack Weekly Insights Report", size: 20, gap: 28 },
+    { text: `Generated: ${createdAt.toLocaleString()}`, size: 10, gap: 16 },
+    { text: `Account: ${userEmail || "MindTrack user"}`, size: 10, gap: 26 },
+    { text: "Cognitive Analysis Insight", size: 14, gap: 20 },
+    ...wrapPdfText(insights.insight || "No AI insight is available yet.").map((text) => ({ text, size: 11, gap: 14 })),
+    { text: " ", size: 4, gap: 10 },
+    { text: "Mood Distribution", size: 14, gap: 20 },
+    ...(insights.moodDistribution.length
+      ? insights.moodDistribution.map((item) => ({
+          text: `${item.name}: ${item.value}% of logs, score ${item.score}/5`,
+          size: 11,
+          gap: 15,
+        }))
+      : [{ text: "No mood distribution data is available yet.", size: 11, gap: 15 }]),
+    { text: " ", size: 4, gap: 10 },
+    { text: "Mood Patterns by Hour", size: 14, gap: 20 },
+    ...(insights.timeOfDay.length
+      ? insights.timeOfDay.map((item) => ({
+          text: `${item.hourLabel}: average mood ${item.avgScore}/5`,
+          size: 11,
+          gap: 15,
+        }))
+      : [{ text: "No hourly pattern data is available yet.", size: 11, gap: 15 }]),
+  ];
+
+  let y = 760;
+  const stream = lines
+    .map((line) => {
+      if (y < 48) return null;
+      const command = `BT /F1 ${line.size} Tf 48 ${y} Td (${escapePdfText(line.text)}) Tj ET`;
+      y -= line.gap;
+      return command;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${offset.toString().padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+};
+
 export default function InsightsPage() {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
@@ -59,7 +157,7 @@ export default function InsightsPage() {
 
   // Interaction States
   const [isDownloading, setIsDownloading] = useState(false);
-  const [showToast, setShowToast] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -92,16 +190,36 @@ export default function InsightsPage() {
     }
   }, [status, fetchInsights]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (isDownloading) return;
+
+    if (!insights) {
+      setToast({ message: "Weekly insights are still loading. Please try again in a moment.", type: "error" });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+
     setIsDownloading(true);
-    
-    // Simulate premium PDF compilation & secure download
-    setTimeout(() => {
+
+    try {
+      const blob = createWeeklyReportPdf(insights, session?.user?.email);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `mindtrack-weekly-report-${new Date().toISOString().split("T")[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setToast({ message: "Weekly PDF report compiled and downloaded successfully!", type: "success" });
+    } catch (err: unknown) {
+      console.error("Weekly report download failure:", err);
+      setToast({ message: "Failed to compile and download the weekly PDF. Please try again.", type: "error" });
+    } finally {
       setIsDownloading(false);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
-    }, 2000);
+      setTimeout(() => setToast(null), 4000);
+    }
   };
 
   // Recharts Custom Tooltip for PieChart
@@ -177,15 +295,23 @@ export default function InsightsPage() {
     <div className="space-y-8 pb-10 subtle-mesh">
       {/* Dynamic encrypted download toast */}
       <AnimatePresence>
-        {showToast && (
+        {toast && (
           <motion.div
             initial={{ opacity: 0, y: 50, x: "-50%" }}
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: 20, x: "-50%" }}
-            className="fixed bottom-6 left-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-surface border border-accent-teal/30 text-white shadow-xl shadow-accent-teal/5 text-xs font-semibold"
+            className={`fixed bottom-6 left-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-surface text-white shadow-xl text-xs font-semibold ${
+              toast.type === "success"
+                ? "border border-accent-teal/30 shadow-accent-teal/5"
+                : "border border-accent-coral/30 shadow-accent-coral/5"
+            }`}
           >
-            <CheckCircle2 className="w-4 h-4 text-accent-teal animate-pulse" />
-            <span>Encrypted weekly PDF summary compiled & downloaded successfully!</span>
+            {toast.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-accent-teal animate-pulse" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-accent-coral animate-pulse" />
+            )}
+            <span>{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -312,10 +438,10 @@ export default function InsightsPage() {
                   </span>
                 </div>
 
-                <div className="relative w-full h-[280px] flex items-center justify-center">
+                <div className="relative w-full min-w-0 h-[280px] min-h-[280px] flex items-center justify-center">
                   {insights.moodDistribution.length > 0 ? (
                     <>
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <PieChart>
                           <RechartsTooltip content={<CustomPieTooltip />} />
                           <Pie
@@ -382,9 +508,9 @@ export default function InsightsPage() {
                   </span>
                 </div>
 
-                <div className="w-full h-[280px]">
+                <div className="w-full min-w-0 h-[280px] min-h-[280px]">
                   {insights.timeOfDay.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <BarChart data={insights.timeOfDay} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
                         <defs>
                           <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">

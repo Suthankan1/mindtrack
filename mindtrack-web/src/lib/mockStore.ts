@@ -7,6 +7,15 @@ export interface MoodEntry {
   tags: string[];
 }
 
+export interface UserStats {
+  totalEntries: number;
+  currentStreak: number;
+  longestStreak: number;
+  avgMoodScore: number;
+  avgMoodScoreThisWeek: number;
+  joinedDaysAgo: number;
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var mockMoodEntries: MoodEntry[] | undefined;
@@ -163,4 +172,60 @@ export function addMockEntry(moodScore: number, note: string, tags: string[]): M
   };
   global.mockMoodEntries = [newEntry, ...(global.mockMoodEntries || [])];
   return newEntry;
+}
+
+export function getMockStats(): UserStats {
+  initializeMockStore();
+  const entries = global.mockMoodEntries || [];
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+
+  const average = (items: MoodEntry[]) => {
+    if (items.length === 0) return 0;
+    const total = items.reduce((sum, entry) => sum + entry.moodScore, 0);
+    return Math.round((total / items.length) * 100) / 100;
+  };
+
+  const loggedDates = new Set(
+    entries.map((entry) => new Date(entry.timestamp).toISOString().slice(0, 10))
+  );
+
+  let currentStreak = 0;
+  const cursor = new Date(now);
+  while (loggedDates.has(cursor.toISOString().slice(0, 10))) {
+    currentStreak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  const sortedDates = Array.from(loggedDates).sort();
+  let longestStreak = 0;
+  let runningStreak = 0;
+  let previousDate: Date | null = null;
+
+  for (const dateString of sortedDates) {
+    const date = new Date(`${dateString}T00:00:00.000Z`);
+    if (
+      previousDate &&
+      Math.round((date.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24)) === 1
+    ) {
+      runningStreak += 1;
+    } else {
+      runningStreak = 1;
+    }
+
+    longestStreak = Math.max(longestStreak, runningStreak);
+    previousDate = date;
+  }
+
+  const weeklyEntries = entries.filter((entry) => new Date(entry.timestamp) >= sevenDaysAgo);
+
+  return {
+    totalEntries: entries.length,
+    currentStreak,
+    longestStreak,
+    avgMoodScore: average(entries),
+    avgMoodScoreThisWeek: average(weeklyEntries),
+    joinedDaysAgo: 42,
+  };
 }

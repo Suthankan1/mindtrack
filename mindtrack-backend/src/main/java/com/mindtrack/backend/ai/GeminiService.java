@@ -21,6 +21,9 @@ public class GeminiService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    @Value("${gemini.model:gemini-2.5-flash}")
+    private String model;
+
     private final WebClient webClient;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MS = 6 * 60 * 60 * 1000L; // 6 hours
@@ -71,9 +74,9 @@ public class GeminiService {
 
             GeminiResponse response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/gemini-1.5-flash:generateContent")
+                            .path("/v1beta/models/{model}:generateContent")
                             .queryParam("key", apiKey)
-                            .build())
+                            .build(model))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
                     .retrieve()
@@ -122,9 +125,9 @@ public class GeminiService {
 
             GeminiResponse response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/gemini-1.5-flash:generateContent")
+                            .path("/v1beta/models/{model}:generateContent")
                             .queryParam("key", apiKey)
-                            .build())
+                            .build(model))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
                     .retrieve()

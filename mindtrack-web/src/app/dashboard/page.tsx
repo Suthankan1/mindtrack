@@ -608,9 +608,9 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="flex-1 w-full h-[220px]">
+              <div className="flex-1 w-full min-w-0 h-[220px] min-h-[220px]">
                 {chartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <defs>
                         {/* Area Fill color gradient: low (#FF6B6B) to high (#00D2C8) */}

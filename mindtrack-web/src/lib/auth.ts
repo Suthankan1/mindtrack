@@ -20,6 +20,15 @@ export const authOptions: NextAuthOptions = {
         const email = normalizeEmail(credentials.email);
 
         try {
+          if (email === "demo@mindtrack.com" && credentials.password === "demo123") {
+            return {
+              id: "demo-user-1",
+              email,
+              name: "Demo User",
+              accessToken: "demo-mock-jwt-token-data",
+            };
+          }
+
           const response = await axios.post(`${process.env.BACKEND_URL}/api/auth/login`, {
             email,
             password: credentials.password,

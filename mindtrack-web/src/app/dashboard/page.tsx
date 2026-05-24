@@ -35,6 +35,15 @@ interface MoodEntryResponse {
   tags: string[];
 }
 
+interface UserStatsResponse {
+  totalEntries: number;
+  currentStreak: number;
+  longestStreak: number;
+  avgMoodScore: number;
+  avgMoodScoreThisWeek: number;
+  joinedDaysAgo: number;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   
@@ -43,6 +52,14 @@ export default function DashboardPage() {
   
   // Data State
   const [entries, setEntries] = useState<MoodEntryResponse[]>([]);
+  const [stats, setStats] = useState<UserStatsResponse>({
+    totalEntries: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    avgMoodScore: 0,
+    avgMoodScoreThisWeek: 0,
+    joinedDaysAgo: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -60,16 +77,31 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
+  const fetchUserStats = useCallback(async () => {
+    if (!session?.user?.accessToken) return;
+    const res = await axios.get("/api/user/stats", {
+      headers: {
+        Authorization: `Bearer ${session.user.accessToken}`,
+      },
+    });
+    setStats(res.data);
+    return res.data;
+  }, [session]);
+
   const fetchHistory = useCallback(async () => {
     if (!session?.user?.accessToken) return;
     setIsLoading(true);
     try {
-      const res = await axios.get("/api/mood/history?days=30", {
-        headers: {
-          Authorization: `Bearer ${session.user.accessToken}`,
-        },
-      });
-      setEntries(res.data);
+      const headers = {
+        Authorization: `Bearer ${session.user.accessToken}`,
+      };
+      
+      const [historyRes, statsData] = await Promise.all([
+        axios.get("/api/mood/history?days=30", { headers }).then(res => res.data),
+        fetchUserStats()
+      ]);
+      
+      setEntries(historyRes);
       setError(null);
     } catch (err: unknown) {
       console.error("Error loading mood history:", err);
@@ -80,7 +112,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, fetchUserStats]);
 
   // Re-fetch when authenticated
   useEffect(() => {
@@ -136,65 +168,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Calculations for StatsRow
-  const totalLogs = entries.length;
-  
-  const calculateCurrentStreak = (historyList: MoodEntryResponse[]) => {
-    if (!historyList || historyList.length === 0) return 0;
-    
-    const uniqueDates = new Set(
-      historyList.map(e => {
-        const d = new Date(e.timestamp);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      })
-    );
-    
-    let streak = 0;
-    const checkDate = new Date();
-    
-    const getFormattedDate = (date: Date) => {
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    };
-    
-    const todayStr = getFormattedDate(checkDate);
-    checkDate.setDate(checkDate.getDate() - 1);
-    const yesterdayStr = getFormattedDate(checkDate);
-    
-    if (!uniqueDates.has(todayStr) && !uniqueDates.has(yesterdayStr)) {
-      return 0; 
-    }
-    
-    const iterDate = new Date();
-    while (true) {
-      const dateStr = getFormattedDate(iterDate);
-      if (uniqueDates.has(dateStr)) {
-        streak++;
-        iterDate.setDate(iterDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return streak;
-  };
 
-  const calculateWeeklyAverage = (historyList: MoodEntryResponse[]) => {
-    if (!historyList || historyList.length === 0) return "0.0";
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const weeklyEntries = historyList.filter(e => new Date(e.timestamp) >= sevenDaysAgo);
-    
-    if (weeklyEntries.length === 0) {
-      const allAvg = historyList.reduce((sum, e) => sum + e.moodScore, 0) / historyList.length;
-      return allAvg.toFixed(1);
-    }
-    
-    const avg = weeklyEntries.reduce((sum, e) => sum + e.moodScore, 0) / weeklyEntries.length;
-    return avg.toFixed(1);
-  };
-
-  const streakCount = calculateCurrentStreak(entries);
-  const weeklyAvg = calculateWeeklyAverage(entries);
 
   // Format Recharts Chronological Data
   const chartData = [...entries]
@@ -399,7 +373,7 @@ export default function DashboardPage() {
       >
 
         {/* 2. StatsRow (Staggered Animation Component 1) */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           
           {/* Metric: Streak */}
           <div className="relative overflow-hidden p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] group hover:border-[#FF6B6B]/30 transition-all duration-300">
@@ -410,9 +384,9 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="text-4xl font-bold text-amber-400 tracking-tight font-display">
-                {streakCount}
+                {stats.currentStreak}
               </span>
-              <span className="text-xs text-muted">{streakCount === 1 ? "day" : "days"}</span>
+              <span className="text-xs text-muted">{stats.currentStreak === 1 ? "day" : "days"}</span>
             </div>
             <p className="text-[10px] text-muted mt-2">Consecutive daily journals logged.</p>
           </div>
@@ -426,7 +400,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="text-4xl font-bold text-accent-teal tracking-tight font-display">
-                {weeklyAvg}
+                {stats.avgMoodScoreThisWeek}
               </span>
               <span className="text-xs text-muted">/ 5.0</span>
             </div>
@@ -442,11 +416,27 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="text-4xl font-bold text-violet-400 tracking-tight font-display">
-                {totalLogs}
+                {stats.totalEntries}
               </span>
               <span className="text-xs text-muted">logs</span>
             </div>
             <p className="text-[10px] text-muted mt-2">All recorded entries in dashboard range.</p>
+          </div>
+
+          {/* Metric: Days Active */}
+          <div className="relative overflow-hidden p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] group hover:border-emerald-400/30 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-400/5 to-transparent blur-2xl rounded-full opacity-60 pointer-events-none" />
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Days Active</span>
+              <CalendarDays className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-emerald-400 tracking-tight font-display">
+                {stats.joinedDaysAgo}
+              </span>
+              <span className="text-xs text-muted">{stats.joinedDaysAgo === 1 ? "day" : "days"}</span>
+            </div>
+            <p className="text-[10px] text-muted mt-2">Days since joining MindTrack.</p>
           </div>
 
         </motion.div>

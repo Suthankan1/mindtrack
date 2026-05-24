@@ -1,8 +1,9 @@
 name: mindtrack_mobile
-description: "A new Flutter project."
+description: "MindTrack Mobile — AI-powered mood and stress tracking app for SDG 3 Good Health and Well-being. Built with Flutter."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+homepage: https://github.com/YOUR_USERNAME/mindtrack
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43

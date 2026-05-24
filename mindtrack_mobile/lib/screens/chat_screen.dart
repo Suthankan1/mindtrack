@@ -170,7 +170,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const SizedBox(width: 8),
             // Gemini-powered badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, py: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [

@@ -6,6 +6,7 @@ import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
+import com.mindtrack.backend.service.RateLimitingService;
 import com.mindtrack.backend.service.StreakService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,14 +28,17 @@ public class MoodController {
     private final UserRepository userRepository;
     private final MoodEntryRepository moodEntryRepository;
     private final StreakService streakService;
+    private final RateLimitingService rateLimitingService;
 
     public MoodController(
             UserRepository userRepository,
             MoodEntryRepository moodEntryRepository,
-            StreakService streakService) {
+            StreakService streakService,
+            RateLimitingService rateLimitingService) {
         this.userRepository = userRepository;
         this.moodEntryRepository = moodEntryRepository;
         this.streakService = streakService;
+        this.rateLimitingService = rateLimitingService;
     }
 
     @PostMapping("/log")
@@ -45,6 +49,13 @@ public class MoodController {
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        // Rate limiting: max 5 mood logs per hour per user
+        if (!rateLimitingService.tryConsume(user.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "Rate limit exceeded: maximum 5 mood logs per hour.");
+        }
 
         MoodEntry moodEntry = MoodEntry.builder()
                 .user(user)

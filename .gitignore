@@ -42,9 +42,13 @@ mindtrack_mobile/.flutter-plugins
 mindtrack_mobile/.flutter-plugins-dependencies
 mindtrack_mobile/.packages
 mindtrack_mobile/pubspec.lock
+build/
+**/build/
+**/.dart_tool/
+**/*.g.dart
+**/generated_plugin_registrant.dart
 
 # ─── Xcode / SPM build artifacts (should never appear at monorepo root) ───────
-build/
 SourcePackages/
 
 # ─── Misc ─────────────────────────────────────────────────────────────────────

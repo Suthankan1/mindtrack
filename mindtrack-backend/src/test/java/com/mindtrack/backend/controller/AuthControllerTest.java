@@ -59,7 +59,7 @@ public class AuthControllerTest {
     @Test
     void registerUser_Success() throws Exception {
         RegisterRequest request = new RegisterRequest();
-        request.setEmail("user@example.com");
+        request.setEmail("USER@Example.COM");
         request.setPassword("password123");
         request.setAnonymousMode(true);
 
@@ -72,6 +72,9 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.email", is("user@example.com")))
                 .andExpect(jsonPath("$.anonymousMode", is(true)))
                 .andExpect(jsonPath("$.userId", notNullValue()));
+
+        userRepository.findByEmail("user@example.com")
+                .orElseThrow(() -> new AssertionError("Expected normalized user email to be stored"));
     }
 
     @Test
@@ -84,7 +87,7 @@ public class AuthControllerTest {
         userRepository.save(existingUser);
 
         RegisterRequest request = new RegisterRequest();
-        request.setEmail("duplicate@example.com");
+        request.setEmail("Duplicate@Example.COM");
         request.setPassword("password123");
         request.setAnonymousMode(true);
 
@@ -120,7 +123,7 @@ public class AuthControllerTest {
         userRepository.save(user);
 
         LoginRequest request = new LoginRequest();
-        request.setEmail("testlogin@example.com");
+        request.setEmail("TestLogin@Example.COM");
         request.setPassword("secretPass");
 
         mockMvc.perform(post("/api/auth/login")

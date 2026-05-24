@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HexFormat;
+import java.util.Locale;
 
 @Component
 public class JwtTokenProvider {
@@ -30,7 +31,7 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + expirationTime);
 
         return Jwts.builder()
-                .subject(email)
+                .subject(normalizeEmail(email))
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -45,6 +46,10 @@ public class JwtTokenProvider {
                 .getPayload();
 
         return claims.getSubject();
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     public boolean validateToken(String token) {

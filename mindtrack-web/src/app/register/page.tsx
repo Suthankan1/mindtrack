@@ -18,6 +18,8 @@ import {
   EyeOff,
 } from "lucide-react";
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 export default function RegisterPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -40,11 +42,13 @@ export default function RegisterPage() {
   }, [status, router]);
 
   const validateForm = (): boolean => {
-    if (!email || !password || !confirmPassword) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail || !password || !confirmPassword) {
       setError("Please fill in all fields.");
       return false;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setError("Please enter a valid email address.");
       return false;
     }
@@ -67,16 +71,18 @@ export default function RegisterPage() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    const normalizedEmail = normalizeEmail(email);
+    setEmail(normalizedEmail);
 
     try {
       // Register with the backend
-      await axios.post("/api/register", { email, password, anonymousMode });
+      await axios.post("/api/register", { email: normalizedEmail, password, anonymousMode });
 
       setSuccess("Account created! Signing you in…");
 
       // Auto sign-in after successful registration
       const result = await signIn("credentials", {
-        email,
+        email: normalizedEmail,
         password,
         redirect: false,
       });
@@ -208,7 +214,7 @@ export default function RegisterPage() {
                   id="reg-email"
                   type="email"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                  onChange={(e) => { setEmail(e.target.value.toLowerCase()); setError(null); }}
                   placeholder="name@example.com"
                   required
                   autoComplete="email"

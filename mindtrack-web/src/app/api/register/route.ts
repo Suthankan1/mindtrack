@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
+const normalizeEmail = (value: unknown) =>
+  typeof value === "string" ? value.trim().toLowerCase() : value;
+
 /**
  * POST /api/register
  *
@@ -11,10 +14,14 @@ import axios from "axios";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const normalizedBody = {
+      ...body,
+      email: normalizeEmail(body?.email),
+    };
 
     const response = await axios.post(
       `${process.env.BACKEND_URL}/api/auth/register`,
-      body,
+      normalizedBody,
       {
         headers: { "Content-Type": "application/json" },
       }

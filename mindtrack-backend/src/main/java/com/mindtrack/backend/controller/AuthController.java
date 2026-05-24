@@ -18,6 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Locale;
+
 /**
  * REST controller that exposes authentication endpoints for MindTrack users.
  *
@@ -70,14 +72,16 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+        String email = normalizeEmail(registerRequest.getEmail());
+
+        if (userRepository.existsByEmail(email)) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("Email address is already in use"));
         }
 
         User user = User.builder()
-                .email(registerRequest.getEmail())
+                .email(email)
                 .passwordHash(passwordEncoder.encode(registerRequest.getPassword()))
                 .anonymousMode(registerRequest.isAnonymousMode())
                 .build();
@@ -110,16 +114,18 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {
+            String email = normalizeEmail(loginRequest.getEmail());
+
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getEmail(),
+                            email,
                             loginRequest.getPassword()
                     )
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            User user = userRepository.findByEmail(loginRequest.getEmail())
+            User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new BadCredentialsException("User not found"));
 
             String jwt = tokenProvider.generateToken(user.getEmail());
@@ -138,6 +144,10 @@ public class AuthController {
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("Invalid email or password"));
         }
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     /**

@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.Locale;
+
 @Data
 public class RegisterRequest {
 
@@ -17,4 +19,8 @@ public class RegisterRequest {
     private String password;
 
     private boolean anonymousMode;
+
+    public void setEmail(String email) {
+        this.email = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
 }

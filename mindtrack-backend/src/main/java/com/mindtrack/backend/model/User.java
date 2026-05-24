@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
@@ -35,4 +36,18 @@ public class User {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public void setEmail(String email) {
+        this.email = normalizeEmail(email);
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalizeEmailBeforeSave() {
+        this.email = normalizeEmail(email);
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
 }

@@ -2,6 +2,8 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -15,9 +17,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing email or password");
         }
 
+        const email = normalizeEmail(credentials.email);
+
         try {
           const response = await axios.post(`${process.env.BACKEND_URL}/api/auth/login`, {
-            email: credentials.email,
+            email,
             password: credentials.password,
           });
 

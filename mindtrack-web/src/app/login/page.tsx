@@ -7,6 +7,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, AlertTriangle, ArrowRight, BrainCircuit, Sparkles } from "lucide-react";
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 export default function LoginPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -32,10 +34,11 @@ export default function LoginPage() {
 
     setIsLoading(true);
     setError(null);
+    const normalizedEmail = normalizeEmail(email);
 
     try {
       const result = await signIn("credentials", {
-        email,
+        email: normalizedEmail,
         password,
         redirect: false,
       });
@@ -127,7 +130,7 @@ export default function LoginPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
                   placeholder="name@example.com"
                   required
                   className="auth-input w-full pl-11 pr-4 py-3 border border-white/20 focus:border-accent-teal rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-teal/30 transition-all duration-300 shadow-sm"

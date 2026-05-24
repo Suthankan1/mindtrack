@@ -1,3 +1,6 @@
+/**
+ * MindTrack Web Dashboard — Next.js 14 frontend for mood tracking analytics.
+ */
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { Providers } from "./providers";

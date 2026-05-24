@@ -1,3 +1,4 @@
+// MindTrack Mobile — Flutter app for daily mood check-ins and breathing exercises. SDG 3 Good Health and Well-being.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'navigation/app_router.dart';

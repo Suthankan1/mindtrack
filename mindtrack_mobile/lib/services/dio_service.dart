@@ -130,7 +130,6 @@ class DioService {
 
     return false;
   }
-
   /// Ensures a valid authentication token exists before making secure calls.
   Future<void> ensureAuthenticated() async {
     if (_token != null) return;
@@ -145,6 +144,69 @@ class DioService {
         'DioService: Failed to establish automatic secure handshake.',
       );
     }
+  }
+
+  /// Public sign in method
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/login',
+        data: {'email': email, 'password': password},
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        _token = data['accessToken'] as String?;
+        if (_token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_kTokenKey, _token!);
+        }
+        return data;
+      }
+      throw Exception('Login failed: Invalid server response.');
+    } on DioException catch (e) {
+      final msg = e.response?.data != null && e.response?.data is Map
+          ? (e.response?.data['message'] ?? 'Invalid email or password')
+          : 'Failed to connect to authentication server.';
+      throw Exception(msg);
+    }
+  }
+
+  /// Public registration method
+  Future<Map<String, dynamic>> register(String email, String password, {bool anonymousMode = false}) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/register',
+        data: {
+          'email': email,
+          'password': password,
+          'anonymousMode': anonymousMode,
+        },
+      );
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        _token = data['accessToken'] as String?;
+        if (_token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_kTokenKey, _token!);
+        }
+        return data;
+      }
+      throw Exception('Registration failed: Invalid server response.');
+    } on DioException catch (e) {
+      final msg = e.response?.data != null && e.response?.data is Map
+          ? (e.response?.data['message'] ?? 'Registration failed')
+          : 'Failed to connect to authentication server.';
+      throw Exception(msg);
+    }
+  }
+
+  /// Clear token (Logout)
+  Future<void> logout() async {
+    _token = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kTokenKey);
   }
 
   /// Fetches today's mood logs.

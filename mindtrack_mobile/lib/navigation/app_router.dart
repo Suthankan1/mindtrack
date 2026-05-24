@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/home_screen.dart';
 import '../screens/journal_screen.dart';
 import '../screens/breathe_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/onboarding_screen.dart';
+import '../screens/login_screen.dart';
+import '../screens/register_screen.dart';
+import '../theme/app_theme.dart';
 import 'bottom_nav_bar.dart';
 
 // Navigator Keys for proper routing control
@@ -23,9 +28,34 @@ final GlobalKey<NavigatorState> _profileNavigatorKey =
 class AppRouter {
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/home',
+    initialLocation: '/',
     debugLogDiagnostics: true,
     routes: [
+      // Entry point / splash route
+      GoRoute(
+        path: '/',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SplashScreen(),
+      ),
+
+      // Auth & Onboarding routes
+      GoRoute(
+        path: '/onboarding',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const RegisterScreen(),
+      ),
+
+      // App Shell Branch Navigation
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return Scaffold(
@@ -94,4 +124,91 @@ class AppRouter {
       ),
     ],
   );
+}
+
+/// A breathtaking entry loading splash screen that coordinates initial routing
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkRoutingGuard();
+  }
+
+  Future<void> _checkRoutingGuard() async {
+    // Add a premium 1.2s delay to feel deliberate and present the brand
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+    final token = prefs.getString('auth_jwt_token');
+
+    if (!mounted) return;
+
+    if (!onboardingCompleted) {
+      context.go('/onboarding');
+    } else if (token == null) {
+      context.go('/login');
+    } else {
+      context.go('/home');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo with premium Cyber-neon glow and typography
+            Text(
+              'mindtrack',
+              style: theme.textTheme.displayMedium?.copyWith(
+                color: AppColors.primaryColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 42,
+                letterSpacing: -0.8,
+                shadows: [
+                  Shadow(
+                    color: AppColors.primaryColor.withValues(alpha: 0.35),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your Cosmic Emotional Pulse',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+                letterSpacing: 1.0,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 48),
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: AppColors.primaryColor,
+                strokeWidth: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

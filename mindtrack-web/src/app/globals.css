@@ -39,6 +39,12 @@
     caret-color: #00D2C8;
   }
 
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+
   /* Fix: override browser autofill background that makes text invisible */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
@@ -48,6 +54,29 @@
     -webkit-text-fill-color: #F3F4F6 !important;
     caret-color: #00D2C8;
     transition: background-color 9999s ease-in-out 0s;
+  }
+}
+
+@layer components {
+  .auth-input {
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    caret-color: var(--accent-teal) !important;
+  }
+
+  .auth-input::placeholder {
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
+    opacity: 1;
+  }
+
+  .auth-input:-webkit-autofill,
+  .auth-input:-webkit-autofill:hover,
+  .auth-input:-webkit-autofill:focus,
+  .auth-input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 40px #0A0A14 inset !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    caret-color: var(--accent-teal) !important;
   }
 }
 

@@ -212,7 +212,7 @@ export default function RegisterPage() {
                   placeholder="name@example.com"
                   required
                   autoComplete="email"
-                  className="w-full pl-11 pr-4 py-3 bg-background/50 border border-white/5 focus:border-accent-teal/50 rounded-xl text-sm placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/30 transition-all duration-300"
+                  className="auth-input w-full pl-11 pr-4 py-3 bg-background/50 border border-white/5 focus:border-accent-teal/50 rounded-xl text-sm text-white caret-accent-teal placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/30 transition-all duration-300"
                 />
               </div>
             </div>
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                   placeholder="Min. 6 characters"
                   required
                   autoComplete="new-password"
-                  className="w-full pl-11 pr-11 py-3 bg-background/50 border border-white/5 focus:border-accent-teal/50 rounded-xl text-sm placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/30 transition-all duration-300"
+                  className="auth-input w-full pl-11 pr-11 py-3 bg-background/50 border border-white/5 focus:border-accent-teal/50 rounded-xl text-sm text-white caret-accent-teal placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/30 transition-all duration-300"
                 />
                 <button
                   type="button"
@@ -282,7 +282,7 @@ export default function RegisterPage() {
                   placeholder="Re-enter password"
                   required
                   autoComplete="new-password"
-                  className={`w-full pl-11 pr-11 py-3 bg-background/50 border rounded-xl text-sm placeholder-muted focus:outline-none focus:ring-1 transition-all duration-300 ${
+                  className={`auth-input w-full pl-11 pr-11 py-3 bg-background/50 border rounded-xl text-sm text-white caret-accent-teal placeholder-muted focus:outline-none focus:ring-1 transition-all duration-300 ${
                     confirmPassword && confirmPassword !== password
                       ? "border-accent-coral/40 focus:ring-accent-coral/30 focus:border-accent-coral/50"
                       : confirmPassword && confirmPassword === password

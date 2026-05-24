@@ -13,6 +13,7 @@ const config: Config = {
         foreground: "var(--foreground)",
         surface: "var(--surface)",
         elevated: "var(--elevated)",
+        muted: "var(--muted)",
         "accent-coral": "var(--accent-coral)",
         "accent-teal": "var(--accent-teal)",
       },

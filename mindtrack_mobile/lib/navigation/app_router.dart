@@ -30,6 +30,16 @@ class AppRouter {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: true,
+    redirect: (context, state) async {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_jwt_token');
+      final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register' ||
+          state.matchedLocation == '/onboarding' ||
+          state.matchedLocation == '/';
+      if (token == null && !isAuthRoute) return '/login';
+      return null;
+    },
     routes: [
       // Entry point / splash route
       GoRoute(

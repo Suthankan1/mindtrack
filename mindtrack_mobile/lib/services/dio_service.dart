@@ -43,6 +43,15 @@ class DioService {
           }
           return handler.next(options);
         },
+        onError: (DioException e, handler) async {
+          if ((e.response?.statusCode == 401 || e.response?.statusCode == 403) &&
+              !e.requestOptions.path.contains('/api/auth') &&
+              _token != null) {
+            await logout();
+            throw Exception('Session expired. Please log in again.');
+          }
+          return handler.next(e);
+        },
       ),
     );
   }

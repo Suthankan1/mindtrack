@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mindtrack_mobile/main.dart';
 import 'package:mindtrack_mobile/navigation/bottom_nav_bar.dart';
 import 'package:mindtrack_mobile/providers/mood_provider.dart';
@@ -25,6 +26,13 @@ class FakeMoodHistoryNotifier extends MoodHistoryNotifier {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({
+      'onboarding_completed': true,
+      'auth_jwt_token': 'fake_token',
+    });
+  });
+
   testWidgets('Sanctuary App Bootstrapping and Custom Nav Rendering Smoke Test', (WidgetTester tester) async {
     // Build our app wrapped in ProviderScope with mocked notifier overrides
     await tester.pumpWidget(

@@ -477,7 +477,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     // Notification toggle settings tile
                     _buildSettingItem(
-                      context: context,
                       icon: Icons.notifications_none,
                       title: 'Breathing Reminders',
                       trailing: Switch(
@@ -489,7 +488,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     // Light/Dark Theme toggle settings tile
                     _buildSettingItem(
-                      context: context,
                       icon: isLightTheme ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
                       title: isLightTheme ? 'Light Mode Active' : 'Dark Mode Active',
                       trailing: Switch(
@@ -503,7 +501,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     // Export data placeholder tile
                     _buildSettingItem(
-                      context: context,
                       icon: Icons.ios_share_outlined,
                       title: 'Export Sanctuary Data',
                       trailing: const Icon(
@@ -525,7 +522,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     // Sign Out Settings Tile
                     _buildSettingItem(
-                      context: context,
                       icon: Icons.logout_outlined,
                       title: 'Sign Out',
                       trailing: const Icon(
@@ -537,14 +533,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         // Call DioService logout
                         await ref.read(dioServiceProvider).logout();
                         
-                        // Clear user email and display name from SharedPreferences
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.remove('user_email');
-                        await prefs.remove('user_display_name');
-                        await prefs.remove('user_join_date');
+                        // Clear all providers
+                        ref.invalidate(todayMoodProvider);
+                        ref.invalidate(moodHistoryProvider);
                         
                         // Navigate to /login via go_router
-                        if (mounted) {
+                        if (context.mounted) {
                           context.go('/login');
                         }
                       },
@@ -795,7 +789,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildSettingItem({
-    required BuildContext context,
     required IconData icon,
     required String title,
     required Widget trailing,

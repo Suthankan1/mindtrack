@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
+import '../services/dio_service.dart';
 import '../widgets/constellation_canvas.dart';
 import '../widgets/custom_score_slider.dart';
 
@@ -471,7 +472,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
 /// In collapsed state shows a 2-line preview of the note and a score pill.
 /// Tapping expands the card to reveal the full note body and associated tags.
 // Expandable Card for individual journal entry
-class _ExpandableJournalEntryCard extends StatefulWidget {
+class _ExpandableJournalEntryCard extends ConsumerStatefulWidget {
   final MoodEntry entry;
   final String formattedDate;
   final Color scoreColor;
@@ -483,15 +484,20 @@ class _ExpandableJournalEntryCard extends StatefulWidget {
   });
 
   @override
-  State<_ExpandableJournalEntryCard> createState() =>
+  ConsumerState<_ExpandableJournalEntryCard> createState() =>
       _ExpandableJournalEntryCardState();
 }
 
 class _ExpandableJournalEntryCardState
-    extends State<_ExpandableJournalEntryCard>
+    extends ConsumerState<_ExpandableJournalEntryCard>
     with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late AnimationController _rotationController;
+
+  // AI Sentiment state variables
+  bool _isAnalyzing = false;
+  Map<String, dynamic>? _sentimentResult;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -517,6 +523,216 @@ class _ExpandableJournalEntryCardState
         _rotationController.reverse();
       }
     });
+  }
+
+  Future<void> _analyzeSentiment() async {
+    setState(() {
+      _isAnalyzing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final result = await dio.getSentimentAnalysis(widget.entry.id.toString().toLowerCase());
+      setState(() {
+        _sentimentResult = result;
+        _isAnalyzing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isAnalyzing = false;
+      });
+    }
+  }
+
+  Widget _buildShimmerLoading() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceColor.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderOverlay.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 80,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppColors.borderOverlay.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 60,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppColors.borderOverlay.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            height: 14,
+            decoration: BoxDecoration(
+              color: AppColors.borderOverlay.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(7),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 200,
+            height: 14,
+            decoration: BoxDecoration(
+              color: AppColors.borderOverlay.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSentimentResultCard() {
+    final sentiment = (_sentimentResult!['sentiment'] ?? 'neutral').toString().toLowerCase();
+    final tone = _sentimentResult!['emotionalTone'] ?? 'neutral';
+    final supportMessage = _sentimentResult!['supportMessage'] ?? '';
+    final themes = List<String>.from(_sentimentResult!['themes'] ?? []);
+
+    Color sentimentColor = AppColors.textMuted;
+    if (sentiment == 'positive') {
+      sentimentColor = AppColors.primaryColor;
+    } else if (sentiment == 'negative') {
+      sentimentColor = AppColors.errorColor;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // Sentiment Pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: sentimentColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: sentimentColor.withOpacity(0.35),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    sentiment == 'positive'
+                        ? Icons.mood_rounded
+                        : sentiment == 'negative'
+                            ? Icons.mood_bad_rounded
+                            : Icons.sentiment_neutral_rounded,
+                    color: sentimentColor,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    sentiment.toUpperCase(),
+                    style: TextStyle(
+                      color: sentimentColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Tone Pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.borderOverlay,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.borderOverlay.withOpacity(0.8),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                tone.toString().toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (themes.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: themes.map((theme) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.borderOverlay.withOpacity(0.4),
+                  ),
+                ),
+                child: Text(
+                  '#$theme',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+        if (supportMessage.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: sentimentColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: sentimentColor.withOpacity(0.15),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              supportMessage,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 12.5,
+                height: 1.45,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -666,6 +882,57 @@ class _ExpandableJournalEntryCardState
                               );
                             }).toList(),
                           ),
+                        ],
+                        // AI Sentiment Analysis Section
+                        if (widget.entry.note.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          const Divider(color: AppColors.borderOverlay, height: 1),
+                          const SizedBox(height: 16),
+                          if (_sentimentResult == null && !_isAnalyzing) ...[
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: _analyzeSentiment,
+                                icon: const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: AppColors.primaryColor,
+                                  size: 16,
+                                ),
+                                label: const Text(
+                                  'Analyze Vibe with AI',
+                                  style: TextStyle(
+                                    color: AppColors.primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  backgroundColor: AppColors.primaryColor.withOpacity(0.08),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: AppColors.primaryColor.withOpacity(0.2),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: AppColors.errorColor,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
+                          ] else if (_isAnalyzing) ...[
+                            _buildShimmerLoading(),
+                          ] else if (_sentimentResult != null) ...[
+                            _buildSentimentResultCard(),
+                          ],
                         ],
                       ],
                     ),

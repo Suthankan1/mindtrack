@@ -50,8 +50,35 @@ export default function JournalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successFeedback, setSuccessFeedback] = useState(false);
 
+  // AI Sentiment States
+  const [sentimentResults, setSentimentResults] = useState<Record<string, any>>({});
+  const [analyzingIds, setAnalyzingIds] = useState<Record<string, boolean>>({});
+  const [sentimentErrors, setSentimentErrors] = useState<Record<string, string>>({});
+
   // Constants
   const availableTags = ["Sleep", "Work", "Exercise", "Social", "Mindfulness", "Nutrition"];
+
+  const handleAnalyzeSentiment = async (entryId: string) => {
+    if (!session?.user?.accessToken) return;
+    
+    setAnalyzingIds(prev => ({ ...prev, [entryId]: true }));
+    setSentimentErrors(prev => ({ ...prev, [entryId]: "" }));
+
+    try {
+      const res = await axios.get(`/api/ai/sentiment/${entryId}`, {
+        headers: {
+          Authorization: `Bearer ${session.user.accessToken}`,
+        },
+      });
+      setSentimentResults(prev => ({ ...prev, [entryId]: res.data }));
+    } catch (err: any) {
+      console.error(`Error analyzing sentiment for entry ${entryId}:`, err);
+      const errMsg = err.response?.data?.error || err.message || "Failed to analyze vibe.";
+      setSentimentErrors(prev => ({ ...prev, [entryId]: errMsg }));
+    } finally {
+      setAnalyzingIds(prev => ({ ...prev, [entryId]: false }));
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -718,6 +745,99 @@ export default function JournalPage() {
                               <p className="text-xs text-gray-300 leading-relaxed font-sans pr-4">
                                 {entry.note}
                               </p>
+
+                              {/* AI Sentiment Analysis Section */}
+                              {entry.note && entry.note.trim().length > 0 && (
+                                <div className="space-y-3 pt-1">
+                                  {!sentimentResults[entry.id] && !analyzingIds[entry.id] ? (
+                                    <div className="flex flex-col items-start gap-2">
+                                      <button
+                                        onClick={() => handleAnalyzeSentiment(entry.id)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-teal/5 hover:bg-accent-teal/15 border border-accent-teal/20 hover:border-accent-teal/40 text-[10px] font-bold text-accent-teal uppercase tracking-wider active:scale-[0.98] transition-all"
+                                      >
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        Analyze Vibe
+                                      </button>
+                                      {sentimentErrors[entry.id] && (
+                                        <p className="text-[10px] text-accent-coral font-medium">
+                                          {sentimentErrors[entry.id]}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : analyzingIds[entry.id] ? (
+                                    /* Loading skeleton shimmer */
+                                    <div className="p-3.5 rounded-xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
+                                      <div className="flex gap-2">
+                                        <div className="h-4 w-16 bg-white/5 rounded-lg" />
+                                        <div className="h-4 w-12 bg-white/5 rounded-lg" />
+                                      </div>
+                                      <div className="h-3 w-full bg-white/5 rounded" />
+                                      <div className="h-3 w-3/4 bg-white/5 rounded" />
+                                    </div>
+                                  ) : (
+                                    /* Sentiment Analysis Result with smooth framer-motion reveal */
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ duration: 0.35, ease: "easeOut" }}
+                                      className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-white/[0.03] space-y-3"
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {/* Sentiment Pill */}
+                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 ${
+                                          sentimentResults[entry.id].sentiment === "positive"
+                                            ? "bg-accent-teal/10 border-accent-teal/30 text-accent-teal"
+                                            : sentimentResults[entry.id].sentiment === "negative"
+                                              ? "bg-accent-coral/10 border-accent-coral/30 text-accent-coral"
+                                              : "bg-gray-500/10 border-gray-500/30 text-gray-400"
+                                        }`}>
+                                          <Sparkles className="w-2.5 h-2.5" />
+                                          {sentimentResults[entry.id].sentiment}
+                                        </span>
+
+                                        {/* Tone Pill */}
+                                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white">
+                                          Tone: {sentimentResults[entry.id].emotionalTone}
+                                        </span>
+                                        
+                                        {/* Confidence Pill */}
+                                        {sentimentResults[entry.id].confidence > 0 && (
+                                          <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold text-muted bg-white/[0.02]">
+                                            Confidence: {Math.round(sentimentResults[entry.id].confidence * 100)}%
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Key Themes as chips */}
+                                      {sentimentResults[entry.id].themes && sentimentResults[entry.id].themes.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {sentimentResults[entry.id].themes.map((theme: string) => (
+                                            <span
+                                              key={theme}
+                                              className="px-1.5 py-0.5 rounded bg-white/[0.02] border border-white/[0.04] text-[8px] font-medium text-muted uppercase"
+                                            >
+                                              #{theme}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {/* Support Message */}
+                                      {sentimentResults[entry.id].supportMessage && (
+                                        <div className={`p-3 rounded-xl text-xs font-sans italic border ${
+                                          sentimentResults[entry.id].sentiment === "positive"
+                                            ? "bg-accent-teal/5 border-accent-teal/10 text-accent-teal/90"
+                                            : sentimentResults[entry.id].sentiment === "negative"
+                                              ? "bg-accent-coral/5 border-accent-coral/10 text-accent-coral/90"
+                                              : "bg-white/[0.02] border-white/5 text-gray-300/90"
+                                        }`}>
+                                          "{sentimentResults[entry.id].supportMessage}"
+                                        </div>
+                                      )}
+                                    </motion.div>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Tags */}
                               {entry.tags && entry.tags.length > 0 && (

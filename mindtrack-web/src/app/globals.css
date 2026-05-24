@@ -1,0 +1,103 @@
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@300,400,500,600,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0A0A14;
+  --foreground: #F3F4F6;
+  --surface: #12122A;
+  --elevated: #1C1C3A;
+  --accent-coral: #FF6B6B;
+  --accent-teal: #00D2C8;
+  --muted: #9CA3AF;
+  
+  --font-display: 'Clash Display', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--elevated);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-teal);
+}
+
+/* Premium Visual Elements */
+.glass-card {
+  background: rgba(18, 18, 42, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-elevated {
+  background: rgba(28, 28, 58, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glow-card-teal {
+  position: relative;
+}
+
+.glow-card-teal::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(0, 210, 200, 0.2), transparent, rgba(255, 107, 107, 0.1));
+  z-index: -1;
+  pointer-events: none;
+}
+
+.glow-card-coral {
+  position: relative;
+}
+
+.glow-card-coral::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), transparent, rgba(0, 210, 200, 0.1));
+  z-index: -1;
+  pointer-events: none;
+}
+
+.subtle-mesh {
+  background-image: 
+    radial-gradient(at 10% 20%, rgba(0, 210, 200, 0.03) 0px, transparent 50%),
+    radial-gradient(at 90% 80%, rgba(255, 107, 107, 0.03) 0px, transparent 50%);
+}

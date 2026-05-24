@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mindtrack.backend.dto.LoginRequest;
 import com.mindtrack.backend.dto.RegisterRequest;
 import com.mindtrack.backend.model.User;
+import com.mindtrack.backend.repository.MoodEntryRepository;
+import com.mindtrack.backend.repository.StreakRepository;
+import com.mindtrack.backend.repository.StressPatternRepository;
 import com.mindtrack.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,15 @@ public class AuthControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private MoodEntryRepository moodEntryRepository;
+
+    @Autowired
+    private StreakRepository streakRepository;
+
+    @Autowired
+    private StressPatternRepository stressPatternRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -38,6 +50,9 @@ public class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
+        stressPatternRepository.deleteAll();
+        streakRepository.deleteAll();
+        moodEntryRepository.deleteAll();
         userRepository.deleteAll();
     }
 

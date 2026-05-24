@@ -61,6 +61,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await prefs.setBool('onboarding_completed', true);
       // Store the optional name locally for profile personalization if needed
       await prefs.setString('user_display_name', _nameController.text.trim());
+      await prefs.setString('user_email', _emailController.text.trim());
+      if (prefs.getString('user_join_date') == null) {
+        await prefs.setString('user_join_date', DateTime.now().toIso8601String());
+      }
 
       if (!mounted) return;
       context.go('/home');

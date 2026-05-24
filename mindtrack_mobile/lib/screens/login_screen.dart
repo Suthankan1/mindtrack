@@ -52,6 +52,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Mark onboarding as completed just in case
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
+      
+      // Save profile info for personalized profile screen
+      final emailVal = _emailController.text.trim();
+      await prefs.setString('user_email', emailVal);
+      if (prefs.getString('user_display_name') == null) {
+        // Fallback display name from email prefix
+        final namePart = emailVal.split('@').first;
+        final capitalized = namePart.isNotEmpty 
+            ? '${namePart[0].toUpperCase()}${namePart.substring(1)}'
+            : 'Cosmic Practitioner';
+        await prefs.setString('user_display_name', capitalized);
+      }
+      if (prefs.getString('user_join_date') == null) {
+        await prefs.setString('user_join_date', DateTime.now().toIso8601String());
+      }
 
       if (!mounted) return;
       context.go('/home');
@@ -88,6 +103,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
+
+      // Save anonymous profile info
+      await prefs.setString('user_email', anonEmail);
+      await prefs.setString('user_display_name', 'Cosmic Traveler');
+      if (prefs.getString('user_join_date') == null) {
+        await prefs.setString('user_join_date', DateTime.now().toIso8601String());
+      }
 
       if (!mounted) return;
       context.go('/home');

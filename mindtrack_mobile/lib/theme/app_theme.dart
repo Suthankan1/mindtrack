@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Cosmic Calm theme colors
 class AppColors {
@@ -97,17 +98,129 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData get cosmicCalmLight {
+    final baseTextTheme = GoogleFonts.dmSansTextTheme(
+      ThemeData.light().textTheme,
+    );
+
+    final customizedTextTheme = baseTextTheme.copyWith(
+      displayLarge: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.5,
+        color: Color(0xFF0A0A14),
+      ),
+      displayMedium: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.5,
+        color: Color(0xFF0A0A14),
+      ),
+      displaySmall: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF0A0A14),
+      ),
+      headlineLarge: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.2,
+        color: Color(0xFF0A0A14),
+      ),
+      headlineMedium: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF0A0A14),
+      ),
+      headlineSmall: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF0A0A14),
+      ),
+      titleLarge: const TextStyle(
+        fontFamily: 'ClashDisplay',
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF0A0A14),
+      ),
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF4F6FC),
+      primaryColor: const Color(0xFF009C94),
+      cardColor: const Color(0xFFFFFFFF),
+      dividerColor: const Color(0xFFE0E4F2),
+
+      colorScheme: const ColorScheme.light(
+        surface: Color(0xFFFFFFFF),
+        primary: Color(0xFF009C94),
+        error: Color(0xFFFF4D4D),
+        onSurface: Color(0xFF0A0A14),
+        onPrimary: Colors.white,
+      ),
+
+      textTheme: customizedTextTheme,
+
+      cardTheme: const CardThemeData(
+        color: Color(0xFFFFFFFF),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+          side: BorderSide(color: Color(0xFFE0E4F2), width: 1),
+        ),
+      ),
+
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFFE4E8F5),
+        selectedItemColor: Color(0xFF009C94),
+        unselectedItemColor: Color(0xFF8B8BBA),
+        elevation: 8,
+      ),
+    );
+  }
 }
 
 /// Modernized Riverpod 3.x Notifier to manage active theme state
 class ThemeNotifier extends Notifier<ThemeData> {
   @override
   ThemeData build() {
-    // Return the initial state
+    _loadTheme();
+    // Return standard dark theme on synchronous build to avoid splash flicker
     return AppTheme.cosmicCalm;
   }
 
-  /// Toggle or apply a custom theme state (supports expansions later)
+  Future<void> _loadTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isLight = prefs.getBool('theme_light_mode') ?? false;
+      if (isLight) {
+        state = AppTheme.cosmicCalmLight;
+      } else {
+        state = AppTheme.cosmicCalm;
+      }
+    } catch (e) {
+      debugPrint('ThemeNotifier: Failed to load theme preference: $e');
+    }
+  }
+
+  /// Toggle between Dark and Light mode, persisting preference in SharedPreferences
+  Future<void> toggleTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (state.brightness == Brightness.dark) {
+        state = AppTheme.cosmicCalmLight;
+        await prefs.setBool('theme_light_mode', true);
+      } else {
+        state = AppTheme.cosmicCalm;
+        await prefs.setBool('theme_light_mode', false);
+      }
+    } catch (e) {
+      debugPrint('ThemeNotifier: Failed to save theme preference: $e');
+    }
+  }
+
   void setCosmicCalm() {
     state = AppTheme.cosmicCalm;
   }

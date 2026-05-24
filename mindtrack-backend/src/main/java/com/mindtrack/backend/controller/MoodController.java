@@ -1,5 +1,6 @@
 package com.mindtrack.backend.controller;
 
+import com.mindtrack.backend.ai.GeminiService;
 import com.mindtrack.backend.dto.MoodEntryResponse;
 import com.mindtrack.backend.dto.MoodLogRequest;
 import com.mindtrack.backend.model.MoodEntry;
@@ -39,6 +40,7 @@ public class MoodController {
     private final MoodEntryRepository moodEntryRepository;
     private final StreakService streakService;
     private final RateLimitingService rateLimitingService;
+    private final GeminiService geminiService;
 
     /**
      * Constructs the {@code MoodController} with all required dependencies.
@@ -47,16 +49,19 @@ public class MoodController {
      * @param moodEntryRepository repository for mood entry persistence and queries
      * @param streakService       service to update the user's check-in streak
      * @param rateLimitingService Bucket4j-based rate limiter (max 5 logs/hour per user)
+     * @param geminiService       service for AI insights and crisis response
      */
     public MoodController(
             UserRepository userRepository,
             MoodEntryRepository moodEntryRepository,
             StreakService streakService,
-            RateLimitingService rateLimitingService) {
+            RateLimitingService rateLimitingService,
+            GeminiService geminiService) {
         this.userRepository = userRepository;
         this.moodEntryRepository = moodEntryRepository;
         this.streakService = streakService;
         this.rateLimitingService = rateLimitingService;
+        this.geminiService = geminiService;
     }
 
     /**
@@ -100,7 +105,27 @@ public class MoodController {
         // Update user streak on mood check-in
         streakService.updateStreak(user);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(MoodEntryResponse.fromEntity(savedEntry));
+        MoodEntryResponse response = MoodEntryResponse.fromEntity(savedEntry);
+        if (isCrisisRisk(user)) {
+            String prompt = """
+            You are a compassionate mental health companion. A user has been experiencing
+            consistently low mood (score 1-2 out of 5) for 3 or more days.
+
+            Write a short, warm, non-clinical message that:
+            1. Acknowledges that they are going through a difficult time
+            2. Reminds them they are not alone
+            3. Gently encourages them to reach out to a professional or someone they trust
+            4. Does NOT diagnose, does NOT use clinical terms, does NOT be dismissive
+
+            Maximum 4 sentences. Tone: like a caring friend, not a doctor or therapist.
+            Do NOT mention suicide or self-harm. Keep it hopeful.
+            """;
+            String rawResponse = geminiService.generateInsight(prompt);
+            response.setCrisisAlert(true);
+            response.setCrisisMessage(rawResponse);
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -156,5 +181,14 @@ public class MoodController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responses);
+    }
+
+    private boolean isCrisisRisk(User user) {
+        // Get last 3 days of entries
+        LocalDateTime threeDaysAgo = LocalDateTime.now().minusDays(3);
+        List<MoodEntry> recentEntries = moodEntryRepository.findByUserAndTimestampAfterOrderByTimestampDesc(user, threeDaysAgo);
+        if (recentEntries.size() < 3) return false;
+        double avg = recentEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(5.0);
+        return avg <= 1.5; // Average of 1-2 for 3+ consecutive days
     }
 }

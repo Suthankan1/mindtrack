@@ -21,6 +21,8 @@ public class MoodEntryResponse {
     private String note;
     private LocalDateTime timestamp;
     private List<String> tags;
+    private boolean crisisAlert;
+    private String crisisMessage;
 
     public static MoodEntryResponse fromEntity(MoodEntry entry) {
         if (entry == null) {
@@ -33,6 +35,8 @@ public class MoodEntryResponse {
                 .note(entry.getNote())
                 .timestamp(entry.getTimestamp())
                 .tags(entry.getTags())
+                .crisisAlert(false)
+                .crisisMessage(null)
                 .build();
     }
 }

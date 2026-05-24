@@ -271,6 +271,45 @@ public class AiInsightController {
     }
 
     /**
+     * POST /api/ai/crisis/response
+     *
+     * Generates a warm, empathetic AI response when a user's mood pattern indicates potential crisis risk.
+     *
+     * @param authentication the authenticated user's Spring Security context
+     * @return a map containing the AI-generated message and showCrisisResources flag.
+     */
+    @PostMapping("/crisis/response")
+    public ResponseEntity<Map<String, Object>> getCrisisResponse(Authentication authentication) {
+        if (authentication != null) {
+            String email = authentication.getName();
+            userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        }
+
+        String prompt = """
+        You are a compassionate mental health companion. A user has been experiencing
+        consistently low mood (score 1-2 out of 5) for 3 or more days.
+
+        Write a short, warm, non-clinical message that:
+        1. Acknowledges that they are going through a difficult time
+        2. Reminds them they are not alone
+        3. Gently encourages them to reach out to a professional or someone they trust
+        4. Does NOT diagnose, does NOT use clinical terms, does NOT be dismissive
+
+        Maximum 4 sentences. Tone: like a caring friend, not a doctor or therapist.
+        Do NOT mention suicide or self-harm. Keep it hopeful.
+        """;
+
+        String rawResponse = geminiService.generateInsight(prompt);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", rawResponse);
+        response.put("showCrisisResources", true);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Request DTO for AI coping suggestions.
      */
     public static class CopingSuggestRequest {

@@ -165,7 +165,7 @@ class MoodActions {
   final Ref _ref;
   MoodActions(this._ref);
 
-  Future<void> logMood(
+  Future<Map<String, dynamic>> logMood(
     int score, {
     String note = 'Logged via mobile app',
     List<String> tags = const [],
@@ -179,6 +179,8 @@ class MoodActions {
     // 2. Synchronize states reactively
     _ref.read(todayMoodProvider.notifier).updateState(score);
     _ref.read(moodHistoryProvider.notifier).addLocalEntry(newEntry);
+
+    return jsonResult;
   }
 }
 

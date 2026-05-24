@@ -43,6 +43,10 @@ mindtrack_mobile/.flutter-plugins-dependencies
 mindtrack_mobile/.packages
 mindtrack_mobile/pubspec.lock
 
+# ─── Xcode / SPM build artifacts (should never appear at monorepo root) ───────
+build/
+SourcePackages/
+
 # ─── Misc ─────────────────────────────────────────────────────────────────────
 *.log
 *.tmp

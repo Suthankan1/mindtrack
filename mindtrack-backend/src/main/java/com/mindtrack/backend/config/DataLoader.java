@@ -4,6 +4,7 @@ import com.mindtrack.backend.model.CrisisResource;
 import com.mindtrack.backend.model.Therapist;
 import com.mindtrack.backend.repository.CrisisResourceRepository;
 import com.mindtrack.backend.repository.TherapistRepository;
+import com.mindtrack.backend.repository.CopingSessionRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -14,12 +15,15 @@ public class DataLoader implements CommandLineRunner {
 
     private final CrisisResourceRepository crisisResourceRepository;
     private final TherapistRepository therapistRepository;
+    private final CopingSessionRepository copingSessionRepository;
 
     public DataLoader(
             CrisisResourceRepository crisisResourceRepository,
-            TherapistRepository therapistRepository) {
+            TherapistRepository therapistRepository,
+            CopingSessionRepository copingSessionRepository) {
         this.crisisResourceRepository = crisisResourceRepository;
         this.therapistRepository = therapistRepository;
+        this.copingSessionRepository = copingSessionRepository;
     }
 
     @Override

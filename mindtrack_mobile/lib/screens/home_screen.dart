@@ -1,233 +1,260 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomeScreen extends StatelessWidget {
+import '../theme/app_theme.dart';
+import '../providers/mood_provider.dart';
+import '../widgets/mood_ring.dart';
+import '../widgets/mood_face_icon.dart';
+import '../widgets/streak_card.dart';
+import '../widgets/wave_spark.dart';
+
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Premium Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Good afternoon,',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'MindTracker',
-                        style: theme.textTheme.headlineLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryColor, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryColor.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        )
-                      ],
-                    ),
-                    child: const CircleAvatar(
-                      backgroundColor: AppColors.surfaceColor,
-                      child: Icon(Icons.person, color: AppColors.primaryColor),
-                    ),
-                  )
-                ],
-              ),
-              const SizedBox(height: 32),
-              
-              // Streak / High Level Insights Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.surfaceColor,
-                      AppColors.surfaceColor.withBlue(60),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.borderOverlay),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    )
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.local_fire_department,
-                            color: AppColors.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Current Streak',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '5 Days Calm',
-                      style: theme.textTheme.displayMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your heart rate variability and breathing rhythms are perfectly in sync.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              
-              // Sections Header
-              Text(
-                'Today\'s Practices',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Daily practice items list
-              _buildPracticeItem(
-                context: context,
-                icon: Icons.air,
-                title: 'Resonant Breathing',
-                duration: '5 mins',
-                color: AppColors.primaryColor,
-                completed: true,
-              ),
-              _buildPracticeItem(
-                context: context,
-                icon: Icons.book,
-                title: 'Reflection Journal',
-                duration: '10 mins',
-                color: AppColors.textMuted,
-                completed: false,
-              ),
-              _buildPracticeItem(
-                context: context,
-                icon: Icons.favorite,
-                title: 'Pulse Check-in',
-                duration: '2 mins',
-                color: AppColors.errorColor,
-                completed: false,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _isLogging = false;
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good morning,';
+    } else if (hour < 17) {
+      return 'Good afternoon,';
+    } else {
+      return 'Good evening,';
+    }
   }
 
-  Widget _buildPracticeItem({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String duration,
-    required Color color,
-    required bool completed,
-  }) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderOverlay),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Future<void> _handleMoodLog(int score) async {
+    if (_isLogging) return;
+
+    setState(() {
+      _isLogging = true;
+    });
+
+    try {
+      // 1. Trigger medium impact haptic feedback as requested
+      await HapticFeedback.mediumImpact();
+
+      // 2. Fire the asynchronous Riverpod/Dio request
+      await ref.read(moodActionsProvider).logMood(score);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
               children: [
+                const Icon(Icons.check_circle, color: AppColors.primaryColor, size: 18),
+                const SizedBox(width: 8),
                 Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  'Daily calm secure in ledger.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  duration,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
+            backgroundColor: AppColors.surfaceColor,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.borderOverlay),
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          Icon(
-            completed ? Icons.check_circle : Icons.arrow_forward_ios,
-            color: completed ? AppColors.primaryColor : AppColors.textMuted.withValues(alpha: 0.4),
-            size: completed ? 24 : 16,
-          )
-        ],
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Handshake failed. Ensure local backend is active.',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.surfaceColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.borderOverlay),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLogging = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final todayMoodAsync = ref.watch(todayMoodProvider);
+    final historyAsync = ref.watch(moodHistoryProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppColors.primaryColor,
+          backgroundColor: AppColors.surfaceColor,
+          onRefresh: () async {
+            // Trigger haptic on pull-to-refresh
+            await HapticFeedback.lightImpact();
+            // Refresh history, which naturally recalibrates stats and today's score
+            await ref.read(moodHistoryProvider.notifier).refresh();
+            // Invalidate today's mood to re-trigger getTodayMoods check
+            ref.invalidate(todayMoodProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Premium Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _getGreeting(),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'MindTracker',
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primaryColor, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                      child: const CircleAvatar(
+                        backgroundColor: AppColors.surfaceColor,
+                        child: Icon(Icons.person_outline, color: AppColors.primaryColor),
+                      ),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Pulsing Mood Ring Widget
+                todayMoodAsync.when(
+                  data: (todayScore) => MoodRing(moodScore: todayScore),
+                  loading: () => const SizedBox(
+                    height: 170,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                  ),
+                  error: (_, __) => const MoodRing(moodScore: null),
+                ),
+                const SizedBox(height: 28),
+
+                // 3. Prompt & 5 Custom Painter Mood Buttons
+                Center(
+                  child: Text(
+                    'How are you feeling today?',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                todayMoodAsync.when(
+                  data: (todayScore) {
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(5, (index) {
+                            final scoreValue = index + 1;
+                            final isSelected = todayScore == scoreValue;
+                            return MoodFaceButton(
+                              score: scoreValue,
+                              isSelected: isSelected,
+                              onTap: () => _handleMoodLog(scoreValue),
+                            );
+                          }),
+                        ),
+                        if (_isLogging)
+                          Positioned.fill(
+                            child: Container(
+                              color: Colors.transparent, // Disable interactions visually
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox(height: 80),
+                  error: (_, __) => Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(5, (index) {
+                      final scoreValue = index + 1;
+                      return MoodFaceButton(
+                        score: scoreValue,
+                        isSelected: false,
+                        onTap: () => _handleMoodLog(scoreValue),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // 4. StreakCard Widget
+                const StreakCard(),
+                const SizedBox(height: 20),
+
+                // 5. Mini WaveSpark Widget (7-day fl_chart LineChart)
+                const WaveSpark(),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

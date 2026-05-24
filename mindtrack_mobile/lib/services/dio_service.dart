@@ -4,9 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Predefined credentials for automatic authentication
-const String _kAuthEmail = 'practitioner@mindtrack.com';
-const String _kAuthPassword = 'password123';
 const String _kTokenKey = 'auth_jwt_token';
 
 class DioService {
@@ -41,109 +38,13 @@ class DioService {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // If token isn't loaded in memory yet, load it from SharedPreferences
-          if (_token == null) {
-            final prefs = await SharedPreferences.getInstance();
-            _token = prefs.getString(_kTokenKey);
-          }
-
           if (_token != null) {
             options.headers['Authorization'] = 'Bearer $_token';
           }
           return handler.next(options);
         },
-        onError: (DioException e, handler) async {
-          // If we get an Unauthorized 401 or 403, our token might have expired.
-          // Let's clear the token and try to re-authenticate if we are not already trying to authenticate.
-          final isAuthPath = e.requestOptions.path.contains('/api/auth/');
-          if ((e.response?.statusCode == 401 ||
-                  e.response?.statusCode == 403) &&
-              !isAuthPath) {
-            try {
-              final authenticated = await _authenticate();
-              if (authenticated) {
-                // Retry the original request with the new token
-                final options = e.requestOptions;
-                options.headers['Authorization'] = 'Bearer $_token';
-                final cloneReq = await _dio.fetch(options);
-                return handler.resolve(cloneReq);
-              }
-            } catch (err) {
-              debugPrint('Re-auth failed: $err');
-            }
-          }
-          return handler.next(e);
-        },
       ),
     );
-  }
-
-  /// Attempts to log in. If user doesn't exist, registers them, then logs in.
-  Future<bool> _authenticate() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // 1. Try to Login
-    try {
-      final response = await _dio.post(
-        '/api/auth/login',
-        data: {'email': _kAuthEmail, 'password': _kAuthPassword},
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        _token = response.data['accessToken'] as String?;
-        if (_token != null) {
-          await prefs.setString(_kTokenKey, _token!);
-          debugPrint('DioService: Auto-login succeeded.');
-          return true;
-        }
-      }
-    } on DioException catch (e) {
-      debugPrint(
-        'DioService: Login failed, attempting auto-registration. Status: ${e.response?.statusCode}',
-      );
-    }
-
-    // 2. Try to Register (Fallback)
-    try {
-      final response = await _dio.post(
-        '/api/auth/register',
-        data: {
-          'email': _kAuthEmail,
-          'password': _kAuthPassword,
-          'anonymousMode': false,
-        },
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        _token = response.data['accessToken'] as String?;
-        if (_token != null) {
-          await prefs.setString(_kTokenKey, _token!);
-          debugPrint('DioService: Auto-registration & login succeeded.');
-          return true;
-        }
-      }
-    } on DioException catch (e) {
-      debugPrint(
-        'DioService: Registration failed. Status: ${e.response?.statusCode}, Error: ${e.response?.data}',
-      );
-    }
-
-    return false;
-  }
-  /// Ensures a valid authentication token exists before making secure calls.
-  Future<void> ensureAuthenticated() async {
-    if (_token != null) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(_kTokenKey);
-    if (_token != null) return;
-
-    final authenticated = await _authenticate();
-    if (!authenticated) {
-      throw Exception(
-        'DioService: Failed to establish automatic secure handshake.',
-      );
-    }
   }
 
   /// Public sign in method
@@ -211,7 +112,13 @@ class DioService {
 
   /// Fetches today's mood logs.
   Future<List<dynamic>> getTodayMoods() async {
-    await ensureAuthenticated();
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
     try {
       final response = await _dio.get('/api/mood/today');
       if (response.statusCode == 200 && response.data != null) {
@@ -226,7 +133,13 @@ class DioService {
 
   /// Fetches the last 30 days of mood logs.
   Future<List<dynamic>> getMoodHistory({int days = 30}) async {
-    await ensureAuthenticated();
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
     try {
       final response = await _dio.get(
         '/api/mood/history',
@@ -248,7 +161,13 @@ class DioService {
     String note = 'Logged via mobile app',
     List<String> tags = const [],
   }) async {
-    await ensureAuthenticated();
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
     try {
       final response = await _dio.post(
         '/api/mood/log',
@@ -273,7 +192,13 @@ class DioService {
     required String type,
     required int duration,
   }) async {
-    await ensureAuthenticated();
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
     try {
       final response = await _dio.post(
         '/api/coping/session',

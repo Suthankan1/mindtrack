@@ -217,6 +217,27 @@ class DioService {
       rethrow;
     }
   }
+
+  /// Fetches user statistics from the API.
+  Future<Map<String, dynamic>> getUserStats() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.get('/api/user/stats');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to load user stats: status \${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error fetching user stats: \$e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for DioService singleton

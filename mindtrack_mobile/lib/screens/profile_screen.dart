@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
+import '../services/dio_service.dart';
 
 /// The Profile tab — displays the user's avatar, stats, settings, and
 /// persistent crisis support buttons.
@@ -24,10 +26,77 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _joinDateStr = 'Joined May 2026';
   bool _notificationsEnabled = true;
 
+  bool _isLoadingStats = true;
+  int _totalEntries = 0;
+  int _currentStreak = 0;
+  int _longestStreak = 0;
+  double _avgMoodScore = 0.0;
+
+  final List<Color> _avatarColors = const [
+    Color(0xFF00D2C8), // Teal
+    Color(0xFFFF6B6B), // Coral
+    Color(0xFFFFB347), // Orange
+    Color(0xFF9B5DE5), // Purple
+    Color(0xFF00F5D4), // Mint
+    Color(0xFFF15BB5), // Pink
+    Color(0xFF3A86C8), // Blue
+  ];
+
+  String _getEmailInitials(String email) {
+    if (email.trim().isEmpty) return '??';
+    final parts = email.split('@');
+    final namePart = parts[0];
+    if (namePart.length >= 2) {
+      return namePart.substring(0, 2).toUpperCase();
+    } else if (namePart.isNotEmpty) {
+      return namePart.toUpperCase();
+    }
+    return '??';
+  }
+
+  Color _getAvatarColor(String email) {
+    if (email.trim().isEmpty) return _avatarColors[0];
+    final firstChar = email.trim()[0].toLowerCase();
+    final code = firstChar.codeUnitAt(0);
+    final index = code % _avatarColors.length;
+    return _avatarColors[index];
+  }
+
   @override
   void initState() {
     super.initState();
     _loadProfileData();
+    _fetchUserStats();
+  }
+
+  Future<void> _fetchUserStats() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingStats = true;
+    });
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final stats = await dio.getUserStats();
+      if (!mounted) return;
+      setState(() {
+        _totalEntries = stats['totalEntries'] ?? 0;
+        _currentStreak = stats['currentStreak'] ?? 0;
+        _longestStreak = stats['longestStreak'] ?? 0;
+        final avg = stats['avgMoodScore'];
+        if (avg is num) {
+          _avgMoodScore = avg.toDouble();
+        } else {
+          _avgMoodScore = 0.0;
+        }
+        _isLoadingStats = false;
+      });
+    } catch (e) {
+      debugPrint('ProfileScreen: Error fetching user stats: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingStats = false;
+      });
+    }
   }
 
   /// Reads profile data (name, email, join date, notifications flag)
@@ -220,19 +289,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     
     // Watch reactive state from Riverpod
     final activeTheme = ref.watch(themeProvider);
-    final historyAsync = ref.watch(moodHistoryProvider);
-    final currentStreak = ref.watch(streakCountProvider);
-
-    // Dynamic calculations from history
-    final totalEntries = historyAsync.maybeWhen(
-      data: (list) => list.length,
-      orElse: () => 0,
-    );
-
-    final longestStreak = historyAsync.maybeWhen(
-      data: (list) => _calculateLongestStreak(list),
-      orElse: () => 0,
-    );
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -267,17 +323,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF00D2C8),
-                                Color(0xFF009C94),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            color: _getAvatarColor(_email),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF00D2C8).withValues(alpha: 0.35),
+                                color: _getAvatarColor(_email).withValues(alpha: 0.35),
                                 blurRadius: 16,
                                 offset: const Offset(0, 4),
                               ),
@@ -285,10 +334,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              _getInitials(_displayName),
+                              _getEmailInitials(_email),
                               style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                               ),
                             ),
                           ),
@@ -338,109 +387,82 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 32),
 
                     // Stats & Badges Grid
-                    Row(
-                      children: [
-                        // Total logs card
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: theme.cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                    _isLoadingStats
+                        ? Column(
+                            children: [
+                              Row(
+                                children: const [
+                                  Expanded(child: ShimmerStatsCard()),
+                                  SizedBox(width: 16),
+                                  Expanded(child: ShimmerStatsCard()),
+                                ],
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.article_outlined,
-                                  color: isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '$totalEntries',
-                                  style: theme.textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Total Logs',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Longest streak badge card
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: theme.cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                              const SizedBox(height: 16),
+                              Row(
+                                children: const [
+                                  Expanded(child: ShimmerStatsCard()),
+                                  SizedBox(width: 16),
+                                  Expanded(child: ShimmerStatsCard()),
+                                ],
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Icon(
-                                      Icons.local_fire_department,
-                                      color: Colors.amber,
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatsCard(
+                                      theme: theme,
+                                      isLightTheme: isLightTheme,
+                                      icon: Icons.article_outlined,
+                                      color: isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
+                                      value: '$_totalEntries',
+                                      label: 'Total Logs',
                                     ),
-                                    if (longestStreak > 0)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.amber.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                                        ),
-                                        child: const Text(
-                                          'BEST',
-                                          style: TextStyle(
-                                            color: Colors.amber,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '$longestStreak days',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Longest Streak',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
-                                    fontWeight: FontWeight.w500,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildStatsCard(
+                                      theme: theme,
+                                      isLightTheme: isLightTheme,
+                                      icon: Icons.bolt_rounded,
+                                      color: Colors.orange,
+                                      value: '$_currentStreak days',
+                                      label: 'Current Streak',
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatsCard(
+                                      theme: theme,
+                                      isLightTheme: isLightTheme,
+                                      icon: Icons.local_fire_department,
+                                      color: Colors.amber,
+                                      value: '$_longestStreak days',
+                                      label: 'Longest Streak',
+                                      isBest: _longestStreak > 0,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildStatsCard(
+                                      theme: theme,
+                                      isLightTheme: isLightTheme,
+                                      icon: Icons.favorite_border_rounded,
+                                      color: Colors.pink,
+                                      value: _avgMoodScore.toStringAsFixed(1),
+                                      label: 'Avg Mood Score',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 32),
 
                     // Sanctuary Settings Title
@@ -498,6 +520,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             backgroundColor: theme.brightness == Brightness.light ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
                           ),
                         );
+                      },
+                    ),
+
+                    // Sign Out Settings Tile
+                    _buildSettingItem(
+                      context: context,
+                      icon: Icons.logout_outlined,
+                      title: 'Sign Out',
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: AppColors.textMuted,
+                      ),
+                      onTap: () async {
+                        // Call DioService logout
+                        await ref.read(dioServiceProvider).logout();
+                        
+                        // Clear user email and display name from SharedPreferences
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('user_email');
+                        await prefs.remove('user_display_name');
+                        await prefs.remove('user_join_date');
+                        
+                        // Navigate to /login via go_router
+                        if (mounted) {
+                          context.go('/login');
+                        }
                       },
                     ),
                     const SizedBox(height: 32),
@@ -790,6 +839,167 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatsCard({
+    required ThemeData theme,
+    required bool isLightTheme,
+    required IconData icon,
+    required Color color,
+    required String value,
+    required String label,
+    bool isBest = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 24,
+              ),
+              if (isBest)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    'BEST',
+                    style: TextStyle(
+                      color: Colors.amber,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                fontSize: 22,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ShimmerStatsCard extends StatefulWidget {
+  const ShimmerStatsCard({super.key});
+
+  @override
+  State<ShimmerStatsCard> createState() => _ShimmerStatsCardState();
+}
+
+class _ShimmerStatsCardState extends State<ShimmerStatsCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.3, end: 0.7).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLightTheme = theme.brightness == Brightness.light;
+    
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isLightTheme ? const Color(0xFFF1F4FA) : AppColors.surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isLightTheme ? Colors.black12 : Colors.white10,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: 60,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isLightTheme ? Colors.black12 : Colors.white10,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: 80,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: isLightTheme ? Colors.black12 : Colors.white10,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

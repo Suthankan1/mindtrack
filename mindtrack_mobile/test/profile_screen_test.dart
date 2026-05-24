@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mindtrack_mobile/screens/profile_screen.dart';
 import 'package:mindtrack_mobile/providers/mood_provider.dart';
+import 'package:mindtrack_mobile/services/dio_service.dart';
 
 class FakeTodayMoodNotifier extends TodayMoodNotifier {
   @override
@@ -61,6 +62,18 @@ class FakeMoodHistoryNotifier extends MoodHistoryNotifier {
   }
 }
 
+class FakeDioService extends DioService {
+  @override
+  Future<Map<String, dynamic>> getUserStats() async {
+    return {
+      'totalEntries': 5,
+      'currentStreak': 3,
+      'longestStreak': 4,
+      'avgMoodScore': 4.2,
+    };
+  }
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
@@ -79,6 +92,7 @@ void main() {
           overrides: [
             todayMoodProvider.overrideWith(FakeTodayMoodNotifier.new),
             moodHistoryProvider.overrideWith(FakeMoodHistoryNotifier.new),
+            dioServiceProvider.overrideWith((ref) => FakeDioService()),
           ],
           child: const MaterialApp(
             home: ProfileScreen(),
@@ -94,8 +108,8 @@ void main() {
       expect(find.text('test@mindtrack.com'), findsOneWidget);
       expect(find.text('Joined May 2026'), findsOneWidget);
 
-      // Verify initials avatar CP is constructed correctly (TU for Test User)
-      expect(find.text('TU'), findsOneWidget);
+      // Verify initials avatar CP is constructed correctly (TE for test@mindtrack.com)
+      expect(find.text('TE'), findsOneWidget);
 
       // Verify total entries (Fake history has 5 entries)
       expect(find.text('5'), findsOneWidget);

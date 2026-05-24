@@ -205,6 +205,31 @@ class DioService {
       rethrow;
     }
   }
+
+  /// Logs a completed coping session.
+  Future<Map<String, dynamic>> logCopingSession({
+    required String type,
+    required int duration,
+  }) async {
+    await ensureAuthenticated();
+    try {
+      final response = await _dio.post(
+        '/api/coping/session',
+        data: {'type': type, 'duration': duration},
+      );
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+        debugPrint('DioService: Coping session logged successfully. Type: $type, Duration: $duration');
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception(
+        'DioService: Failed to log coping session. Status: ${response.statusCode}',
+      );
+    } catch (e) {
+      debugPrint('DioService: Error logging coping session: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for DioService singleton

@@ -15,17 +15,6 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing email or password");
         }
 
-        // Demo fallback for instant developer verification
-        if (credentials.email === "demo@mindtrack.com" && credentials.password === "demo123") {
-          return {
-            id: "demo-user-1",
-            email: "demo@mindtrack.com",
-            name: "Alex Carter",
-            token: "demo-mock-jwt-token-data",
-            role: "ADMIN",
-          };
-        }
-
         try {
           const response = await axios.post(`${process.env.BACKEND_URL}/api/auth/login`, {
             email: credentials.email,
@@ -34,13 +23,12 @@ export const authOptions: NextAuthOptions = {
 
           const user = response.data;
           
-          if (user && (user.token || user.accessToken)) {
+          if (user && user.accessToken) {
             return {
-              id: user.id || user.email,
+              id: user.userId,
               email: user.email,
-              name: user.name || user.username || "User",
-              token: user.token || user.accessToken,
-              role: user.role || "USER",
+              name: user.email,
+              accessToken: user.accessToken,
             };
           }
           return null;
@@ -58,7 +46,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.accessToken = (user as { token?: string }).token;
+        token.accessToken = (user as { accessToken?: string }).accessToken;
         token.role = (user as { role?: string }).role;
       }
       return token;

@@ -4,6 +4,11 @@ import 'package:fl_chart/fl_chart.dart';
 import '../providers/mood_provider.dart';
 import '../theme/app_theme.dart';
 
+/// A mini sparkline chart showing the user's last 7 mood entries.
+///
+/// Uses [fl_chart]'s [LineChart] with a teal gradient fill and interactive
+/// tooltips. Falls back to an empty-state message when history is absent
+/// or an error occurs.
 class WaveSpark extends ConsumerWidget {
   const WaveSpark({super.key});
 

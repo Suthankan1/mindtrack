@@ -1,1 +1,49 @@
-.idea
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# ─── IDE / Editors ────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── Spring Boot (mindtrack-backend) ──────────────────────────────────────────
+mindtrack-backend/target/
+mindtrack-backend/*.class
+mindtrack-backend/*.jar
+mindtrack-backend/*.war
+
+# ─── Next.js (mindtrack-web) ──────────────────────────────────────────────────
+mindtrack-web/.next/
+mindtrack-web/out/
+mindtrack-web/node_modules/
+mindtrack-web/.env.local
+mindtrack-web/.env.*.local
+mindtrack-web/npm-debug.log*
+mindtrack-web/yarn-debug.log*
+mindtrack-web/yarn-error.log*
+
+# ─── Flutter (mindtrack_mobile) ───────────────────────────────────────────────
+mindtrack_mobile/.dart_tool/
+mindtrack_mobile/build/
+mindtrack_mobile/.flutter-plugins
+mindtrack_mobile/.flutter-plugins-dependencies
+mindtrack_mobile/.packages
+mindtrack_mobile/pubspec.lock
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak

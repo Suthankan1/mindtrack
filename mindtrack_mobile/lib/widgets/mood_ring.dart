@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+/// A pulsing animated ring that reflects the user's current mood score.
+///
+/// Displays a gradient arc border whose colors shift across a red→cyan spectrum
+/// based on the provided [moodScore] (1–5). When no score is provided,
+/// a neutral grey ring is shown with a '?' placeholder.
+/// The ring pulses gently using a repeating [AnimationController].
 class MoodRing extends StatefulWidget {
   final int? moodScore;
 
@@ -47,6 +53,7 @@ class _MoodRingState extends State<MoodRing>
     super.dispose();
   }
 
+  /// Returns the two-color gradient list corresponding to the current mood score.
   List<Color> _getGradientColors() {
     if (widget.moodScore == null) {
       return [AppColors.borderOverlay, AppColors.navBarUnselected];
@@ -67,6 +74,7 @@ class _MoodRingState extends State<MoodRing>
     }
   }
 
+  /// Returns the single representative accent color for glow effects.
   Color _getActiveColor() {
     if (widget.moodScore == null) return AppColors.navBarUnselected;
     switch (widget.moodScore!) {

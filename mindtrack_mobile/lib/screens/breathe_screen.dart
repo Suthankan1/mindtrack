@@ -9,6 +9,9 @@ import '../services/dio_service.dart';
 
 enum BreathingPhase { inhale, holdFull, exhale, holdEmpty }
 
+/// A single time-boxed phase within a [BreathingTechnique] (e.g. Inhale 4s).
+///
+/// Carries its label text, visual colors for the orb, and duration.
 class BreathingStep {
   final BreathingPhase phase;
   final int durationSeconds;
@@ -27,6 +30,9 @@ class BreathingStep {
   });
 }
 
+/// Represents a named multi-phase breathing exercise (e.g. Box Breathing).
+///
+/// Contains an ordered list of [BreathingStep]s and computes [totalCycleDuration].
 class BreathingTechnique {
   final String name;
   final String subtitle;
@@ -41,6 +47,12 @@ class BreathingTechnique {
   int get totalCycleDuration => steps.fold(0, (sum, step) => sum + step.durationSeconds);
 }
 
+/// The Breathe tab — a guided breathing exercise screen.
+///
+/// Manages three selectable [BreathingTechnique]s (4-7-8, Box, Deep).
+/// Drives the [BreathingOrb] with a phase [AnimationController] and advances
+/// through [BreathingStep]s automatically, logging a coping session to the
+/// backend after 3 completed cycles.
 class BreatheScreen extends ConsumerStatefulWidget {
   const BreatheScreen({super.key});
 

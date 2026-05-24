@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/mood_provider.dart';
 import '../theme/app_theme.dart';
 
+/// Displays the user's current consecutive mood-logging streak with an animated
+/// gold flame icon and a motivational subtitle.
+///
+/// Reads streak count from [streakCountProvider] and pulses the glow aura
+/// using a repeating [AnimationController].
 class StreakCard extends ConsumerStatefulWidget {
   const StreakCard({super.key});
 

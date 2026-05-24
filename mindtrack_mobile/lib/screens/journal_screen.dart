@@ -5,6 +5,11 @@ import '../providers/mood_provider.dart';
 import '../widgets/constellation_canvas.dart';
 import '../widgets/custom_score_slider.dart';
 
+/// The Journal tab — displays the animated [ConstellationCanvas] of mood stars
+/// and a scrollable list of [_ExpandableJournalEntryCard] entries.
+///
+/// Provides a FAB and inline button to open the [_MoodLoggingBottomSheet]
+/// for creating new mood entries with a note, score, and tags.
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key});
 
@@ -461,6 +466,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   }
 }
 
+/// An animated, expandable card that represents a single mood journal entry.
+///
+/// In collapsed state shows a 2-line preview of the note and a score pill.
+/// Tapping expands the card to reveal the full note body and associated tags.
 // Expandable Card for individual journal entry
 class _ExpandableJournalEntryCard extends StatefulWidget {
   final MoodEntry entry;
@@ -690,6 +699,13 @@ class _ExpandableJournalEntryCardState
   }
 }
 
+/// A full-screen bottom sheet for composing a new mood entry.
+///
+/// Includes:
+/// - [CustomScoreSlider] for selecting a score from 1–5
+/// - A text field for free-form journal notes
+/// - Tag chips (Work, Sleep, Exercise, Social, Other)
+/// - A save button that calls [moodActionsProvider] and triggers [onSaved]
 // Mood Logging Modal Bottom Sheet
 class _MoodLoggingBottomSheet extends ConsumerStatefulWidget {
   final VoidCallback onSaved;

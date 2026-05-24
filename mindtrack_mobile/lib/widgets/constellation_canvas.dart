@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
 
+/// A custom-painted mood star chart that maps each [MoodEntry] to a position
+/// on an x-axis (day-of-week) / y-axis (score 1–5) grid.
+///
+/// Background stars twinkle via a repeating [AnimationController]. Same-week
+/// entries are connected with faint constellation lines. Tapping near a mood
+/// star invokes [onDotTapped] within a 26px radius.
 class ConstellationCanvas extends StatefulWidget {
   final List<MoodEntry> entries;
   final ValueChanged<MoodEntry> onDotTapped;

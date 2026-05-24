@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+/// A custom-painted gradient mood slider for selecting a score from 1.0–5.0.
+///
+/// Renders a colour-graded track (coral→teal), five snap ticks, and a glowing
+/// thumb that animates on touch. On drag-end the value snaps to the nearest
+/// integer and calls [onChanged] with the snapped value.
 class CustomScoreSlider extends StatefulWidget {
   final double value;
   final ValueChanged<double> onChanged;

@@ -1,0 +1,20 @@
+spring.application.name=mindtrack-backend
+
+# ─── Database Configuration ───────────────────────────────────────────────────
+# Replace with your PostgreSQL connection details
+spring.datasource.url=jdbc:postgresql://localhost:5432/mindtrack_db
+spring.datasource.username=postgres
+spring.datasource.password=YOUR_DB_PASSWORD_HERE
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# ─── JPA / Hibernate Configuration ───────────────────────────────────────────
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.properties.hibernate.format_sql=true
+
+# ─── JWT Configuration ────────────────────────────────────────────────────────
+# Generate a secure 256-bit hex secret: openssl rand -hex 32
+jwt.secret=YOUR_JWT_SECRET_HEX_32_BYTES_HERE
+# Token expiry in milliseconds (604800000 = 7 days)
+jwt.expiration=604800000

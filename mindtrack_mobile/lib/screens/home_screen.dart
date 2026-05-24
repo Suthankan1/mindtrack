@@ -9,6 +9,11 @@ import '../widgets/mood_face_icon.dart';
 import '../widgets/streak_card.dart';
 import '../widgets/wave_spark.dart';
 
+/// The primary Home tab displaying the user's mood ring, quick-log buttons,
+/// streak card, and a 7-day mini wave chart.
+///
+/// Manages optimistic loading state for mood logging and coordinates
+/// [MoodRing], [MoodFaceButton], [StreakCard], and [WaveSpark] widgets.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,6 +24,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLogging = false;
 
+  /// Returns a time-appropriate greeting string based on the current local hour.
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) {
@@ -30,6 +36,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  /// Handles a mood log tap: debounces concurrent taps, fires haptic feedback,
+  /// calls the Riverpod mood action, and shows a success or error snackbar.
   Future<void> _handleMoodLog(int score) async {
     if (_isLogging) return;
 

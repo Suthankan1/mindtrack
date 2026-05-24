@@ -6,6 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
 
+/// The Profile tab — displays the user's avatar, stats, settings, and
+/// persistent crisis support buttons.
+///
+/// Reads display name, email, join date and notification preference from
+/// [SharedPreferences] and exposes light/dark theme toggle via [themeProvider].
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -25,6 +30,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _loadProfileData();
   }
 
+  /// Reads profile data (name, email, join date, notifications flag)
+  /// from [SharedPreferences] and refreshes local state.
   Future<void> _loadProfileData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -104,6 +111,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  /// Computes the longest consecutive daily mood-logging streak from [entries].
+  ///
+  /// Deduplicates by calendar date and returns the longest unbroken run.
   int _calculateLongestStreak(List<MoodEntry> entries) {
     if (entries.isEmpty) return 0;
     
@@ -137,6 +147,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return maxStreak;
   }
 
+  /// Opens [urlString] in the platform's default browser / dialler.
+  /// Shows an error snackbar if the URL cannot be launched.
   Future<void> _launchUrl(String urlString) async {
     try {
       final Uri url = Uri.parse(urlString);

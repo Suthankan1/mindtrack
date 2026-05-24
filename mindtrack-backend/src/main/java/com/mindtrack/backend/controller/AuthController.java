@@ -18,6 +18,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller that exposes authentication endpoints for MindTrack users.
+ *
+ * <p>Provides two public operations:
+ * <ul>
+ *   <li>{@code POST /api/auth/register} — create a new account and receive a JWT</li>
+ *   <li>{@code POST /api/auth/login}    — authenticate with email/password and receive a JWT</li>
+ * </ul>
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -30,6 +39,14 @@ public class AuthController {
     @Value("${jwt.expiration}")
     private long jwtExpirationInMs;
 
+    /**
+     * Constructs the {@code AuthController} with all required dependencies injected by Spring.
+     *
+     * @param userRepository        repository for user persistence
+     * @param passwordEncoder       BCrypt password encoder
+     * @param tokenProvider         JWT generation and validation utility
+     * @param authenticationManager Spring Security authentication manager
+     */
     public AuthController(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
@@ -41,6 +58,16 @@ public class AuthController {
         this.authenticationManager = authenticationManager;
     }
 
+    /**
+     * Registers a new MindTrack user account.
+     *
+     * <p>Validates that the email is not already in use, hashes the password,
+     * persists the user, and returns a signed JWT along with basic account info.
+     *
+     * @param registerRequest the validated registration payload (email, password, anonymousMode)
+     * @return {@code 201 Created} with an {@link AuthResponse} on success,
+     *         or {@code 400 Bad Request} if the email is already taken
+     */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
@@ -70,6 +97,16 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 
+    /**
+     * Authenticates an existing MindTrack user via email and password.
+     *
+     * <p>Delegates credential verification to Spring Security's {@link AuthenticationManager},
+     * then issues a fresh JWT on success.
+     *
+     * @param loginRequest the validated login payload (email, password)
+     * @return {@code 200 OK} with an {@link AuthResponse} on success,
+     *         or {@code 401 Unauthorized} if credentials are invalid
+     */
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {
@@ -103,17 +140,35 @@ public class AuthController {
         }
     }
 
+    /**
+     * Simple error response wrapper returned when authentication fails.
+     */
     public static class ErrorResponse {
         private String message;
 
+        /**
+         * Creates an {@code ErrorResponse} with the given human-readable message.
+         *
+         * @param message a short description of the error
+         */
         public ErrorResponse(String message) {
             this.message = message;
         }
 
+        /**
+         * Returns the error message.
+         *
+         * @return the error message string
+         */
         public String getMessage() {
             return message;
         }
 
+        /**
+         * Sets the error message.
+         *
+         * @param message the new error message string
+         */
         public void setMessage(String message) {
             this.message = message;
         }

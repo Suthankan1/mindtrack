@@ -19,6 +19,12 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * REST controller for user-level statistics in MindTrack.
+ *
+ * <p>Aggregates mood data, streaks, and account tenure into a single stats
+ * response used by both the mobile profile screen and the web dashboard.
+ */
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -27,6 +33,13 @@ public class UserController {
     private final MoodEntryRepository moodEntryRepository;
     private final StreakService streakService;
 
+    /**
+     * Constructs the {@code UserController} with all required dependencies.
+     *
+     * @param userRepository      repository for user account lookups
+     * @param moodEntryRepository repository for mood entry aggregation queries
+     * @param streakService       service to retrieve current and longest check-in streaks
+     */
     public UserController(
             UserRepository userRepository,
             MoodEntryRepository moodEntryRepository,
@@ -36,6 +49,22 @@ public class UserController {
         this.streakService = streakService;
     }
 
+    /**
+     * Returns aggregated statistics for the currently authenticated user.
+     *
+     * <p>Computes and returns:
+     * <ul>
+     *   <li>Total mood entries ever logged</li>
+     *   <li>Current and longest daily check-in streaks</li>
+     *   <li>All-time average mood score (rounded to 2 d.p.)</li>
+     *   <li>Average mood score for the past 7 days</li>
+     *   <li>Number of days since the user registered</li>
+     * </ul>
+     *
+     * @param authentication the Spring Security authentication context (populated by JWT filter)
+     * @return {@code 200 OK} with a {@link UserStatsResponse},
+     *         or {@code 401 Unauthorized} if the user cannot be resolved
+     */
     @GetMapping("/stats")
     public ResponseEntity<UserStatsResponse> getUserStats(Authentication authentication) {
         String email = authentication.getName();

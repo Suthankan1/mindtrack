@@ -20,7 +20,17 @@ const getMoodEmoji = (score: number) => {
   }
 };
 
-// Fallback synthetic data in case the user has empty history or connection is offline
+/**
+ * Generates a rich synthetic dataset used as a fallback when:
+ * - The Spring Boot backend is offline, or
+ * - The user has fewer than 3 mood entries (insufficient data to generate real insights).
+ *
+ * Produces a convincing pre-populated analytics view so the dashboard always
+ * looks visually complete on first load.
+ *
+ * @returns An object containing a sample insight string, mood distribution array,
+ *          and hourly average mood data points
+ */
 const getSyntheticData = () => {
   const insight = "Your emotional telemetry indicates high cognitive clarity during mornings, with a slight dip around late afternoon (4 PM - 6 PM). Logs containing 'Mindfulness' and 'Exercise' correlate with 4.8+ mood score peaks. We recommend scheduling a brief 10-minute mindfulness decompression block at 3:30 PM to stabilize your cognitive battery before the evening transition.";
 
@@ -46,6 +56,22 @@ const getSyntheticData = () => {
   return { insight, moodDistribution, timeOfDay };
 };
 
+/**
+ * GET /api/insights/weekly
+ *
+ * Aggregates the authenticated user's last 30 days of mood entries into
+ * a structured weekly analytics payload consumed by the Insights dashboard.
+ *
+ * Processing pipeline:
+ * 1. Fetches mood history from the Spring Boot backend (falls back to synthetic data if offline)
+ * 2. Computes mood score distribution as percentages across 5 score levels
+ * 3. Buckets entries by time-of-day into eight 2-hour windows
+ * 4. Generates a personalized AI insight string based on the computed average
+ *
+ * @returns 200 with `{ insight: string, moodDistribution: Array, timeOfDay: Array }`,
+ *          401 if the session is missing or expired,
+ *          or 500 on an unexpected server error
+ */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

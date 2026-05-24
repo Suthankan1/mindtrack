@@ -90,6 +90,18 @@ const THERAPISTS_DIRECTORY: Therapist[] = [
   },
 ];
 
+/**
+ * GET /api/therapists
+ *
+ * Returns the full MindTrack clinician directory. Requires an active NextAuth
+ * session — the JWT is validated server-side before returning the therapist list.
+ * Therapist data is currently seeded in-memory; in production this would proxy
+ * to the Spring Boot /api/therapists endpoint.
+ *
+ * @returns 200 with an array of {@link Therapist} objects on success,
+ *          401 if the session is missing or expired,
+ *          or 500 if an unexpected server error occurs
+ */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Interactive button using CustomPainter for beautiful custom vector faces.
+/// Tappable mood-log button with a custom-painted vector face.
+///
+/// Renders a [MoodFacePainter] inside a circular container that animates
+/// into a scale-down press effect. When [isSelected] is true the border
+/// and label switch to the score's accent color with a glow shadow.
 class MoodFaceButton extends StatefulWidget {
   final int score;
   final bool isSelected;
@@ -42,6 +46,7 @@ class _MoodFaceButtonState extends State<MoodFaceButton>
     super.dispose();
   }
 
+  /// Returns the accent color associated with this score (1=red … 5=teal).
   Color _getMoodColor() {
     switch (widget.score) {
       case 1:
@@ -59,6 +64,7 @@ class _MoodFaceButtonState extends State<MoodFaceButton>
     }
   }
 
+  /// Returns the human-readable mood label for this score.
   String _getMoodLabel() {
     switch (widget.score) {
       case 1:

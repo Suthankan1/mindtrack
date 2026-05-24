@@ -21,6 +21,16 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * REST controller for mood tracking operations in MindTrack.
+ *
+ * <p>Exposes the following authenticated endpoints:
+ * <ul>
+ *   <li>{@code POST /api/mood/log}     — log a new mood entry (rate-limited to 5/hour)</li>
+ *   <li>{@code GET  /api/mood/today}   — retrieve today's mood entries for the current user</li>
+ *   <li>{@code GET  /api/mood/history} — retrieve mood history for a configurable number of days</li>
+ * </ul>
+ */
 @RestController
 @RequestMapping("/api/mood")
 public class MoodController {
@@ -30,6 +40,14 @@ public class MoodController {
     private final StreakService streakService;
     private final RateLimitingService rateLimitingService;
 
+    /**
+     * Constructs the {@code MoodController} with all required dependencies.
+     *
+     * @param userRepository      repository for user lookups
+     * @param moodEntryRepository repository for mood entry persistence and queries
+     * @param streakService       service to update the user's check-in streak
+     * @param rateLimitingService Bucket4j-based rate limiter (max 5 logs/hour per user)
+     */
     public MoodController(
             UserRepository userRepository,
             MoodEntryRepository moodEntryRepository,
@@ -41,6 +59,18 @@ public class MoodController {
         this.rateLimitingService = rateLimitingService;
     }
 
+    /**
+     * Logs a new mood entry for the authenticated user.
+     *
+     * <p>Enforces a rate limit of 5 mood logs per hour. On success, the user's
+     * check-in streak is updated automatically.
+     *
+     * @param request        the validated mood log payload (score, optional note and tags)
+     * @param authentication the Spring Security authentication context (populated by JWT filter)
+     * @return {@code 201 Created} with the saved {@link MoodEntryResponse},
+     *         {@code 429 Too Many Requests} if the rate limit is exceeded,
+     *         or {@code 401 Unauthorized} if the user cannot be resolved
+     */
     @PostMapping("/log")
     public ResponseEntity<MoodEntryResponse> logMood(
             @Valid @RequestBody MoodLogRequest request,
@@ -73,6 +103,13 @@ public class MoodController {
         return ResponseEntity.status(HttpStatus.CREATED).body(MoodEntryResponse.fromEntity(savedEntry));
     }
 
+    /**
+     * Returns all mood entries logged by the authenticated user today (midnight to now).
+     *
+     * @param authentication the Spring Security authentication context
+     * @return {@code 200 OK} with a list of {@link MoodEntryResponse} objects,
+     *         sorted by timestamp descending; empty list if no entries exist today
+     */
     @GetMapping("/today")
     public ResponseEntity<List<MoodEntryResponse>> getTodayMoods(Authentication authentication) {
         String email = authentication.getName();
@@ -92,6 +129,14 @@ public class MoodController {
         return ResponseEntity.ok(responses);
     }
 
+    /**
+     * Returns mood history for the authenticated user going back a specified number of days.
+     *
+     * @param days           the number of days to look back (defaults to 30 if not provided)
+     * @param authentication the Spring Security authentication context
+     * @return {@code 200 OK} with a list of {@link MoodEntryResponse} objects,
+     *         sorted by timestamp descending
+     */
     @GetMapping("/history")
     public ResponseEntity<List<MoodEntryResponse>> getMoodHistory(
             @RequestParam(value = "days", defaultValue = "30") int days,

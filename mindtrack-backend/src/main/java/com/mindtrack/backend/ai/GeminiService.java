@@ -100,6 +100,56 @@ public class GeminiService {
     }
 
     /**
+     * Generates a multi-turn chat response using system instructions and full conversation history.
+     */
+    public String generateChatResponse(List<GeminiRequest.Content> contents, String systemInstruction) {
+        if (contents == null || contents.isEmpty()) {
+            return "Conversation history is empty.";
+        }
+
+        try {
+            GeminiRequest request = GeminiRequest.builder()
+                    .contents(contents)
+                    .systemInstruction(systemInstruction != null ?
+                            GeminiRequest.SystemInstruction.builder()
+                                    .parts(List.of(
+                                            GeminiRequest.Part.builder()
+                                                    .text(systemInstruction)
+                                                    .build()
+                                    ))
+                                    .build() : null)
+                    .build();
+
+            GeminiResponse response = webClient.post()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/v1beta/models/gemini-1.5-flash:generateContent")
+                            .queryParam("key", apiKey)
+                            .build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(GeminiResponse.class)
+                    .block();
+
+            if (response != null && response.getCandidates() != null && !response.getCandidates().isEmpty()) {
+                GeminiResponse.Candidate candidate = response.getCandidates().get(0);
+                if (candidate.getContent() != null && candidate.getContent().getParts() != null && !candidate.getContent().getParts().isEmpty()) {
+                    String text = candidate.getContent().getParts().get(0).getText();
+                    if (text != null) {
+                        return text;
+                    }
+                }
+            }
+
+            return "No response generated. Please check back later.";
+
+        } catch (Exception e) {
+            System.err.println("Gemini Chat API call failed: " + e.getMessage());
+            return "Unable to generate AI chat response at this time.";
+        }
+    }
+
+    /**
      * Computes the MD5 hex string for a given prompt string key.
      */
     private String generateMd5(String source) {

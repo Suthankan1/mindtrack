@@ -5,6 +5,7 @@ import '../screens/home_screen.dart';
 import '../screens/journal_screen.dart';
 import '../screens/breathe_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/chat_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
@@ -22,6 +23,8 @@ final GlobalKey<NavigatorState> _journalNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'journalNav');
 final GlobalKey<NavigatorState> _breatheNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'breatheNav');
+final GlobalKey<NavigatorState> _chatNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'chatNav');
 final GlobalKey<NavigatorState> _profileNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'profileNav');
 
@@ -119,7 +122,19 @@ class AppRouter {
             ],
           ),
 
-          // Branch 4: Profile and sanctuary settings
+          // Branch 4: MindChat conversational AI companion
+          StatefulShellBranch(
+            navigatorKey: _chatNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/chat',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ChatScreen()),
+              ),
+            ],
+          ),
+
+          // Branch 5: Profile and sanctuary settings
           StatefulShellBranch(
             navigatorKey: _profileNavigatorKey,
             routes: [

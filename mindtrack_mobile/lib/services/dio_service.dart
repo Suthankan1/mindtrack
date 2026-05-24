@@ -302,6 +302,38 @@ class DioService {
       rethrow;
     }
   }
+
+  /// Sends a chat message to the MindChat AI companion.
+  Future<Map<String, dynamic>> sendChatMessage({
+    required String message,
+    required List<dynamic> conversationHistory,
+    required Map<String, dynamic> moodContext,
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.post(
+        '/api/ai/chat',
+        data: {
+          'message': message,
+          'conversationHistory': conversationHistory,
+          'moodContext': moodContext,
+        },
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to send chat message: status ${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error sending chat message: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for DioService singleton

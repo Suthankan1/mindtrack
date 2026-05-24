@@ -310,6 +310,189 @@ public class AiInsightController {
     }
 
     /**
+     * POST /api/ai/chat
+     *
+     * MindChat endpoint for multi-turn empathetic AI conversation with mood context.
+     *
+     * @param request        the chat request containing message, history, and mood context
+     * @param authentication the authenticated user's Spring Security context
+     * @return a map containing the AI's reply and two suggested follow-up questions
+     */
+    @PostMapping("/chat")
+    public ResponseEntity<Map<String, Object>> chatWithAi(
+            @RequestBody ChatRequest request,
+            Authentication authentication) {
+
+        // Validate user authentication
+        if (authentication != null) {
+            String email = authentication.getName();
+            userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        }
+
+        // 1. Build mood context string for the system prompt
+        int score = 3;
+        double avg = 3.0;
+        if (request.getMoodContext() != null) {
+            if (request.getMoodContext().getCurrentScore() != null) {
+                score = request.getMoodContext().getCurrentScore();
+            }
+            if (request.getMoodContext().getWeeklyAverage() != null) {
+                avg = request.getMoodContext().getWeeklyAverage();
+            }
+        }
+
+        String systemPrompt = String.format(
+                "You are MindTrack's empathetic AI companion. The user's current mood score is %d/5 and their weekly average is %.1f/5. " +
+                "You help people reflect on their feelings, not replace professional therapy. Keep responses concise (2-4 sentences). " +
+                "Never diagnose. If the user expresses severe distress, gently suggest professional support. " +
+                "You MUST respond ONLY with a valid JSON object in this exact format: " +
+                "{\"reply\": \"your empathetic response text\", \"suggestedFollowUps\": [\"suggested follow up 1\", \"suggested follow up 2\"]}",
+                score, avg
+        );
+
+        // 2. Build contents array
+        java.util.List<com.mindtrack.backend.dto.GeminiRequest.Content> contents = new java.util.ArrayList<>();
+
+        // Add history
+        if (request.getConversationHistory() != null) {
+            for (ChatMessage msg : request.getConversationHistory()) {
+                String role = msg.getRole();
+                // Ensure standard role matching for Gemini ("user" or "model")
+                if (role == null || (!role.equals("user") && !role.equals("model"))) {
+                    role = "model"; // default fallback for assistant
+                }
+                contents.add(com.mindtrack.backend.dto.GeminiRequest.Content.builder()
+                        .role(role)
+                        .parts(java.util.List.of(
+                                com.mindtrack.backend.dto.GeminiRequest.Part.builder()
+                                        .text(msg.getText())
+                                        .build()
+                        ))
+                        .build());
+            }
+        }
+
+        // Append new user message
+        contents.add(com.mindtrack.backend.dto.GeminiRequest.Content.builder()
+                .role("user")
+                .parts(java.util.List.of(
+                        com.mindtrack.backend.dto.GeminiRequest.Part.builder()
+                                .text(request.getMessage())
+                                .build()
+                ))
+                .build());
+
+        // 3. Call Gemini
+        String rawResponse = geminiService.generateChatResponse(contents, systemPrompt);
+
+        if (rawResponse == null || rawResponse.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to call AI service");
+        }
+
+        // 4. Parse Response
+        try {
+            // Strip markdown fences
+            String cleanedResponse = rawResponse.trim();
+            if (cleanedResponse.startsWith("```json")) {
+                cleanedResponse = cleanedResponse.substring(7);
+            } else if (cleanedResponse.startsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(3);
+            }
+            if (cleanedResponse.endsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3);
+            }
+            cleanedResponse = cleanedResponse.trim();
+
+            Map<String, Object> parsed = objectMapper.readValue(cleanedResponse, Map.class);
+            return ResponseEntity.ok(parsed);
+        } catch (Exception e) {
+            System.err.println("Failed to parse Gemini chat response as JSON: " + e.getMessage() + "\nRaw response: " + rawResponse);
+            
+            // Graceful fallback response on parse failure: use the raw response as the reply
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("reply", rawResponse);
+            fallback.put("suggestedFollowUps", java.util.List.of("Can you tell me more about that?", "How does that make you feel?"));
+            return ResponseEntity.ok(fallback);
+        }
+    }
+
+    /**
+     * DTO for chat requests.
+     */
+    public static class ChatRequest {
+        private String message;
+        private java.util.List<ChatMessage> conversationHistory;
+        private MoodContext moodContext;
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public java.util.List<ChatMessage> getConversationHistory() {
+            return conversationHistory;
+        }
+
+        public void setConversationHistory(java.util.List<ChatMessage> conversationHistory) {
+            this.conversationHistory = conversationHistory;
+        }
+
+        public MoodContext getMoodContext() {
+            return moodContext;
+        }
+
+        public void setMoodContext(MoodContext moodContext) {
+            this.moodContext = moodContext;
+        }
+    }
+
+    public static class ChatMessage {
+        private String role;
+        private String text;
+
+        public String getRole() {
+            return role;
+        }
+
+        public void setRole(String role) {
+            this.role = role;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        public void setText(String text) {
+            this.text = text;
+        }
+    }
+
+    public static class MoodContext {
+        private Integer currentScore;
+        private Double weeklyAverage;
+
+        public Integer getCurrentScore() {
+            return currentScore;
+        }
+
+        public void setCurrentScore(Integer currentScore) {
+            this.currentScore = currentScore;
+        }
+
+        public Double getWeeklyAverage() {
+            return weeklyAverage;
+        }
+
+        public void setWeeklyAverage(Double weeklyAverage) {
+            this.weeklyAverage = weeklyAverage;
+        }
+    }
+
+    /**
      * Request DTO for AI coping suggestions.
      */
     public static class CopingSuggestRequest {

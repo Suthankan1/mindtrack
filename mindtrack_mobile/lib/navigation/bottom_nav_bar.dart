@@ -17,18 +17,20 @@ class CustomBottomNavBar extends StatelessWidget {
 
     // Deduct standard margin to build a premium floating nav bar
     final double barWidth = screenWidth - 32;
-    final double itemWidth = barWidth / 4;
-
-    // Sizing for our sliding pill capsule
-    final double pillWidth = itemWidth * 0.85;
-    final double pillHeight = 46;
 
     final List<Map<String, dynamic>> items = [
       {'icon': Icons.home_rounded, 'label': 'Home'},
       {'icon': Icons.book_rounded, 'label': 'Journal'},
       {'icon': Icons.air_rounded, 'label': 'Breathe'},
+      {'icon': Icons.chat_bubble_rounded, 'label': 'MindChat'},
       {'icon': Icons.person_rounded, 'label': 'Profile'},
     ];
+
+    final double itemWidth = barWidth / items.length;
+
+    // Sizing for our sliding pill capsule
+    final double pillWidth = itemWidth * 0.85;
+    final double pillHeight = 46;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),

@@ -18,7 +18,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<Map<String, dynamic>> _messages = [];
   List<String> _suggestedFollowUps = [];
   bool _isLoading = false;
@@ -45,17 +45,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _loadChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
+      final email =
+          prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
       final historyStr = prefs.getString('chat_history_$email');
-      
+
       if (historyStr != null) {
         final List<dynamic> decoded = json.decode(historyStr);
-        final loadedMessages = decoded.map((m) => Map<String, dynamic>.from(m)).toList();
-        
+        final loadedMessages = decoded
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+
         bool hasCrisis = false;
         List<dynamic> activeCrisis = [];
         for (final msg in loadedMessages.reversed) {
-          if (msg['showCrisisResources'] == true && msg['crisisResources'] != null) {
+          if (msg['showCrisisResources'] == true &&
+              msg['crisisResources'] != null) {
             hasCrisis = true;
             activeCrisis = List<dynamic>.from(msg['crisisResources']);
             break;
@@ -68,7 +72,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             _hasCrisisActive = hasCrisis;
             _activeCrisisResources = activeCrisis;
             if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
-              _suggestedFollowUps = List<String>.from(_messages.last['suggestedFollowUps'] ?? []);
+              _suggestedFollowUps = List<String>.from(
+                _messages.last['suggestedFollowUps'] ?? [],
+              );
             }
           });
           _scrollToBottom();
@@ -78,19 +84,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       debugPrint('Error loading chat history: $e');
     }
-    
+
     _initializeChat();
   }
 
   Future<void> _saveChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
-      
+      final email =
+          prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
+
       if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
         _messages.last['suggestedFollowUps'] = _suggestedFollowUps;
       }
-      
+
       await prefs.setString('chat_history_$email', json.encode(_messages));
     } catch (e) {
       debugPrint('Error saving chat history: $e');
@@ -100,15 +107,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _initializeChat() {
     final todayMood = ref.read(todayMoodProvider).value;
     final history = ref.read(moodHistoryProvider).value ?? [];
-    final int score = todayMood ?? (history.isNotEmpty ? history.first.moodScore : 3);
+    final int score =
+        todayMood ?? (history.isNotEmpty ? history.first.moodScore : 3);
 
     setState(() {
       _messages = [
         {
           'role': 'model',
-          'text': "Hi! I see you're feeling a $score/5 today. How are you really doing?",
+          'text':
+              "Hi! I see you're feeling a $score/5 today. How are you really doing?",
           'suggestedFollowUps': <String>[],
-        }
+        },
       ];
     });
     _saveChatHistory();
@@ -119,7 +128,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (history.isEmpty) return 3.0;
     final now = DateTime.now();
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    final recentEntries = history.where((e) => e.timestamp.isAfter(sevenDaysAgo)).toList();
+    final recentEntries = history
+        .where((e) => e.timestamp.isAfter(sevenDaysAgo))
+        .toList();
     if (recentEntries.isEmpty) {
       return history.first.moodScore.toDouble();
     }
@@ -131,11 +142,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (text.trim().isEmpty) return;
 
     setState(() {
-      _messages.add({
-        'role': 'user',
-        'text': text,
-        'isFailed': false,
-      });
+      _messages.add({'role': 'user', 'text': text, 'isFailed': false});
       _suggestedFollowUps = []; // clear previous suggestions
       _isLoading = true;
     });
@@ -145,11 +152,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     try {
       final dio = ref.read(dioServiceProvider);
-      
+
       // Calculate mood context
       final todayMood = ref.read(todayMoodProvider).value;
       final history = ref.read(moodHistoryProvider).value ?? [];
-      final int score = todayMood ?? (history.isNotEmpty ? history.first.moodScore : 3);
+      final int score =
+          todayMood ?? (history.isNotEmpty ? history.first.moodScore : 3);
       final double weeklyAverage = _calculateWeeklyAverage();
 
       final moodContext = {
@@ -163,10 +171,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final rawHistory = _messages.sublist(0, _messages.length - 1);
       final startIndex = math.max(0, rawHistory.length - 8);
       final historyToSend = rawHistory.sublist(startIndex).map((m) {
-        return {
-          'role': m['role'],
-          'text': m['text'],
-        };
+        return {'role': m['role'], 'text': m['text']};
       }).toList();
 
       final response = await dio.sendChatMessage(
@@ -175,8 +180,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         moodContext: moodContext,
       );
 
-      final String reply = response['reply'] as String? ?? "I'm here to listen. Tell me more.";
-      final List<String> followUps = List<String>.from(response['suggestedFollowUps'] ?? []);
+      final String reply =
+          response['reply'] as String? ?? "I'm here to listen. Tell me more.";
+      final List<String> followUps = List<String>.from(
+        response['suggestedFollowUps'] ?? [],
+      );
       final bool showCrisisResources = response['showCrisisResources'] == true;
       final List<dynamic> crisisResources = response['crisisResources'] ?? [];
 
@@ -216,7 +224,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _retryMessage(int index) async {
     if (_isLoading) return;
-    
+
     final failedMsg = _messages[index];
     final text = failedMsg['text'] as String;
 
@@ -249,7 +257,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -268,10 +276,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF3B1E1E),
-            Color(0xFF2C1616),
-          ],
+          colors: [Color(0xFF3B1E1E), Color(0xFF2C1616)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -377,19 +382,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ElevatedButton.icon(
                         onPressed: () => _launchUrl('tel:$phone'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.errorColor.withValues(alpha: 0.2),
+                          backgroundColor: AppColors.errorColor.withValues(
+                            alpha: 0.2,
+                          ),
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: AppColors.errorColor),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           elevation: 0,
                         ),
                         icon: const Icon(Icons.phone, size: 14),
                         label: Text(
                           phone,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                   ],
@@ -428,11 +441,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _buildFeatureRow(Icons.psychology_outlined, "Reflect on your thoughts and emotional patterns"),
+                _buildFeatureRow(
+                  Icons.psychology_outlined,
+                  "Reflect on your thoughts and emotional patterns",
+                ),
                 const SizedBox(height: 8),
-                _buildFeatureRow(Icons.air_rounded, "Guide you through soothing breathing exercises"),
+                _buildFeatureRow(
+                  Icons.air_rounded,
+                  "Guide you through soothing breathing exercises",
+                ),
                 const SizedBox(height: 8),
-                _buildFeatureRow(Icons.analytics_outlined, "Help identify stress triggers from your logs"),
+                _buildFeatureRow(
+                  Icons.analytics_outlined,
+                  "Help identify stress triggers from your logs",
+                ),
               ],
             ),
           ),
@@ -461,12 +483,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.02),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderOverlay.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: AppColors.borderOverlay.withValues(alpha: 0.5),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline_rounded, color: AppColors.navBarUnselected, size: 16),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.navBarUnselected,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -527,56 +555,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'MindChat',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Gemini-powered badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF4285F4),
-                    Color(0xFF8F00FF),
-                  ],
+            Row(
+              children: [
+                Text(
+                  'MindChat',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: 10,
+                const SizedBox(width: 8),
+                // Gemini-powered badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Gemini',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4285F4), Color(0xFF8F00FF)],
                     ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                        size: 10,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Gemini',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              '${_messages.length} messages',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: AppColors.textMuted,
               ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Clear Chat',
+            icon: const Icon(Icons.delete_outline_rounded),
+            onPressed: () {
+              setState(() {
+                _messages = [];
+                _suggestedFollowUps = [];
+              });
+              _initializeChat();
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(
-            color: AppColors.borderOverlay,
-            height: 1.0,
-          ),
+          child: Container(color: AppColors.borderOverlay, height: 1.0),
         ),
       ),
       body: Column(
@@ -590,7 +639,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              itemCount: _messages.length + (_isLoading ? 1 : 0) + (_messages.length <= 1 ? 1 : 0),
+              itemCount:
+                  _messages.length +
+                  (_isLoading ? 1 : 0) +
+                  (_messages.length <= 1 ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == _messages.length && _isLoading) {
                   return const Align(
@@ -603,7 +655,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   );
                 }
 
-                if (_messages.length <= 1 && index == _messages.length + (_isLoading ? 1 : 0)) {
+                if (_messages.length <= 1 &&
+                    index == _messages.length + (_isLoading ? 1 : 0)) {
                   return _buildEmptyState();
                 }
 
@@ -627,7 +680,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           color: isUser ? Colors.black87 : Colors.white,
                           fontSize: 14.5,
                           height: 1.4,
-                          fontWeight: isUser ? FontWeight.w500 : FontWeight.normal,
+                          fontWeight: isUser
+                              ? FontWeight.w500
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -678,7 +733,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             color: AppColors.errorColor.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: AppColors.errorColor.withValues(alpha: 0.3),
+                              color: AppColors.errorColor.withValues(
+                                alpha: 0.3,
+                              ),
                               width: 1.5,
                             ),
                           ),
@@ -711,14 +768,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 8.0),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: AppColors.surfaceColor,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.borderOverlay),
+                                      border: Border.all(
+                                        color: AppColors.borderOverlay,
+                                      ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           name,
@@ -734,14 +797,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                             if (phone.isNotEmpty) ...[
                                               Row(
                                                 children: [
-                                                  const Icon(Icons.phone, size: 12, color: AppColors.primaryColor),
+                                                  const Icon(
+                                                    Icons.phone,
+                                                    size: 12,
+                                                    color:
+                                                        AppColors.primaryColor,
+                                                  ),
                                                   const SizedBox(width: 4),
                                                   Text(
                                                     phone,
                                                     style: const TextStyle(
-                                                      color: AppColors.primaryColor,
+                                                      color: AppColors
+                                                          .primaryColor,
                                                       fontSize: 12,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
                                                   ),
                                                 ],
@@ -755,10 +825,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                   child: Text(
                                                     web,
                                                     style: const TextStyle(
-                                                      color: AppColors.navBarUnselected,
+                                                      color: AppColors
+                                                          .navBarUnselected,
                                                       fontSize: 12,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      decoration: TextDecoration.underline,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      decoration: TextDecoration
+                                                          .underline,
                                                     ),
                                                   ),
                                                 ),
@@ -769,14 +842,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     ),
                                   ),
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ),
                         ),
                       ),
                     ],
                     // Show suggested follow-up chips below the last AI message
-                    if (!isUser && isLast && _suggestedFollowUps.isNotEmpty) ...[
+                    if (!isUser &&
+                        isLast &&
+                        _suggestedFollowUps.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
@@ -811,17 +886,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
             ),
           ),
-          
+
           // Input bar with Disclaimer
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
             decoration: const BoxDecoration(
               color: Colors.transparent,
               border: Border(
-                top: BorderSide(
-                  color: AppColors.borderOverlay,
-                  width: 1.0,
-                ),
+                top: BorderSide(color: AppColors.borderOverlay, width: 1.0),
               ),
             ),
             child: Column(
@@ -833,7 +905,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: TextField(
                         controller: _messageController,
                         onSubmitted: (val) => _sendMessage(val),
-                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                        ),
                         decoration: InputDecoration(
                           hintText: "Talk about your feelings...",
                           hintStyle: const TextStyle(
@@ -939,10 +1014,7 @@ class ChatBubble extends StatelessWidget {
         ),
         border: !isUser
             ? const Border(
-                left: BorderSide(
-                  color: Color(0xFF4285F4),
-                  width: 3.0,
-                ),
+                left: BorderSide(color: Color(0xFF4285F4), width: 3.0),
               )
             : null,
       ),
@@ -955,7 +1027,8 @@ class PolishedTypingIndicator extends StatefulWidget {
   const PolishedTypingIndicator({super.key});
 
   @override
-  State<PolishedTypingIndicator> createState() => _PolishedTypingIndicatorState();
+  State<PolishedTypingIndicator> createState() =>
+      _PolishedTypingIndicatorState();
 }
 
 class _PolishedTypingIndicatorState extends State<PolishedTypingIndicator>
@@ -974,12 +1047,10 @@ class _PolishedTypingIndicatorState extends State<PolishedTypingIndicator>
     });
 
     _animations = _controllers.map((controller) {
-      return Tween<double>(begin: 0.0, end: -8.0).animate(
-        CurvedAnimation(
-          parent: controller,
-          curve: Curves.easeInOut,
-        ),
-      );
+      return Tween<double>(
+        begin: 0.0,
+        end: -8.0,
+      ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
     }).toList();
 
     _startAnimations();

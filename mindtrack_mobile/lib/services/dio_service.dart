@@ -312,6 +312,39 @@ class DioService {
     }
   }
 
+  /// Generates a personalized AI journal reflection prompt based on mood score and tags.
+  Future<Map<String, dynamic>> generateJournalPrompt({
+    required int moodScore,
+    required List<String> tags,
+    List<String> recentNoteSummaries = const [],
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.post(
+        '/api/ai/journal/prompt',
+        data: {
+          'moodScore': moodScore,
+          'tags': tags,
+          'recentNoteSummaries': recentNoteSummaries,
+        },
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to generate journal prompt: status ${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error generating journal prompt: $e');
+      rethrow;
+    }
+  }
+
+
   /// Sends a chat message to the MindChat AI companion.
   Future<Map<String, dynamic>> sendChatMessage({
     required String message,

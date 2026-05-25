@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mindtrack.backend.dto.ChatResponse;
 import com.mindtrack.backend.dto.CopingSuggestResponse;
 import com.mindtrack.backend.dto.SentimentAnalysisResponse;
+import com.mindtrack.backend.dto.JournalPromptResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -98,6 +99,14 @@ public class JsonExtractionService {
             ChatResponse r = (ChatResponse) object;
             if (r.getReply() == null || r.getReply().trim().isEmpty()) {
                 throw new IllegalArgumentException("Missing required fields in ChatResponse");
+            }
+        } else if (object instanceof JournalPromptResponse) {
+            JournalPromptResponse r = (JournalPromptResponse) object;
+            if (r.getPromptTitle() == null || r.getPromptTitle().trim().isEmpty() ||
+                r.getPromptQuestion() == null || r.getPromptQuestion().trim().isEmpty() ||
+                r.getTone() == null || r.getTone().trim().isEmpty() ||
+                r.getFollowUpQuestions() == null || r.getFollowUpQuestions().size() != 3) {
+                throw new IllegalArgumentException("Missing required fields in JournalPromptResponse");
             }
         }
     }

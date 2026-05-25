@@ -482,4 +482,123 @@ public class AiInsightService {
             return fallback;
         }
     }
+
+    /**
+     * Generates a personalized journal reflection prompt using Gemini based on mood and tags.
+     * Falls back to a high-fidelity local prompt library if the Gemini API fails or is offline.
+     */
+    public JournalPromptResponse getJournalPrompt(JournalPromptRequest request) {
+        String moodDescriptor = getMoodDescriptor(request.getMoodScore());
+        String tagsText = (request.getTags() == null || request.getTags().isEmpty()) ? "None" : String.join(", ", request.getTags());
+        String summariesText = (request.getRecentNoteSummaries() == null || request.getRecentNoteSummaries().isEmpty()) ? "None" : String.join("; ", request.getRecentNoteSummaries());
+
+        String prompt = String.format("""
+        You are a warm, highly compassionate mental health companion inside the MindTrack app.
+        Generate a deeply personalized, empathetic journal reflection prompt tailored to this user's current mood and activities.
+        
+        Current Mood: %d / 5 (%s)
+        Active Tags (associated activities/contexts): %s
+        Optional Recent Note Summaries: %s
+        
+        Using this context, craft a beautiful reflection prompt that helps them process their feelings.
+        
+        Respond ONLY with a valid JSON object in this exact format (no markdown, no other text):
+        {
+          "promptTitle": "A creative, comforting title (maximum 4 words)",
+          "promptQuestion": "One deep, open-ended reflection question tailored directly to their mood and active tags",
+          "followUpQuestions": [
+            "first gentle follow-up question",
+            "second gentle follow-up question",
+            "third gentle follow-up question"
+          ],
+          "estimatedMinutes": 3,
+          "tone": "a descriptive word for the emotional tone (e.g. Grounding, Vibrant, Restorative, Gentle, Observant)"
+        }
+        """, request.getMoodScore(), moodDescriptor, tagsText, summariesText);
+
+        try {
+            String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.7);
+            JournalPromptResponse parsed = jsonExtractionService.extractAndParse(rawResponse, JournalPromptResponse.class);
+            parsed.setAiAvailable(true);
+            return parsed;
+        } catch (Exception e) {
+            log.error("Failed to generate and parse Gemini journal prompt response: {}", e.getMessage());
+            return getFallbackPrompt(request.getMoodScore());
+        }
+    }
+
+    private String getMoodDescriptor(int score) {
+        return switch (score) {
+            case 1 -> "High Stress";
+            case 2 -> "Low Energy";
+            case 3 -> "Neutral";
+            case 4 -> "Stable";
+            case 5 -> "Radiant";
+            default -> "Neutral";
+        };
+    }
+
+    private JournalPromptResponse getFallbackPrompt(int score) {
+        JournalPromptResponse fallback = new JournalPromptResponse();
+        fallback.setAiAvailable(false);
+
+        switch (score) {
+            case 1 -> {
+                fallback.setPromptTitle("Calming the Storm");
+                fallback.setPromptQuestion("What is currently demanding the most energy from you, and how can you take one step back to breathe?");
+                fallback.setFollowUpQuestions(List.of(
+                    "Where do you feel this tension in your body?",
+                    "What is one thing you can say 'no' to today?",
+                    "Who is someone you can lean on for support?"
+                ));
+                fallback.setEstimatedMinutes(3);
+                fallback.setTone("Empathetic and grounding");
+            }
+            case 2 -> {
+                fallback.setPromptTitle("Gentle Refueling");
+                fallback.setPromptQuestion("When your energy is low, what is the smallest, most comforting thing you can do for yourself right now?");
+                fallback.setFollowUpQuestions(List.of(
+                    "How has your sleep or rest been lately?",
+                    "What is a gentle activity that usually restores you?",
+                    "How can you show yourself kindness today?"
+                ));
+                fallback.setEstimatedMinutes(3);
+                fallback.setTone("Soft and supportive");
+            }
+            case 4 -> {
+                fallback.setPromptTitle("Anchoring the Good");
+                fallback.setPromptQuestion("What brought a sense of peace, accomplishment, or quiet joy to your day, even if it was tiny?");
+                fallback.setFollowUpQuestions(List.of(
+                    "How can you carry this pleasant feeling into tomorrow?",
+                    "What activity contributed most to this stable mood?",
+                    "What are you feeling grateful for right now?"
+                ));
+                fallback.setEstimatedMinutes(5);
+                fallback.setTone("Warm and appreciative");
+            }
+            case 5 -> {
+                fallback.setPromptTitle("Celebrating Clarity");
+                fallback.setPromptQuestion("Your energy feels radiant today. What is flowing well in your life right now that you want to celebrate?");
+                fallback.setFollowUpQuestions(List.of(
+                    "How can you capture and remember this feeling of expansion?",
+                    "How can you share this positive energy with others?",
+                    "What dreams or hopes feel closest to you today?"
+                ));
+                fallback.setEstimatedMinutes(5);
+                fallback.setTone("Uplifting and vibrant");
+            }
+            default -> {
+                fallback.setPromptTitle("Checking In");
+                fallback.setPromptQuestion("How would you describe the transition of your energy today from morning until this very moment?");
+                fallback.setFollowUpQuestions(List.of(
+                    "What felt stable or balanced today?",
+                    "Is there any subtle emotion waiting to be noticed?",
+                    "What is one word that sums up your current state?"
+                ));
+                fallback.setEstimatedMinutes(5);
+                fallback.setTone("Mindful and observant");
+            }
+        }
+        return fallback;
+    }
 }

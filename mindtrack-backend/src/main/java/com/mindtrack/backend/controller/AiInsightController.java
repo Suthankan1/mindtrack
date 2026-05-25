@@ -161,4 +161,28 @@ public class AiInsightController {
         ChatResponse response = aiInsightService.chatWithAi(request);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * POST /api/ai/journal/prompt
+     *
+     * Generates a personalized journal reflection prompt using Gemini.
+     *
+     * @param request        the journal prompt generation request
+     * @param authentication the authenticated user's Spring Security context
+     * @return the personalized prompt response containing title, question, and follow-ups.
+     */
+    @PostMapping("/journal/prompt")
+    public ResponseEntity<JournalPromptResponse> getJournalPrompt(
+            @Valid @RequestBody JournalPromptRequest request,
+            Authentication authentication) {
+
+        if (authentication != null) {
+            String email = authentication.getName();
+            userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        }
+
+        JournalPromptResponse response = aiInsightService.getJournalPrompt(request);
+        return ResponseEntity.ok(response);
+    }
 }

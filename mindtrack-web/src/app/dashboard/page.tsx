@@ -84,6 +84,50 @@ export default function DashboardPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [logSuccess, setLogSuccess] = useState(false);
 
+  // AI Prompt States
+  interface JournalPrompt {
+    promptTitle: string;
+    promptQuestion: string;
+    followUpQuestions: string[];
+    estimatedMinutes: number;
+    tone: string;
+    aiAvailable: boolean;
+  }
+  const [aiPrompt, setAiPrompt] = useState<JournalPrompt | null>(null);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [promptError, setPromptError] = useState<string | null>(null);
+
+  const handleGeneratePrompt = async () => {
+    if (!session?.user?.accessToken) return;
+
+    setIsGeneratingPrompt(true);
+    setPromptError(null);
+    setAiPrompt(null);
+
+    try {
+      const res = await axios.post(
+        "/api/ai/journal/prompt",
+        {
+          moodScore: newMood,
+          tags: selectedTags,
+          recentNoteSummaries: []
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.accessToken}`,
+          },
+        }
+      );
+      setAiPrompt(res.data);
+    } catch (err: any) {
+      console.error("Error generating reflection prompt:", err);
+      const errMsg = err.response?.data?.error || err.message || "Failed to generate reflection prompt.";
+      setPromptError(errMsg);
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
   // Available tag selections
   const availableTags = ["Sleep", "Work", "Exercise", "Mindfulness", "Social", "Nutrition"];
 
@@ -169,6 +213,7 @@ export default function DashboardPage() {
 
       setNewNote("");
       setSelectedTags([]);
+      setAiPrompt(null);
       setLogSuccess(true);
       showToast("Mood log saved successfully!", "success");
       setTimeout(() => setLogSuccess(false), 3000);
@@ -557,6 +602,83 @@ export default function DashboardPage() {
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* AI reflection prompt generator */}
+                  <div className="space-y-2 border-t border-white/[0.04] pt-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-accent-teal" />
+                        AI Reflection Prompt
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleGeneratePrompt}
+                        disabled={isGeneratingPrompt}
+                        className="text-[10px] font-bold text-accent-teal uppercase tracking-wider bg-accent-teal/5 border border-accent-teal/20 hover:border-accent-teal/40 px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50 hover:bg-accent-teal/10"
+                      >
+                        {isGeneratingPrompt ? "Generating..." : "Generate Prompt"}
+                      </button>
+                    </div>
+
+                    {isGeneratingPrompt && (
+                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-24 bg-white/5 rounded-lg" />
+                          <div className="h-4 w-12 bg-white/5 rounded-lg" />
+                        </div>
+                        <div className="h-3 w-full bg-white/5 rounded" />
+                        <div className="h-3 w-2/3 bg-white/5 rounded" />
+                      </div>
+                    )}
+
+                    {promptError && (
+                      <p className="text-[10px] text-accent-coral font-medium mt-1">
+                        {promptError}
+                      </p>
+                    )}
+
+                    {aiPrompt && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-accent-teal/20 hover:border-accent-teal/40 transition-all cursor-pointer space-y-2 group shadow-[0_4px_16px_rgba(0,210,200,0.02)]"
+                        onClick={() => {
+                          setNewNote(prev => prev ? aiPrompt.promptQuestion + "\n\n" + prev : aiPrompt.promptQuestion + "\n\n");
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">
+                            {aiPrompt.promptTitle}
+                          </span>
+                          <div className="flex items-center gap-2 text-[8px] text-muted">
+                            <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5">
+                              ⏱️ {aiPrompt.estimatedMinutes} min
+                            </span>
+                            <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5 uppercase font-semibold">
+                              Tone: {aiPrompt.tone}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-white group-hover:text-accent-teal transition-all leading-relaxed font-medium">
+                          {aiPrompt.promptQuestion}
+                        </p>
+                        <div className="text-[9px] text-muted group-hover:text-accent-teal/70 transition-all flex items-center gap-1 font-semibold pt-1">
+                          <span>✨ Tap to apply prompt inside note box</span>
+                        </div>
+                        
+                        {aiPrompt.followUpQuestions && aiPrompt.followUpQuestions.length === 3 && (
+                          <div className="mt-2 pt-2 border-t border-white/[0.03] space-y-1.5">
+                            <p className="text-[9px] text-muted font-bold uppercase tracking-widest text-left">Follow-up considerations:</p>
+                            {aiPrompt.followUpQuestions.map((q, idx) => (
+                              <p key={idx} className="text-[10px] text-gray-400 pl-2 border-l border-white/10 leading-normal text-left">
+                                • {q}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
                   </div>
 
                   {/* Journal Reflection Input */}

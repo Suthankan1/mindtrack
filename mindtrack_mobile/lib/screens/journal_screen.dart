@@ -991,6 +991,9 @@ class _MoodLoggingBottomSheetState
   final List<String> _selectedTags = [];
   bool _isSaving = false;
 
+  bool _isGeneratingPrompt = false;
+  Map<String, dynamic>? _promptResult;
+
   final List<String> _availableTags = [
     'Work',
     'Sleep',
@@ -998,6 +1001,101 @@ class _MoodLoggingBottomSheetState
     'Social',
     'Other',
   ];
+
+  Future<void> _generatePrompt() async {
+    setState(() {
+      _isGeneratingPrompt = true;
+      _promptResult = null;
+    });
+
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final result = await dio.generateJournalPrompt(
+        moodScore: _score.round(),
+        tags: _selectedTags,
+      );
+      setState(() {
+        _promptResult = result;
+        _isGeneratingPrompt = false;
+      });
+    } catch (e) {
+      // Local fallback in case of no network / server error
+      setState(() {
+        _promptResult = _getLocalFallbackPrompt(_score.round());
+        _isGeneratingPrompt = false;
+      });
+    }
+  }
+
+  Map<String, dynamic> _getLocalFallbackPrompt(int score) {
+    switch (score) {
+      case 1:
+        return {
+          'promptTitle': 'Calming the Storm',
+          'promptQuestion': 'What is currently demanding the most energy from you, and how can you take one step back to breathe?',
+          'followUpQuestions': [
+            'Where do you feel this tension in your body?',
+            'What is one thing you can say "no" to today?',
+            'Who is someone you can lean on for support?'
+          ],
+          'estimatedMinutes': 3,
+          'tone': 'Empathetic and grounding',
+          'aiAvailable': false
+        };
+      case 2:
+        return {
+          'promptTitle': 'Gentle Refueling',
+          'promptQuestion': 'When your energy is low, what is the smallest, most comforting thing you can do for yourself right now?',
+          'followUpQuestions': [
+            'How has your sleep or rest been lately?',
+            'What is a gentle activity that usually restores you?',
+            'How can you show yourself kindness today?'
+          ],
+          'estimatedMinutes': 3,
+          'tone': 'Soft and supportive',
+          'aiAvailable': false
+        };
+      case 4:
+        return {
+          'promptTitle': 'Anchoring the Good',
+          'promptQuestion': 'What brought a sense of peace, accomplishment, or quiet joy to your day, even if it was tiny?',
+          'followUpQuestions': [
+            'How can you carry this pleasant feeling into tomorrow?',
+            'What activity contributed most to this stable mood?',
+            'What are you feeling grateful for right now?'
+          ],
+          'estimatedMinutes': 5,
+          'tone': 'Warm and appreciative',
+          'aiAvailable': false
+        };
+      case 5:
+        return {
+          'promptTitle': 'Celebrating Clarity',
+          'promptQuestion': 'Your energy feels radiant today. What is flowing well in your life right now that you want to celebrate?',
+          'followUpQuestions': [
+            'How can you capture and remember this feeling of expansion?',
+            'How can you share this positive energy with others?',
+            'What dreams or hopes feel closest to you today?'
+          ],
+          'estimatedMinutes': 5,
+          'tone': 'Uplifting and vibrant',
+          'aiAvailable': false
+        };
+      default:
+        return {
+          'promptTitle': 'Checking In',
+          'promptQuestion': 'How would you describe the transition of your energy today from morning until this very moment?',
+          'followUpQuestions': [
+            'What felt stable or balanced today?',
+            'Is there any subtle emotion waiting to be noticed?',
+            'What is one word that sums up your current state?'
+          ],
+          'estimatedMinutes': 5,
+          'tone': 'Mindful and observant',
+          'aiAvailable': false
+        };
+    }
+  }
 
   @override
   void dispose() {
@@ -1137,16 +1235,249 @@ class _MoodLoggingBottomSheetState
             ),
             const SizedBox(height: 28),
 
-            // Notes Title
-            const Text(
-              'Cosmic Notes',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+            // Notes Title and AI Prompt Trigger Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Cosmic Notes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                if (_promptResult == null && !_isGeneratingPrompt)
+                  TextButton.icon(
+                    onPressed: _generatePrompt,
+                    icon: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: AppColors.primaryColor,
+                      size: 15,
+                    ),
+                    label: const Text(
+                      'AI Prompt',
+                      style: TextStyle(
+                        color: AppColors.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      backgroundColor: AppColors.primaryColor.withOpacity(0.08),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: AppColors.primaryColor.withOpacity(0.2),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
+
+            // AI Loading Shimmer
+            if (_isGeneratingPrompt) ...[
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceColor.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.borderOverlay.withOpacity(0.4),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: AppColors.borderOverlay.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: AppColors.borderOverlay.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // AI Prompt Result Card
+            if (_promptResult != null) ...[
+              GestureDetector(
+                onTap: () {
+                  final question = _promptResult!['promptQuestion'] ?? '';
+                  if (question.isNotEmpty) {
+                    setState(() {
+                      _noteController.text = _noteController.text.isEmpty
+                          ? '$question\n\n'
+                          : '$question\n\n${_noteController.text}';
+                      _noteController.selection = TextSelection.fromPosition(
+                        TextPosition(offset: _noteController.text.length),
+                      );
+                    });
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.primaryColor.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            (_promptResult!['promptTitle'] ?? '').toString().toUpperCase(),
+                            style: const TextStyle(
+                              color: AppColors.primaryColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.borderOverlay,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '⏱️ ${_promptResult!['estimatedMinutes'] ?? 3}m',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.borderOverlay,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  (_promptResult!['tone'] ?? 'Gentle').toString().toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _promptResult!['promptQuestion'] ?? '',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        '✨ Tap to insert prompt into notes field',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (_promptResult!['followUpQuestions'] != null &&
+                          (_promptResult!['followUpQuestions'] as List).isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.only(top: 10),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: AppColors.borderOverlay,
+                                width: 0.5,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'FOLLOW-UP CONSIDERATIONS:',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              ...(_promptResult!['followUpQuestions'] as List).map((q) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4.0),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        '• ',
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          q.toString(),
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.7),
+                                            fontSize: 11,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             // Note Text Field
             TextField(

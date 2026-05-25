@@ -6,6 +6,8 @@ import com.mindtrack.backend.dto.ChatRequest;
 import com.mindtrack.backend.dto.CopingSuggestRequest;
 import com.mindtrack.backend.dto.MoodContextDto;
 import com.mindtrack.backend.dto.MoodAnomalyResponse;
+import com.mindtrack.backend.dto.JournalPromptRequest;
+import com.mindtrack.backend.dto.JournalPromptResponse;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.service.AiInsightService;
@@ -175,5 +177,52 @@ public class AiInsightControllerTest {
                 .andExpect(jsonPath("$.riskLevel", is("MEDIUM")))
                 .andExpect(jsonPath("$.detectedPatterns[0]", is("Sudden mood drop from personal baseline")))
                 .andExpect(jsonPath("$.insufficientData", is(false)));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getJournalPrompt_Success_ReturnsResponse() throws Exception {
+        JournalPromptRequest request = JournalPromptRequest.builder()
+                .moodScore(3)
+                .tags(List.of("Work", "Sleep"))
+                .recentNoteSummaries(List.of("Tired but productive"))
+                .build();
+
+        JournalPromptResponse response = JournalPromptResponse.builder()
+                .promptTitle("Checking In")
+                .promptQuestion("How did your work affect your sleep quality today?")
+                .followUpQuestions(List.of("Question 1", "Question 2", "Question 3"))
+                .estimatedMinutes(3)
+                .tone("Gentle")
+                .aiAvailable(true)
+                .build();
+
+        org.mockito.Mockito.when(aiInsightService.getJournalPrompt(org.mockito.ArgumentMatchers.any(JournalPromptRequest.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/ai/journal/prompt")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.promptTitle", is("Checking In")))
+                .andExpect(jsonPath("$.promptQuestion", is("How did your work affect your sleep quality today?")))
+                .andExpect(jsonPath("$.estimatedMinutes", is(3)))
+                .andExpect(jsonPath("$.aiAvailable", is(true)));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getJournalPrompt_InvalidMoodScore_ReturnsBadRequest() throws Exception {
+        JournalPromptRequest request = JournalPromptRequest.builder()
+                .moodScore(6) // Valid score is 1-5
+                .tags(List.of("Work"))
+                .build();
+
+        mockMvc.perform(post("/api/ai/journal/prompt")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Validation Failed")))
+                .andExpect(jsonPath("$.errors.moodScore", is("Mood score must be between 1 and 5")));
     }
 }

@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/mood_provider.dart';
 import '../services/dio_service.dart';
 import '../theme/app_theme.dart';
@@ -20,12 +23,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<String> _suggestedFollowUps = [];
   bool _isLoading = false;
 
+  bool _hasCrisisActive = false;
+  List<dynamic> _activeCrisisResources = [];
+
   @override
   void initState() {
     super.initState();
-    // Initialize welcome message after providers are initialized
+    // Initialize/load chat history after providers are initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeChat();
+      _loadChatHistory();
     });
   }
 
@@ -34,6 +40,61 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadChatHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
+      final historyStr = prefs.getString('chat_history_$email');
+      
+      if (historyStr != null) {
+        final List<dynamic> decoded = json.decode(historyStr);
+        final loadedMessages = decoded.map((m) => Map<String, dynamic>.from(m)).toList();
+        
+        bool hasCrisis = false;
+        List<dynamic> activeCrisis = [];
+        for (final msg in loadedMessages.reversed) {
+          if (msg['showCrisisResources'] == true && msg['crisisResources'] != null) {
+            hasCrisis = true;
+            activeCrisis = List<dynamic>.from(msg['crisisResources']);
+            break;
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _messages = loadedMessages;
+            _hasCrisisActive = hasCrisis;
+            _activeCrisisResources = activeCrisis;
+            if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
+              _suggestedFollowUps = List<String>.from(_messages.last['suggestedFollowUps'] ?? []);
+            }
+          });
+          _scrollToBottom();
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error loading chat history: $e');
+    }
+    
+    _initializeChat();
+  }
+
+  Future<void> _saveChatHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
+      
+      if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
+        _messages.last['suggestedFollowUps'] = _suggestedFollowUps;
+      }
+      
+      await prefs.setString('chat_history_$email', json.encode(_messages));
+    } catch (e) {
+      debugPrint('Error saving chat history: $e');
+    }
   }
 
   void _initializeChat() {
@@ -46,9 +107,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         {
           'role': 'model',
           'text': "Hi! I see you're feeling a $score/5 today. How are you really doing?",
+          'suggestedFollowUps': <String>[],
         }
       ];
     });
+    _saveChatHistory();
   }
 
   double _calculateWeeklyAverage() {
@@ -67,17 +130,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // 1. Append user message locally
     setState(() {
       _messages.add({
         'role': 'user',
         'text': text,
+        'isFailed': false,
       });
       _suggestedFollowUps = []; // clear previous suggestions
       _isLoading = true;
     });
     _messageController.clear();
     _scrollToBottom();
+    await _saveChatHistory();
 
     try {
       final dio = ref.read(dioServiceProvider);
@@ -95,7 +159,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Prepare conversation history for backend (excluding initial welcome message if preferred,
       // but standard is to include all alternating turns so Gemini has context)
-      final historyToSend = _messages.sublist(0, _messages.length - 1).map((m) {
+      // Limit to last 8 messages.
+      final rawHistory = _messages.sublist(0, _messages.length - 1);
+      final startIndex = math.max(0, rawHistory.length - 8);
+      final historyToSend = rawHistory.sublist(startIndex).map((m) {
         return {
           'role': m['role'],
           'text': m['text'],
@@ -120,23 +187,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             'text': reply,
             'showCrisisResources': showCrisisResources,
             'crisisResources': crisisResources,
+            'suggestedFollowUps': followUps,
           });
           _suggestedFollowUps = followUps;
           _isLoading = false;
+          if (showCrisisResources && crisisResources.isNotEmpty) {
+            _hasCrisisActive = true;
+            _activeCrisisResources = List<dynamic>.from(crisisResources);
+          }
         });
         _scrollToBottom();
+        await _saveChatHistory();
       }
     } catch (e) {
       debugPrint('ChatScreen error: $e');
       if (mounted) {
         setState(() {
-          _messages.add({
-            'role': 'model',
-            'text': "I'm having a little trouble connecting right now, but I'm still here for you. How are you feeling?",
-          });
+          if (_messages.isNotEmpty && _messages.last['role'] == 'user') {
+            _messages.last['isFailed'] = true;
+          }
           _isLoading = false;
         });
         _scrollToBottom();
+        await _saveChatHistory();
+      }
+    }
+  }
+
+  Future<void> _retryMessage(int index) async {
+    if (_isLoading) return;
+    
+    final failedMsg = _messages[index];
+    final text = failedMsg['text'] as String;
+
+    setState(() {
+      _messages.removeRange(index, _messages.length);
+      _isLoading = true;
+    });
+
+    _scrollToBottom();
+    await _sendMessage(text);
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    try {
+      final Uri url = Uri.parse(urlString);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not launch $urlString');
+      }
+    } catch (e) {
+      debugPrint('ChatScreen: Error launching URL: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open lifeline. Error: $e'),
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
       }
     }
   }
@@ -151,6 +258,264 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
       }
     });
+  }
+
+  Widget _buildPinnedCrisisBanner() {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF3B1E1E),
+            Color(0xFF2C1616),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.errorColor.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.errorColor,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Immediate Support Available',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                onPressed: () {
+                  setState(() {
+                    _hasCrisisActive = false;
+                  });
+                },
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'If you are in danger or need immediate help, please reach out to local emergency services or use these resources:',
+            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.3),
+          ),
+          const SizedBox(height: 12),
+          Column(
+            children: _activeCrisisResources.map((res) {
+              final name = res['lineName'] ?? 'Helpline';
+              final phone = res['phoneNumber'] ?? '';
+              final web = res['website'] ?? '';
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderOverlay),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (web.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            GestureDetector(
+                              onTap: () => _launchUrl(web),
+                              child: Text(
+                                web,
+                                style: const TextStyle(
+                                  color: AppColors.primaryColor,
+                                  fontSize: 12,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (phone.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () => _launchUrl('tel:$phone'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.errorColor.withValues(alpha: 0.2),
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: AppColors.errorColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.phone, size: 14),
+                        label: Text(
+                          phone,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.borderOverlay),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "How I can support you:",
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildFeatureRow(Icons.psychology_outlined, "Reflect on your thoughts and emotional patterns"),
+                const SizedBox(height: 8),
+                _buildFeatureRow(Icons.air_rounded, "Guide you through soothing breathing exercises"),
+                const SizedBox(height: 8),
+                _buildFeatureRow(Icons.analytics_outlined, "Help identify stress triggers from your logs"),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "Tap a suggestion to start:",
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildMoodContextChip("I feel anxious"),
+              _buildMoodContextChip("Help me breathe"),
+              _buildMoodContextChip("Reflect on today"),
+              _buildMoodContextChip("What pattern do you see?"),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderOverlay.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.navBarUnselected, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Disclaimer: MindChat is a space for supportive reflection. It is not designed for emergency care, crisis intervention, or professional therapy.",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.navBarUnselected,
+                      fontSize: 11,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.primaryColor, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMoodContextChip(String text) {
+    return ActionChip(
+      label: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.primaryColor,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      backgroundColor: AppColors.surfaceColor,
+      side: const BorderSide(color: AppColors.borderOverlay),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      onPressed: () => _sendMessage(text),
+    );
   }
 
   @override
@@ -216,12 +581,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          // Pinned Crisis Support Banner
+          if (_hasCrisisActive && _activeCrisisResources.isNotEmpty)
+            _buildPinnedCrisisBanner(),
+
           // Message List
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              itemCount: _messages.length + (_isLoading ? 1 : 0),
+              itemCount: _messages.length + (_isLoading ? 1 : 0) + (_messages.length <= 1 ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == _messages.length && _isLoading) {
                   return const Align(
@@ -229,9 +598,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     child: ChatBubble(
                       isUser: false,
                       isTyping: true,
-                      child: TypingIndicator(),
+                      child: PolishedTypingIndicator(),
                     ),
                   );
+                }
+
+                if (_messages.length <= 1 && index == _messages.length + (_isLoading ? 1 : 0)) {
+                  return _buildEmptyState();
                 }
 
                 final msg = _messages[index];
@@ -239,6 +612,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 final isLast = index == _messages.length - 1;
                 final bool showCrisis = msg['showCrisisResources'] == true;
                 final List<dynamic> resources = msg['crisisResources'] ?? [];
+                final bool isFailed = msg['isFailed'] == true;
 
                 return Column(
                   crossAxisAlignment: isUser
@@ -257,6 +631,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                       ),
                     ),
+                    if (isUser && isFailed) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: AppColors.errorColor,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Failed to send. ',
+                            style: TextStyle(
+                              color: AppColors.errorColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _retryMessage(index),
+                            child: const Text(
+                              'Retry',
+                              style: TextStyle(
+                                color: AppColors.primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     // Show crisis resource card if requested and has resources
                     if (showCrisis && resources.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -342,13 +750,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                             ],
                                             if (web.isNotEmpty)
                                               Expanded(
-                                                child: Text(
-                                                  web,
-                                                  style: const TextStyle(
-                                                    color: AppColors.navBarUnselected,
-                                                    fontSize: 12,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    decoration: TextDecoration.underline,
+                                                child: GestureDetector(
+                                                  onTap: () => _launchUrl(web),
+                                                  child: Text(
+                                                    web,
+                                                    style: const TextStyle(
+                                                      color: AppColors.navBarUnselected,
+                                                      fontSize: 12,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      decoration: TextDecoration.underline,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -401,9 +812,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
           
-          // Input bar
+          // Input bar with Disclaimer
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
             decoration: const BoxDecoration(
               color: Colors.transparent,
               border: Border(
@@ -413,64 +824,78 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    onSubmitted: (val) => _sendMessage(val),
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: "Talk about your feelings...",
-                      hintStyle: const TextStyle(
-                        color: AppColors.navBarUnselected,
-                        fontSize: 14.5,
-                      ),
-                      fillColor: AppColors.surfaceColor,
-                      filled: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderOverlay,
-                          width: 1,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        onSubmitted: (val) => _sendMessage(val),
+                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                        decoration: InputDecoration(
+                          hintText: "Talk about your feelings...",
+                          hintStyle: const TextStyle(
+                            color: AppColors.navBarUnselected,
+                            fontSize: 14.5,
+                          ),
+                          fillColor: AppColors.surfaceColor,
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: const BorderSide(
+                              color: AppColors.borderOverlay,
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: const BorderSide(
+                              color: AppColors.borderOverlay,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: const BorderSide(
+                              color: AppColors.primaryColor,
+                              width: 1,
+                            ),
+                          ),
                         ),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderOverlay,
-                          width: 1,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () => _sendMessage(_messageController.text),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
                           color: AppColors.primaryColor,
-                          width: 1,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.send_rounded,
+                          color: Colors.black,
+                          size: 20,
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () => _sendMessage(_messageController.text),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: Colors.black,
-                      size: 20,
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  "MindChat is a supportive reflection companion, not a replacement for therapy or emergency care.",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.navBarUnselected,
+                    fontSize: 10.5,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -526,55 +951,92 @@ class ChatBubble extends StatelessWidget {
   }
 }
 
-class TypingIndicator extends StatefulWidget {
-  const TypingIndicator({super.key});
+class PolishedTypingIndicator extends StatefulWidget {
+  const PolishedTypingIndicator({super.key});
 
   @override
-  State<TypingIndicator> createState() => _TypingIndicatorState();
+  State<PolishedTypingIndicator> createState() => _PolishedTypingIndicatorState();
 }
 
-class _TypingIndicatorState extends State<TypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _PolishedTypingIndicatorState extends State<PolishedTypingIndicator>
+    with TickerProviderStateMixin {
+  late List<AnimationController> _controllers;
+  late List<Animation<double>> _animations;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+    _controllers = List.generate(3, (index) {
+      return AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 600),
+      );
+    });
+
+    _animations = _controllers.map((controller) {
+      return Tween<double>(begin: 0.0, end: -8.0).animate(
+        CurvedAnimation(
+          parent: controller,
+          curve: Curves.easeInOut,
+        ),
+      );
+    }).toList();
+
+    _startAnimations();
+  }
+
+  void _startAnimations() async {
+    for (int i = 0; i < 3; i++) {
+      if (!mounted) return;
+      _playAnimation(i);
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
+  }
+
+  void _playAnimation(int index) async {
+    if (!mounted) return;
+    await _controllers[index].forward();
+    if (!mounted) return;
+    await _controllers[index].reverse();
+    if (mounted) {
+      _playAnimation(index);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (index) {
-        return AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            final double delay = index * 0.2;
-            final double value = math.sin((_controller.value * 2 * math.pi) - delay);
-            final double opacity = ((value + 1) / 2).clamp(0.2, 1.0);
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2.0),
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4285F4).withValues(alpha: opacity),
-                shape: BoxShape.circle,
-              ),
-            );
-          },
-        );
-      }),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (index) {
+          return AnimatedBuilder(
+            animation: _animations[index],
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _animations[index].value),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF4285F4),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
+            },
+          );
+        }),
+      ),
     );
   }
 }

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  *
  * @returns 200 with an array of Therapist objects on success,
  *          401 if unauthorized,
- *          502 if the Spring Boot backend is offline,
+ *          503 if the Spring Boot backend is unavailable,
  *          or 500 on other errors
  */
 export async function GET() {
@@ -35,13 +35,10 @@ export async function GET() {
 
       return NextResponse.json(response.data);
     } catch (backendError) {
-      console.error(
-        "Spring Boot backend offline or failed on therapists fetch:",
-        backendError
-      );
+      console.error("Therapist directory fetch failed:", backendError);
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Failed to load therapist directory." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {

@@ -84,7 +84,7 @@ public class DataLoader implements CommandLineRunner {
                     .location("New York, NY (Remote)")
                     .contactEmail("elara.vance@mindtrack.org")
                     .verified(true)
-                    .bio("Specializes in restructuring cognitive cognitive patterns, treating anxiety disorders, and guiding emotional regulation through structured, evidence-based practices.")
+                    .bio("Specializes in restructuring cognitive patterns, treating anxiety disorders, and guiding emotional regulation through structured, evidence-based practices.")
                     .rating(4.9)
                     .availability("Available Tomorrow")
                     .avatarGradient("from-teal-400 to-emerald-500")

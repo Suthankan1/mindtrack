@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/dio_service.dart';
 
 /// Representation of a mood entry on the client side
@@ -11,6 +13,7 @@ class MoodEntry {
   final String note;
   final DateTime timestamp;
   final List<String> tags;
+  final bool isPending;
 
   MoodEntry({
     required this.id,
@@ -19,6 +22,7 @@ class MoodEntry {
     required this.note,
     required this.timestamp,
     required this.tags,
+    this.isPending = false,
   });
 
   factory MoodEntry.fromJson(Map<String, dynamic> json) {
@@ -33,7 +37,20 @@ class MoodEntry {
       tags: json['tags'] != null
           ? List<String>.from(json['tags'] as List<dynamic>)
           : const [],
+      isPending: json['isPending'] as bool? ?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'moodScore': moodScore,
+      'note': note,
+      'timestamp': timestamp.toIso8601String(),
+      'tags': tags,
+      'isPending': isPending,
+    };
   }
 }
 
@@ -42,6 +59,24 @@ class TodayMoodNotifier extends AsyncNotifier<int?> {
   @override
   FutureOr<int?> build() async {
     final dio = ref.watch(dioServiceProvider);
+    
+    // Watch offline queue so we automatically rebuild when local items are added/removed/synced
+    final pending = ref.watch(offlineQueueProvider);
+    if (pending.isNotEmpty) {
+      final now = DateTime.now();
+      final todayPending = pending.where((e) {
+        final localTime = e.timestamp.toLocal();
+        return localTime.year == now.year &&
+            localTime.month == now.month &&
+            localTime.day == now.day;
+      }).toList();
+
+      if (todayPending.isNotEmpty) {
+        // Since pending list is prepended with newest first, the first element is the most recent today
+        return todayPending.first.moodScore;
+      }
+    }
+
     try {
       final list = await dio.getTodayMoods();
       if (list.isNotEmpty) {
@@ -72,26 +107,44 @@ class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
   @override
   FutureOr<List<MoodEntry>> build() async {
     final dio = ref.watch(dioServiceProvider);
+    final pending = ref.watch(offlineQueueProvider);
+
+    List<MoodEntry> remoteList = [];
     try {
       final list = await dio.getMoodHistory(days: 30);
-      return list
+      remoteList = list
           .map((json) => MoodEntry.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       debugPrint('MoodHistoryNotifier: Error fetching mood history: $e');
-      return [];
     }
+
+    final pendingIds = pending.map((e) => e.id).toSet();
+    final uniqueRemote = remoteList.where((e) => !pendingIds.contains(e.id)).toList();
+    return [...pending, ...uniqueRemote];
   }
 
   /// Manually trigger a refresh of history from backend
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final dio = ref.watch(dioServiceProvider);
-      final list = await dio.getMoodHistory(days: 30);
-      return list
-          .map((json) => MoodEntry.fromJson(json as Map<String, dynamic>))
-          .toList();
+      final dio = ref.read(dioServiceProvider);
+      final pending = ref.read(offlineQueueProvider);
+
+      List<MoodEntry> remoteList = [];
+      try {
+        final list = await dio.getMoodHistory(days: 30);
+        remoteList = list
+            .map((json) => MoodEntry.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } catch (e) {
+        debugPrint('MoodHistoryNotifier: Error refreshing history: $e');
+        rethrow;
+      }
+
+      final pendingIds = pending.map((e) => e.id).toSet();
+      final uniqueRemote = remoteList.where((e) => !pendingIds.contains(e.id)).toList();
+      return [...pending, ...uniqueRemote];
     });
   }
 
@@ -172,15 +225,51 @@ class MoodActions {
   }) async {
     final dio = _ref.read(dioServiceProvider);
 
-    // 1. Send POST request
-    final jsonResult = await dio.logMood(score, note: note, tags: tags);
-    final newEntry = MoodEntry.fromJson(jsonResult);
+    try {
+      // 1. Send POST request
+      final jsonResult = await dio.logMood(score, note: note, tags: tags);
+      final newEntry = MoodEntry.fromJson(jsonResult);
 
-    // 2. Synchronize states reactively
-    _ref.read(todayMoodProvider.notifier).updateState(score);
-    _ref.read(moodHistoryProvider.notifier).addLocalEntry(newEntry);
+      // 2. Synchronize states reactively
+      _ref.read(todayMoodProvider.notifier).updateState(score);
+      _ref.read(moodHistoryProvider.notifier).addLocalEntry(newEntry);
 
-    return jsonResult;
+      return jsonResult;
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        debugPrint('MoodActions: Network error detected. Saving to offline queue.');
+        final pendingEntry = await _ref.read(offlineQueueProvider.notifier).enqueue(
+          score,
+          note: note,
+          tags: tags,
+        );
+
+        // Optimistically update states
+        _ref.read(todayMoodProvider.notifier).updateState(score);
+
+        return {
+          'id': pendingEntry.id,
+          'userId': pendingEntry.userId,
+          'moodScore': pendingEntry.moodScore,
+          'note': pendingEntry.note,
+          'timestamp': pendingEntry.timestamp.toIso8601String(),
+          'tags': pendingEntry.tags,
+          'isPending': true,
+        };
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  bool _isNetworkError(dynamic error) {
+    final errStr = error.toString().toLowerCase();
+    return errStr.contains('connection timeout') ||
+        errStr.contains('connection error') ||
+        errStr.contains('send timeout') ||
+        errStr.contains('receive timeout') ||
+        errStr.contains('network unreachable') ||
+        errStr.contains('socketexception');
   }
 }
 
@@ -249,4 +338,160 @@ class MoodAnomalyNotifier extends AsyncNotifier<MoodAnomaly?> {
 /// Riverpod provider for weekly mood anomaly and burnout diagnostics
 final moodAnomalyProvider = AsyncNotifierProvider<MoodAnomalyNotifier, MoodAnomaly?>(
   MoodAnomalyNotifier.new,
+);
+
+// --- OFFLINE MOOD LOGGING QUEUE ---
+
+class OfflineQueueNotifier extends Notifier<List<MoodEntry>> {
+  static const _kQueueKey = 'pending_mood_entries';
+
+  @override
+  List<MoodEntry> build() {
+    _loadQueue();
+    return const [];
+  }
+
+  Future<void> _loadQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_kQueueKey);
+      if (jsonStr != null) {
+        final List<dynamic> decoded = json.decode(jsonStr);
+        final list = decoded
+            .map((item) => MoodEntry.fromJson(item as Map<String, dynamic>))
+            .toList();
+        list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        state = list;
+      }
+    } catch (e) {
+      debugPrint('OfflineQueueNotifier: Error loading queue: $e');
+    }
+  }
+
+  Future<void> _saveQueue(List<MoodEntry> queue) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = queue.map((e) => e.toJson()).toList();
+      await prefs.setString(_kQueueKey, json.encode(encoded));
+    } catch (e) {
+      debugPrint('OfflineQueueNotifier: Error saving queue: $e');
+    }
+  }
+
+  Future<MoodEntry> enqueue(
+    int score, {
+    required String note,
+    required List<String> tags,
+  }) async {
+    final newEntry = MoodEntry(
+      id: 'local_${DateTime.now().millisecondsSinceEpoch}_$score',
+      userId: 'local_user',
+      moodScore: score,
+      note: note,
+      timestamp: DateTime.now(),
+      tags: tags,
+      isPending: true,
+    );
+
+    final updated = [newEntry, ...state];
+    state = updated;
+    await _saveQueue(updated);
+    return newEntry;
+  }
+
+  Future<void> dequeue(String id) async {
+    final updated = state.where((e) => e.id != id).toList();
+    state = updated;
+    await _saveQueue(updated);
+  }
+
+  Future<void> clear() async {
+    state = const [];
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kQueueKey);
+  }
+}
+
+final offlineQueueProvider = NotifierProvider<OfflineQueueNotifier, List<MoodEntry>>(
+  OfflineQueueNotifier.new,
+);
+
+class SyncNotifier extends Notifier<bool> {
+  Timer? _timer;
+
+  @override
+  bool build() {
+    _timer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      syncPending();
+    });
+
+    ref.onDispose(() {
+      _timer?.cancel();
+    });
+
+    return false;
+  }
+
+  Future<void> syncPending() async {
+    if (state) return;
+    final offlineQueue = ref.read(offlineQueueProvider);
+    if (offlineQueue.isEmpty) return;
+
+    final token = await _getAuthToken();
+    if (token == null) {
+      debugPrint('SyncNotifier: User not authenticated. Skipping sync.');
+      return;
+    }
+
+    state = true;
+
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final pendingCopy = List<MoodEntry>.from(offlineQueue);
+
+      // Sync oldest first
+      for (final entry in pendingCopy.reversed) {
+        try {
+          await dio.logMood(
+            entry.moodScore,
+            note: entry.note,
+            tags: entry.tags,
+            timestamp: entry.timestamp,
+          );
+          await ref.read(offlineQueueProvider.notifier).dequeue(entry.id);
+          debugPrint('SyncNotifier: Synced entry ${entry.id} successfully.');
+        } catch (e) {
+          debugPrint('SyncNotifier: Failed to sync entry ${entry.id}: $e');
+          if (_isNetworkError(e)) {
+            break;
+          }
+        }
+      }
+
+      await ref.read(moodHistoryProvider.notifier).refresh();
+      ref.invalidate(todayMoodProvider);
+      await ref.read(moodAnomalyProvider.notifier).refresh();
+    } finally {
+      state = false;
+    }
+  }
+
+  Future<String?> _getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_jwt_token');
+  }
+
+  bool _isNetworkError(dynamic error) {
+    final errStr = error.toString().toLowerCase();
+    return errStr.contains('connection timeout') ||
+        errStr.contains('connection error') ||
+        errStr.contains('send timeout') ||
+        errStr.contains('receive timeout') ||
+        errStr.contains('network unreachable') ||
+        errStr.contains('socketexception');
+  }
+}
+
+final syncProvider = NotifierProvider<SyncNotifier, bool>(
+  SyncNotifier.new,
 );

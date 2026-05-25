@@ -220,6 +220,7 @@ class DioService {
     int score, {
     String note = 'Logged via mobile app',
     List<String> tags = const [],
+    DateTime? timestamp,
   }) async {
     if (_token == null) {
       final prefs = await SharedPreferences.getInstance();
@@ -231,7 +232,12 @@ class DioService {
     return _request(() async {
       final response = await _dio.post(
         '/api/mood/log',
-        data: {'moodScore': score, 'note': note, 'tags': tags},
+        data: {
+          'moodScore': score,
+          'note': note,
+          'tags': tags,
+          if (timestamp != null) 'timestamp': timestamp.toIso8601String(),
+        },
       );
 
       if (response.statusCode == 201 && response.data != null) {

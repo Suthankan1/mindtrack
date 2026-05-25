@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.AssertTrue;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -21,6 +22,8 @@ public class MoodLogRequest {
     private Integer moodScore;
 
     private String note;
+
+    private LocalDateTime timestamp;
 
     @Size(max = 5, message = "Maximum 5 tags per entry")
     private List<String> tags;

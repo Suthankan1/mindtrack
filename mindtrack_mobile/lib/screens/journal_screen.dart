@@ -17,9 +17,15 @@ class JournalScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<JournalScreen> createState() => _JournalScreenState();
 }
-
 class _JournalScreenState extends ConsumerState<JournalScreen> {
-  // Helper to format date beautifully
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncProvider.notifier).syncPending();
+    });
+  }
+
   String _formatDateTime(DateTime dt) {
     final local = dt.toLocal();
     const months = [
@@ -95,13 +101,88 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Star Log Details',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                        Row(
+                          children: [
+                            Text(
+                              'Star Log Details',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (entry.isPending)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: Colors.orange.withOpacity(0.4),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(
+                                      Icons.cloud_queue_rounded,
+                                      color: Colors.orange,
+                                      size: 10,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'PENDING',
+                                      style: TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryColor.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: AppColors.primaryColor.withOpacity(0.35),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(
+                                      Icons.cloud_done_rounded,
+                                      color: AppColors.primaryColor,
+                                      size: 10,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'SYNCED',
+                                      style: TextStyle(
+                                        color: AppColors.primaryColor,
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -266,6 +347,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            await ref.read(syncProvider.notifier).syncPending();
             await ref.read(moodHistoryProvider.notifier).refresh();
           },
           color: AppColors.primaryColor,
@@ -776,12 +858,87 @@ class _ExpandableJournalEntryCardState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        widget.formattedDate,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            widget.formattedDate,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (widget.entry.isPending)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.orange.withOpacity(0.4),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(
+                                    Icons.cloud_queue_rounded,
+                                    color: Colors.orange,
+                                    size: 10,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'PENDING',
+                                    style: TextStyle(
+                                      color: Colors.orange,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppColors.primaryColor.withOpacity(0.35),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(
+                                    Icons.cloud_done_rounded,
+                                    color: AppColors.primaryColor,
+                                    size: 10,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'SYNCED',
+                                    style: TextStyle(
+                                      color: AppColors.primaryColor,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                       // Glowing Pill
                       Container(
@@ -888,7 +1045,40 @@ class _ExpandableJournalEntryCardState
                           const SizedBox(height: 20),
                           const Divider(color: AppColors.borderOverlay, height: 1),
                           const SizedBox(height: 16),
-                          if (_sentimentResult == null && !_isAnalyzing) ...[
+                          if (widget.entry.isPending) ...[
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.orange.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(
+                                      Icons.cloud_upload_outlined,
+                                      color: Colors.orange,
+                                      size: 16,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Sync required',
+                                      style: TextStyle(
+                                        color: Colors.orange,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ] else if (_sentimentResult == null && !_isAnalyzing) ...[
                             Align(
                               alignment: Alignment.centerLeft,
                               child: TextButton.icon(

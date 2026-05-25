@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
+import '../services/dio_service.dart';
 import '../widgets/mood_ring.dart';
 import '../widgets/mood_face_icon.dart';
 import '../widgets/streak_card.dart';
@@ -23,10 +24,16 @@ class HomeScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
-
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLogging = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncProvider.notifier).syncPending();
+    });
+  }
   /// Returns a time-appropriate greeting string based on the current local hour.
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -319,6 +326,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onRefresh: () async {
             // Trigger haptic on pull-to-refresh
             await HapticFeedback.lightImpact();
+            // Sync pending entries first
+            await ref.read(syncProvider.notifier).syncPending();
             // Refresh history, which naturally recalibrates stats and today's score
             await ref.read(moodHistoryProvider.notifier).refresh();
             // Invalidate today's mood to re-trigger getTodayMoods check

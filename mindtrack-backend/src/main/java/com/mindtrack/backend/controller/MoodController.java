@@ -92,12 +92,13 @@ public class MoodController {
                     "Rate limit exceeded: maximum 5 mood logs per hour.");
         }
 
+        LocalDateTime entryTimestamp = request.getTimestamp() != null ? request.getTimestamp() : LocalDateTime.now();
         MoodEntry moodEntry = MoodEntry.builder()
                 .user(user)
                 .moodScore(request.getMoodScore())
                 .note(request.getNote())
                 .tags(request.getTags())
-                .timestamp(LocalDateTime.now())
+                .timestamp(entryTimestamp)
                 .build();
 
         MoodEntry savedEntry = moodEntryRepository.save(moodEntry);

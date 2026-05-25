@@ -59,7 +59,7 @@ class TodayMoodNotifier extends AsyncNotifier<int?> {
   @override
   FutureOr<int?> build() async {
     final dio = ref.watch(dioServiceProvider);
-    
+
     // Watch offline queue so we automatically rebuild when local items are added/removed/synced
     final pending = ref.watch(offlineQueueProvider);
     if (pending.isNotEmpty) {
@@ -120,7 +120,9 @@ class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
     }
 
     final pendingIds = pending.map((e) => e.id).toSet();
-    final uniqueRemote = remoteList.where((e) => !pendingIds.contains(e.id)).toList();
+    final uniqueRemote = remoteList
+        .where((e) => !pendingIds.contains(e.id))
+        .toList();
     return [...pending, ...uniqueRemote];
   }
 
@@ -143,7 +145,9 @@ class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
       }
 
       final pendingIds = pending.map((e) => e.id).toSet();
-      final uniqueRemote = remoteList.where((e) => !pendingIds.contains(e.id)).toList();
+      final uniqueRemote = remoteList
+          .where((e) => !pendingIds.contains(e.id))
+          .toList();
       return [...pending, ...uniqueRemote];
     });
   }
@@ -164,53 +168,25 @@ final moodHistoryProvider =
       MoodHistoryNotifier.new,
     );
 
-/// Utility Provider to calculate the current mood streak from history (matching web dashboard logic)
-final streakCountProvider = Provider<int>((ref) {
-  final historyAsync = ref.watch(moodHistoryProvider);
-  return historyAsync.maybeWhen(
-    data: (entries) {
-      if (entries.isEmpty) return 0;
+/// Backend-backed current streak, aligned with the profile stats calculation.
+final streakProvider = FutureProvider<int>((ref) async {
+  final dio = ref.read(dioServiceProvider);
+  try {
+    final stats = await dio.getUserStats();
+    return stats['currentStreak'] as int? ?? 0;
+  } catch (e) {
+    final history = ref.read(moodHistoryProvider).value ?? [];
+    if (history.isEmpty) return 0;
 
-      // Extract unique yyyy-MM-dd dates
-      final uniqueDates = entries.map((e) {
-        final t = e.timestamp.toLocal();
-        return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
-      }).toSet();
-
-      int streak = 0;
-      final checkDate = DateTime.now();
-
-      String getFormattedDate(DateTime date) {
-        return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      }
-
-      final todayStr = getFormattedDate(checkDate);
-      final yesterdayStr = getFormattedDate(
-        checkDate.subtract(const Duration(days: 1)),
-      );
-
-      // If user hasn't logged today AND hasn't logged yesterday, streak is broken (0)
-      if (!uniqueDates.contains(todayStr) &&
-          !uniqueDates.contains(yesterdayStr)) {
-        return 0;
-      }
-
-      var iterDate = DateTime.now();
-      while (true) {
-        final dateStr = getFormattedDate(iterDate);
-        if (uniqueDates.contains(dateStr)) {
-          streak++;
-          iterDate = iterDate.subtract(
-            const Duration(days: 1),
-          ); // subtract 1 day
-        } else {
-          break;
-        }
-      }
-      return streak;
-    },
-    orElse: () => 0,
-  );
+    final today = DateTime.now();
+    final hasToday = history.any((entry) {
+      final date = entry.timestamp.toLocal();
+      return date.year == today.year &&
+          date.month == today.month &&
+          date.day == today.day;
+    });
+    return hasToday ? 1 : 0;
+  }
 });
 
 /// Shared controller for actions, specifically logging the mood
@@ -233,16 +209,17 @@ class MoodActions {
       // 2. Synchronize states reactively
       _ref.read(todayMoodProvider.notifier).updateState(score);
       _ref.read(moodHistoryProvider.notifier).addLocalEntry(newEntry);
+      _ref.invalidate(streakProvider);
 
       return jsonResult;
     } catch (e) {
       if (_isNetworkError(e)) {
-        debugPrint('MoodActions: Network error detected. Saving to offline queue.');
-        final pendingEntry = await _ref.read(offlineQueueProvider.notifier).enqueue(
-          score,
-          note: note,
-          tags: tags,
+        debugPrint(
+          'MoodActions: Network error detected. Saving to offline queue.',
         );
+        final pendingEntry = await _ref
+            .read(offlineQueueProvider.notifier)
+            .enqueue(score, note: note, tags: tags);
 
         // Optimistically update states
         _ref.read(todayMoodProvider.notifier).updateState(score);
@@ -336,9 +313,10 @@ class MoodAnomalyNotifier extends AsyncNotifier<MoodAnomaly?> {
 }
 
 /// Riverpod provider for weekly mood anomaly and burnout diagnostics
-final moodAnomalyProvider = AsyncNotifierProvider<MoodAnomalyNotifier, MoodAnomaly?>(
-  MoodAnomalyNotifier.new,
-);
+final moodAnomalyProvider =
+    AsyncNotifierProvider<MoodAnomalyNotifier, MoodAnomaly?>(
+      MoodAnomalyNotifier.new,
+    );
 
 // --- OFFLINE MOOD LOGGING QUEUE ---
 
@@ -412,9 +390,10 @@ class OfflineQueueNotifier extends Notifier<List<MoodEntry>> {
   }
 }
 
-final offlineQueueProvider = NotifierProvider<OfflineQueueNotifier, List<MoodEntry>>(
-  OfflineQueueNotifier.new,
-);
+final offlineQueueProvider =
+    NotifierProvider<OfflineQueueNotifier, List<MoodEntry>>(
+      OfflineQueueNotifier.new,
+    );
 
 class SyncNotifier extends Notifier<bool> {
   Timer? _timer;
@@ -470,6 +449,7 @@ class SyncNotifier extends Notifier<bool> {
 
       await ref.read(moodHistoryProvider.notifier).refresh();
       ref.invalidate(todayMoodProvider);
+      ref.invalidate(streakProvider);
       await ref.read(moodAnomalyProvider.notifier).refresh();
     } finally {
       state = false;
@@ -492,6 +472,4 @@ class SyncNotifier extends Notifier<bool> {
   }
 }
 
-final syncProvider = NotifierProvider<SyncNotifier, bool>(
-  SyncNotifier.new,
-);
+final syncProvider = NotifierProvider<SyncNotifier, bool>(SyncNotifier.new);

@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 /// Displays the user's current consecutive mood-logging streak with an animated
 /// gold flame icon and a motivational subtitle.
 ///
-/// Reads streak count from [streakCountProvider] and pulses the glow aura
+/// Reads streak count from [streakProvider] and pulses the glow aura
 /// using a repeating [AnimationController].
 class StreakCard extends ConsumerStatefulWidget {
   const StreakCard({super.key});
@@ -49,7 +49,8 @@ class _StreakCardState extends ConsumerState<StreakCard>
 
   @override
   Widget build(BuildContext context) {
-    final streak = ref.watch(streakCountProvider);
+    final streakAsync = ref.watch(streakProvider);
+    final streak = streakAsync.value ?? 0;
     final theme = Theme.of(context);
 
     return Container(

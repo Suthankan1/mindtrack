@@ -188,3 +188,65 @@ class MoodActions {
 final moodActionsProvider = Provider<MoodActions>((ref) {
   return MoodActions(ref);
 });
+
+/// Client-side model representing mood anomaly and burnout diagnostics
+class MoodAnomaly {
+  final String riskLevel;
+  final List<String> detectedPatterns;
+  final String suggestedAction;
+  final String supportiveInsight;
+  final double confidence;
+  final bool insufficientData;
+
+  MoodAnomaly({
+    required this.riskLevel,
+    required this.detectedPatterns,
+    required this.suggestedAction,
+    required this.supportiveInsight,
+    required this.confidence,
+    required this.insufficientData,
+  });
+
+  factory MoodAnomaly.fromJson(Map<String, dynamic> json) {
+    return MoodAnomaly(
+      riskLevel: json['riskLevel'] as String? ?? 'LOW',
+      detectedPatterns: json['detectedPatterns'] != null
+          ? List<String>.from(json['detectedPatterns'] as List<dynamic>)
+          : const [],
+      suggestedAction: json['suggestedAction'] as String? ?? '',
+      supportiveInsight: json['supportiveInsight'] as String? ?? '',
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      insufficientData: json['insufficientData'] as bool? ?? false,
+    );
+  }
+}
+
+/// Managed state notifier for weekly mood anomaly and burnout diagnostics
+class MoodAnomalyNotifier extends AsyncNotifier<MoodAnomaly?> {
+  @override
+  FutureOr<MoodAnomaly?> build() async {
+    final dio = ref.watch(dioServiceProvider);
+    try {
+      final data = await dio.getMoodAnomaly();
+      return MoodAnomaly.fromJson(data);
+    } catch (e) {
+      debugPrint('MoodAnomalyNotifier: Error fetching anomaly: $e');
+      return null;
+    }
+  }
+
+  /// Manually trigger a refresh of anomaly data from backend
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final dio = ref.watch(dioServiceProvider);
+      final data = await dio.getMoodAnomaly();
+      return MoodAnomaly.fromJson(data);
+    });
+  }
+}
+
+/// Riverpod provider for weekly mood anomaly and burnout diagnostics
+final moodAnomalyProvider = AsyncNotifierProvider<MoodAnomalyNotifier, MoodAnomaly?>(
+  MoodAnomalyNotifier.new,
+);

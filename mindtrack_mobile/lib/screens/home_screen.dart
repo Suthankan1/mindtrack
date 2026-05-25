@@ -9,6 +9,7 @@ import '../widgets/mood_ring.dart';
 import '../widgets/mood_face_icon.dart';
 import '../widgets/streak_card.dart';
 import '../widgets/wave_spark.dart';
+import '../widgets/anomaly_radar_card.dart';
 
 /// The primary Home tab displaying the user's mood ring, quick-log buttons,
 /// streak card, and a 7-day mini wave chart.
@@ -320,6 +321,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             await ref.read(moodHistoryProvider.notifier).refresh();
             // Invalidate today's mood to re-trigger getTodayMoods check
             ref.invalidate(todayMoodProvider);
+            // Refresh mood anomaly diagnostic radar
+            await ref.read(moodAnomalyProvider.notifier).refresh();
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -457,6 +460,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 // 5. Mini WaveSpark Widget (7-day fl_chart LineChart)
                 const WaveSpark(),
+                const SizedBox(height: 20),
+
+                // 6. Compact Anomaly Radar Card Widget
+                const AnomalyRadarCard(),
                 const SizedBox(height: 16),
               ],
             ),

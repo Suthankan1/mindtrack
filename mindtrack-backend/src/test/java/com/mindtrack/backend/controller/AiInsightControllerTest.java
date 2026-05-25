@@ -5,6 +5,7 @@ import com.mindtrack.backend.dto.ChatMessageDto;
 import com.mindtrack.backend.dto.ChatRequest;
 import com.mindtrack.backend.dto.CopingSuggestRequest;
 import com.mindtrack.backend.dto.MoodContextDto;
+import com.mindtrack.backend.dto.MoodAnomalyResponse;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.service.AiInsightService;
@@ -152,5 +153,27 @@ public class AiInsightControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", is("Validation Failed")))
                 .andExpect(jsonPath("$.errors.lastTags", is("Last tags cannot exceed 5 items")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getMoodAnomaly_ReturnsResponse() throws Exception {
+        MoodAnomalyResponse response = MoodAnomalyResponse.builder()
+                .riskLevel("MEDIUM")
+                .detectedPatterns(List.of("Sudden mood drop from personal baseline"))
+                .suggestedAction("Take a slow box breath.")
+                .supportiveInsight("We notice some drops from baseline.")
+                .confidence(0.8)
+                .insufficientData(false)
+                .build();
+
+        org.mockito.Mockito.when(aiInsightService.getMoodAnomaly(org.mockito.ArgumentMatchers.any(User.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/ai/anomaly/weekly"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.riskLevel", is("MEDIUM")))
+                .andExpect(jsonPath("$.detectedPatterns[0]", is("Sudden mood drop from personal baseline")))
+                .andExpect(jsonPath("$.insufficientData", is(false)));
     }
 }

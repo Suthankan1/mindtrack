@@ -55,6 +55,24 @@ public class AiInsightController {
     }
 
     /**
+     * GET /api/ai/anomaly/weekly
+     *
+     * Scans mood logs from the last 30 days to detect anomalies and potential burnout trends.
+     *
+     * @param authentication the authenticated user's Spring Security context
+     * @return the mood anomaly response containing risk level, patterns, suggested actions, and insights.
+     */
+    @GetMapping("/anomaly/weekly")
+    public ResponseEntity<MoodAnomalyResponse> getMoodAnomaly(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        MoodAnomalyResponse response = aiInsightService.getMoodAnomaly(user);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * GET /api/ai/sentiment/{entryId}
      *
      * Analyzes the emotional content of a specific journal note.

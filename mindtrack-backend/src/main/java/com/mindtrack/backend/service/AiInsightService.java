@@ -85,6 +85,167 @@ public class AiInsightService {
     }
 
     /**
+     * Analyzes the last 30 days of mood entries for the user to detect anomalies and burnout trends.
+     */
+    public MoodAnomalyResponse getMoodAnomaly(User user) {
+        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = end.minusDays(30);
+
+        List<MoodEntry> entries = moodEntryRepository.findByUserAndTimestampAfterOrderByTimestampDesc(user, start);
+
+        if (entries.size() < 5) {
+            return MoodAnomalyResponse.builder()
+                    .riskLevel("LOW")
+                    .detectedPatterns(Collections.emptyList())
+                    .suggestedAction("Log at least 5 mood entries to activate the Anomaly Radar.")
+                    .supportiveInsight("We need a few more logs to understand your personal baseline and detect subtle shifts.")
+                    .confidence(0.0)
+                    .insufficientData(true)
+                    .build();
+        }
+
+        // Chronological order (oldest to newest)
+        List<MoodEntry> chronological = new ArrayList<>(entries);
+        chronological.sort(Comparator.comparing(MoodEntry::getTimestamp));
+
+        List<String> patterns = new ArrayList<>();
+
+        // 1. Sudden drop from personal baseline
+        // Compare recent 2 entries avg vs older entries avg
+        List<MoodEntry> recent = entries.subList(0, 2);
+        List<MoodEntry> older = entries.subList(2, entries.size());
+
+        double recentAvg = recent.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
+        double olderAvg = older.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
+
+        if (recentAvg <= olderAvg - 1.2) {
+            patterns.add("Sudden mood drop from personal baseline");
+        }
+
+        // 2. 3-day downward trend
+        boolean hasDownwardTrend = false;
+        for (int i = 2; i < chronological.size(); i++) {
+            int s1 = chronological.get(i - 2).getMoodScore();
+            int s2 = chronological.get(i - 1).getMoodScore();
+            int s3 = chronological.get(i).getMoodScore();
+            if (s3 < s2 && s2 < s1) {
+                hasDownwardTrend = true;
+                break;
+            }
+        }
+        if (hasDownwardTrend) {
+            patterns.add("3-day continuous downward trend");
+        }
+
+        // 3. Repeated low mood on same weekdays
+        Map<java.time.DayOfWeek, List<Integer>> weekdayScores = new HashMap<>();
+        for (MoodEntry e : entries) {
+            java.time.DayOfWeek day = e.getTimestamp().getDayOfWeek();
+            weekdayScores.computeIfAbsent(day, k -> new ArrayList<>()).add(e.getMoodScore());
+        }
+        List<String> repeatedLowWeekdays = new ArrayList<>();
+        for (Map.Entry<java.time.DayOfWeek, List<Integer>> entry : weekdayScores.entrySet()) {
+            long lowCount = entry.getValue().stream().filter(score -> score <= 2).count();
+            if (lowCount >= 2) {
+                repeatedLowWeekdays.add(entry.getKey().name());
+            }
+        }
+        if (!repeatedLowWeekdays.isEmpty()) {
+            patterns.add("Repeated low mood on " + String.join(", ", repeatedLowWeekdays));
+        }
+
+        // 4. Work/sleep tag correlation with low scores
+        double overallAvg = entries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
+        List<MoodEntry> workEntries = entries.stream()
+                .filter(e -> e.getTags() != null && e.getTags().stream().anyMatch(t -> t.equalsIgnoreCase("Work")))
+                .toList();
+        List<MoodEntry> sleepEntries = entries.stream()
+                .filter(e -> e.getTags() != null && e.getTags().stream().anyMatch(t -> t.equalsIgnoreCase("Sleep")))
+                .toList();
+
+        if (workEntries.size() >= 2) {
+            double workAvg = workEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
+            if (workAvg <= 2.2 || workAvg <= overallAvg - 0.8) {
+                patterns.add("Low mood strongly correlated with 'Work' activity");
+            }
+        }
+
+        if (sleepEntries.size() >= 2) {
+            double sleepAvg = sleepEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
+            if (sleepAvg <= 2.2 || sleepAvg <= overallAvg - 0.8) {
+                patterns.add("Low mood strongly correlated with 'Sleep' quality");
+            }
+        }
+
+        // Risk level classification
+        String riskLevel = "LOW";
+        double confidence = 0.9;
+        if (patterns.size() >= 3) {
+            riskLevel = "HIGH";
+            confidence = 0.85;
+        } else if (patterns.size() > 0) {
+            riskLevel = "MEDIUM";
+            confidence = 0.8;
+        }
+
+        // Prepare prompt for Gemini
+        String patternsText = patterns.isEmpty() ? "No severe burnout anomalies detected." : String.join(", ", patterns);
+        String workStatsText = workEntries.isEmpty() ? "No entries tagged with 'Work'." : String.format("%d 'Work' logs (avg: %.1f)", workEntries.size(), workEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0));
+        String sleepStatsText = sleepEntries.isEmpty() ? "No entries tagged with 'Sleep'." : String.format("%d 'Sleep' logs (avg: %.1f)", sleepEntries.size(), sleepEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0));
+
+        String prompt = String.format("""
+        You are an empathetic, compassionate mental health companion inside the MindTrack app.
+        Analyze this user's mood anomaly telemetry from the past 30 days and provide a warm, non-clinical phrasing of the insights.
+
+        Total entries analyzed: %d logs
+        Average mood score: %.1f / 5.0
+        Detected anomaly patterns: %s
+        Work tag stats: %s
+        Sleep tag stats: %s
+        Calculated Risk Level: %s
+
+        Respond ONLY with valid JSON in this exact format (no markdown, no other text):
+        {
+          "supportiveInsight": "two compassionate, supportive sentences describing what the radar shows and acknowledging their energetic baseline",
+          "suggestedAction": "one warm, highly actionable suggestion (e.g. taking a specific breathing exercise, setting calendar boundaries, or checking sleep hygiene)"
+        }
+        """, entries.size(), overallAvg, patternsText, workStatsText, sleepStatsText, riskLevel);
+
+        try {
+            String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.2);
+            MoodAnomalyResponse parsed = jsonExtractionService.extractAndParse(rawResponse, MoodAnomalyResponse.class);
+            parsed.setRiskLevel(riskLevel);
+            parsed.setDetectedPatterns(patterns);
+            parsed.setConfidence(confidence);
+            parsed.setInsufficientData(false);
+            return parsed;
+        } catch (Exception e) {
+            log.error("Failed to generate and parse Gemini anomaly response: {}", e.getMessage());
+
+            // Build local supportive insights and actions based on statistics
+            String supportiveInsight = "We noticed a stable emotional baseline over the last month. Keep tracking your daily mood to help monitor your wellness trends.";
+            String suggestedAction = "Take a moment for a deep, slow breath to ground yourself.";
+
+            if (riskLevel.equals("HIGH")) {
+                supportiveInsight = "Your recent mood telemetry shows a significant drop and repeated patterns of low mood. We are here to support you through this challenging period.";
+                suggestedAction = "Consider setting gentle calendar boundaries today and practicing box breathing.";
+            } else if (riskLevel.equals("MEDIUM")) {
+                supportiveInsight = "We detected minor downward trends or specific workday triggers. Paying close attention to your energy shifts can help you find balance.";
+                suggestedAction = "Try a 5-minute deep breathing session to restore your clarity.";
+            }
+
+            return MoodAnomalyResponse.builder()
+                    .riskLevel(riskLevel)
+                    .detectedPatterns(patterns)
+                    .suggestedAction(suggestedAction)
+                    .supportiveInsight(supportiveInsight)
+                    .confidence(confidence)
+                    .insufficientData(false)
+                    .build();
+        }
+    }
+
+    /**
      * Analyzes the emotional content of a specific journal note.
      */
     public SentimentAnalysisResponse getSentiment(UUID entryId, User user) {

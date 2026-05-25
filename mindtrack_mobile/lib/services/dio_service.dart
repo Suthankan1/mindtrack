@@ -343,6 +343,27 @@ class DioService {
       rethrow;
     }
   }
+
+  /// Fetches weekly mood anomalies & burnout trends
+  Future<Map<String, dynamic>> getMoodAnomaly() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.get('/api/ai/anomaly/weekly');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to load anomaly detection: status ${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error fetching anomaly detection: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for DioService singleton

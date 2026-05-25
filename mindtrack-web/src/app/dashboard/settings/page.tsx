@@ -268,9 +268,88 @@ export default function SettingsPage() {
   // Render Loader prior to hydration
   if (!mounted || status === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <RefreshCw className="w-8 h-8 text-accent-teal animate-spin" />
-        <p className="text-xs text-muted tracking-wider uppercase">Loading cosmic security keys...</p>
+      <div className="space-y-8 pb-12 subtle-mesh animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex flex-col gap-2">
+          <div className="h-9 w-40 bg-white/5 rounded-xl shimmer-pulse" />
+          <div className="h-4 w-72 bg-white/5 rounded-lg shimmer-pulse" />
+        </div>
+
+        {/* Grid skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Card 1: Account */}
+          <div className="p-6 md:p-8 rounded-3xl bg-[#12122A] border border-white/[0.04] space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/5 shimmer-pulse" />
+              <div className="space-y-2">
+                <div className="h-5 w-36 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3 w-48 bg-white/5 rounded shimmer-pulse" />
+              </div>
+            </div>
+            <div className="border-t border-white/[0.04] pt-4">
+              <div className="h-16 w-full bg-[#0A0A14]/40 rounded-2xl border border-white/[0.02] shimmer-pulse" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <div className="h-10 flex-1 bg-white/5 rounded-xl shimmer-pulse" />
+              <div className="h-10 flex-1 bg-white/5 rounded-xl shimmer-pulse" />
+            </div>
+          </div>
+
+          {/* Card 2: Preferences */}
+          <div className="p-6 md:p-8 rounded-3xl bg-[#12122A] border border-white/[0.04] space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/5 shimmer-pulse" />
+              <div className="space-y-2">
+                <div className="h-5 w-36 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3 w-48 bg-white/5 rounded shimmer-pulse" />
+              </div>
+            </div>
+            <div className="border-t border-white/[0.04] pt-4 space-y-6">
+              <div className="flex justify-between items-center">
+                <div className="space-y-2">
+                  <div className="h-4 w-32 bg-white/5 rounded shimmer-pulse" />
+                  <div className="h-3 w-48 bg-white/5 rounded shimmer-pulse" />
+                </div>
+                <div className="w-12 h-6 bg-white/5 rounded-full shimmer-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-40 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3 w-56 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-10 w-full bg-[#0A0A14]/60 rounded-xl border border-white/[0.02] shimmer-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: About */}
+          <div className="p-6 md:p-8 rounded-3xl bg-[#12122A] border border-white/[0.04] space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/5 shimmer-pulse" />
+              <div className="space-y-2">
+                <div className="h-5 w-32 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3 w-52 bg-white/5 rounded shimmer-pulse" />
+              </div>
+            </div>
+            <div className="border-t border-white/[0.04] pt-4 space-y-4">
+              <div className="h-16 w-full bg-[#0A0A14]/40 rounded-2xl border border-white/[0.02] shimmer-pulse" />
+              <div className="h-16 w-full bg-white/5 rounded-2xl shimmer-pulse" />
+            </div>
+          </div>
+
+          {/* Card 4: Danger Zone */}
+          <div className="p-6 md:p-8 rounded-3xl bg-[#12122A] border border-accent-coral/10 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/5 shimmer-pulse" />
+              <div className="space-y-2">
+                <div className="h-5 w-24 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3 w-40 bg-white/5 rounded shimmer-pulse" />
+              </div>
+            </div>
+            <div className="border-t border-white/[0.04] pt-4">
+              <div className="h-16 w-full bg-white/5 rounded-2xl shimmer-pulse" />
+            </div>
+            <div className="h-10 w-full bg-white/5 rounded-xl shimmer-pulse" />
+          </div>
+        </div>
       </div>
     );
   }

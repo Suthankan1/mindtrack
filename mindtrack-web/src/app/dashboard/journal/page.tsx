@@ -13,7 +13,8 @@ import {
   X, 
   Check, 
   Calendar,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from "lucide-react";
 import CosmicErrorCard from "@/components/CosmicErrorCard";
 
@@ -93,9 +94,11 @@ export default function JournalPage() {
         }
       );
       setAiPrompt(res.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error generating reflection prompt:", err);
-      const errMsg = err.response?.data?.error || err.message || "Failed to generate reflection prompt.";
+      const errMsg = axios.isAxiosError(err)
+        ? err.response?.data?.error || err.message
+        : err instanceof Error ? err.message : "Failed to generate reflection prompt.";
       setPromptError(errMsg);
     } finally {
       setIsGeneratingPrompt(false);
@@ -709,6 +712,26 @@ export default function JournalPage() {
                 </div>
               ))}
             </div>
+          ) : error ? (
+            <div className="glass-card rounded-3xl p-12 border border-white/5 text-center min-h-[480px] flex flex-col items-center justify-center space-y-6 relative overflow-hidden animate-fade-in">
+              <div className="absolute inset-0 animated-cosmic-bg opacity-30 pointer-events-none" />
+              <div className="w-12 h-12 rounded-full bg-accent-coral/10 border border-accent-coral/20 flex items-center justify-center text-accent-coral mx-auto animate-pulse relative z-10">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5 max-w-sm relative z-10">
+                <h3 className="text-md font-bold font-display text-white">Journal Telemetry Sync Offline</h3>
+                <p className="text-xs text-muted leading-relaxed">
+                  We are unable to retrieve your reflection logs because the secure database server is unreachable. Please verify that the backend services are running.
+                </p>
+              </div>
+              <button
+                onClick={fetchJournalHistory}
+                className="relative z-10 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-coral/20 hover:bg-accent-coral/30 border border-accent-coral/30 text-xs text-accent-coral font-bold uppercase tracking-wider transition-all active:scale-[0.98] duration-200"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Retry Database Sync
+              </button>
+            </div>
           ) : filteredEntries.length === 0 ? (
             <div className="glass-card rounded-3xl p-12 border border-white/5 text-center min-h-[480px] flex flex-col items-center justify-center space-y-6">
               
@@ -880,12 +903,15 @@ export default function JournalPage() {
                                         Analyze Vibe
                                       </button>
                                       {sentimentErrors[entry.id] && (
-                                        <div className="mt-1 p-2.5 rounded-xl bg-accent-coral/5 border border-accent-coral/15 text-accent-coral text-[9px] flex items-center justify-between gap-3 max-w-sm w-full">
-                                          <span className="font-semibold">⚠️ Companion engine is resting.</span>
+                                        <div className="mt-1 p-3 rounded-xl bg-accent-coral/5 border border-accent-coral/20 text-accent-coral text-[10px] flex items-center justify-between gap-3 max-w-md w-full glass-card hover:bg-accent-coral/10 transition-all">
+                                          <span className="font-medium flex items-center gap-1.5">
+                                            <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+                                            AI Vibe engine is temporarily offline.
+                                          </span>
                                           <button
                                             type="button"
                                             onClick={() => handleAnalyzeSentiment(entry.id)}
-                                            className="px-2 py-0.5 rounded bg-accent-coral/10 hover:bg-accent-coral/25 border border-accent-coral/30 text-[8px] font-bold uppercase transition-all shrink-0"
+                                            className="px-2.5 py-1 rounded-lg bg-accent-coral/15 hover:bg-accent-coral/25 border border-accent-coral/30 text-[9px] font-bold uppercase tracking-wider transition-all shrink-0 active:scale-95 duration-200"
                                           >
                                             Retry
                                           </button>

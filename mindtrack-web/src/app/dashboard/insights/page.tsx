@@ -26,7 +26,8 @@ import {
   AlertCircle,
   FileText,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Lock
 } from "lucide-react";
 import CosmicErrorCard from "@/components/CosmicErrorCard";
 
@@ -47,6 +48,7 @@ interface WeeklyInsightsResponse {
   insight: string;
   moodDistribution: MoodDistributionItem[];
   timeOfDay: TimeOfDayItem[];
+  totalEntries?: number;
 }
 
 interface MoodAnomalyResponse {
@@ -62,6 +64,25 @@ type ToastState = {
   message: string;
   type: "success" | "error";
 } | null;
+
+const MOCK_PIE_DATA: MoodDistributionItem[] = [
+  { name: `Radiant 🌟`, value: 35, score: 5, color: "#00D2C8" },
+  { name: `Stable ✨`, value: 45, score: 4, color: "#10B981" },
+  { name: `Neutral 😐`, value: 10, score: 3, color: "#6B7280" },
+  { name: `Low Energy 😞`, value: 7, score: 2, color: "#F59E0B" },
+  { name: `High Stress 🔥`, value: 3, score: 1, color: "#FF6B6B" },
+];
+
+const MOCK_BAR_DATA: TimeOfDayItem[] = [
+  { hourLabel: "08:00 AM", hour: 8, avgScore: 4.2 },
+  { hourLabel: "10:00 AM", hour: 10, avgScore: 3.8 },
+  { hourLabel: "12:00 PM", hour: 12, avgScore: 3.5 },
+  { hourLabel: "02:00 PM", hour: 14, avgScore: 3.1 },
+  { hourLabel: "04:00 PM", hour: 16, avgScore: 3.6 },
+  { hourLabel: "06:00 PM", hour: 18, avgScore: 4.0 },
+  { hourLabel: "08:00 PM", hour: 20, avgScore: 4.5 },
+  { hourLabel: "10:00 PM", hour: 22, avgScore: 4.1 },
+];
 
 const sanitizePdfText = (value: string) =>
   value
@@ -389,12 +410,54 @@ export default function InsightsPage() {
       )}
 
       {isVisualLoading ? (
-        /* Shimmer Loading Skeleton */
-        <div className="space-y-6">
-          <div className="h-44 w-full bg-[#12122A]/40 border border-white/[0.03] animate-pulse rounded-3xl" />
+        /* Shimmer Loading Skeleton matching the exact page layout */
+        <div className="space-y-6 animate-pulse">
+          {/* Top row: Insights & Radar */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* AI Insight Card Skeleton */}
+            <div className="lg:col-span-2 p-8 rounded-3xl bg-[#12122A]/70 border border-white/[0.03] flex flex-col justify-between h-56 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 shimmer-pulse" />
+                <div className="space-y-2">
+                  <div className="h-5 w-40 bg-white/5 rounded shimmer-pulse" />
+                  <div className="h-3.5 w-24 bg-white/5 rounded shimmer-pulse" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-full bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3 w-5/6 bg-white/5 rounded shimmer-pulse" />
+              </div>
+            </div>
+            {/* Burnout Radar Skeleton */}
+            <div className="p-8 rounded-3xl bg-[#12122A]/70 border border-white/[0.03] flex flex-col justify-between h-56 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="h-4 w-32 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-4.5 w-16 bg-white/5 rounded shimmer-pulse" />
+              </div>
+              <div className="h-16 w-full bg-white/5 rounded-2xl shimmer-pulse" />
+            </div>
+          </div>
+
+          {/* Bottom row: Pie & Bar Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-96 bg-[#12122A]/40 border border-white/[0.03] animate-pulse rounded-3xl" />
-            <div className="h-96 bg-[#12122A]/40 border border-white/[0.03] animate-pulse rounded-3xl" />
+            {/* Pie Chart Card Skeleton */}
+            <div className="p-6 rounded-3xl bg-[#12122A] border border-white/[0.03] h-96 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="h-5 w-36 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3.5 w-48 bg-white/5 rounded shimmer-pulse" />
+              </div>
+              <div className="w-40 h-40 rounded-full border-[12px] border-white/5 mx-auto flex items-center justify-center shimmer-pulse" />
+              <div className="h-4 w-48 bg-white/5 rounded mx-auto shimmer-pulse" />
+            </div>
+            {/* Bar Chart Card Skeleton */}
+            <div className="p-6 rounded-3xl bg-[#12122A] border border-white/[0.03] h-96 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="h-5 w-36 bg-white/5 rounded shimmer-pulse" />
+                <div className="h-3.5 w-48 bg-white/5 rounded shimmer-pulse" />
+              </div>
+              <div className="h-40 w-full bg-white/5 rounded-2xl shimmer-pulse" />
+              <div className="h-4 w-24 bg-white/5 rounded shimmer-pulse" />
+            </div>
           </div>
         </div>
       ) : (
@@ -416,23 +479,95 @@ export default function InsightsPage() {
                 {/* Decorative background grid glows */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-accent-teal/10 to-transparent blur-3xl rounded-full opacity-70 pointer-events-none" />
                 
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal shrink-0">
-                    <Sparkles className="w-6 h-6 animate-pulse" />
-                  </div>
-                  
-                  <div className="space-y-2 flex-1">
+                {insights.insight === "AI_UNAVAILABLE" ? (
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
-                      <span className="px-2 py-0.5 rounded-md bg-accent-teal/10 border border-accent-teal/20 text-accent-teal text-[8px] font-bold uppercase tracking-wider">
-                        Neural Model v1.4
+                      <span className="px-2 py-0.5 rounded-md bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-[8px] font-bold uppercase tracking-wider">
+                        Offline
                       </span>
                     </div>
-                    <p className="text-sm text-gray-200 leading-relaxed font-sans max-w-4xl">
-                      {insights.insight || "No emotional telemetry logs registered. Commit reflections in the Journal or Dashboard to trigger AI cognitive pattern recognition."}
-                    </p>
+                    <div className="p-4 rounded-2xl bg-accent-coral/5 border border-accent-coral/20 text-accent-coral text-xs flex items-center justify-between gap-4 glass-card">
+                      <p className="font-medium leading-relaxed">
+                        ⚠️ Cognitive AI engine is restfully offline. Local telemetry calculations remain active.
+                      </p>
+                      <button
+                        onClick={fetchInsights}
+                        className="px-3 py-1.5 rounded-xl bg-accent-coral/10 border border-accent-coral/20 hover:bg-accent-coral/20 text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 duration-200"
+                      >
+                        Reconnect AI
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
+                  /* Locked State for insufficient insights */
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
+                      <span className="px-2 py-0.5 rounded-md bg-accent-teal/5 border border-accent-teal/20 text-accent-teal text-[8px] font-bold uppercase tracking-wider">
+                        Awaiting Calibration
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                      <div className="space-y-3">
+                        <p className="text-xs text-muted leading-relaxed">
+                          Our deep neural model requires at least <strong>3 daily mood logs</strong> to calculate stability thresholds and render personalized recommendations.
+                        </p>
+                        <a
+                          href="/dashboard"
+                          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-teal text-background font-bold text-[10px] uppercase tracking-wider active:scale-95 transition-all shadow-glow hover:opacity-90"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Log Mood Vibe ({insights.totalEntries}/3)
+                        </a>
+                      </div>
+
+                      {/* Steps checklist */}
+                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-2.5">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-accent-teal">Insight Checklist</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${insights.totalEntries >= 1 ? "bg-accent-teal/10 border-accent-teal text-accent-teal" : "border-white/20"}`}>
+                              {insights.totalEntries >= 1 && "✓"}
+                            </div>
+                            <span className={insights.totalEntries >= 1 ? "line-through text-muted" : ""}>First check-in</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${insights.totalEntries >= 2 ? "bg-accent-teal/10 border-accent-teal text-accent-teal" : "border-white/20"}`}>
+                              {insights.totalEntries >= 2 && "✓"}
+                            </div>
+                            <span className={insights.totalEntries >= 2 ? "line-through text-muted" : ""}>Second reflection note</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${insights.totalEntries >= 3 ? "bg-accent-teal/10 border-accent-teal text-accent-teal" : "border-white/20"}`}>
+                              {insights.totalEntries >= 3 && "✓"}
+                            </div>
+                            <span className={insights.totalEntries >= 3 ? "line-through text-muted" : ""}>Unlock weekly pattern analysis</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Normal Insight content */
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal shrink-0">
+                      <Sparkles className="w-6 h-6 animate-pulse" />
+                    </div>
+                    
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
+                        <span className="px-2 py-0.5 rounded-md bg-accent-teal/10 border border-accent-teal/20 text-accent-teal text-[8px] font-bold uppercase tracking-wider">
+                          Neural Model v1.4
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-200 leading-relaxed font-sans max-w-4xl font-medium">
+                        {insights.insight || "No AI weekly insight available."}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </motion.div>
 
               {/* Right 1 column: Anomaly Radar Card */}
@@ -475,25 +610,45 @@ export default function InsightsPage() {
                       </div>
                       <p className="text-[10px] text-muted uppercase tracking-widest animate-pulse">Running diagnostic check...</p>
                     </div>
-                  ) : anomaly?.insufficientData ? (
+                  ) : (!anomaly || insights.insight === "AI_UNAVAILABLE") ? (
+                    /* AI offline state for Anomaly radar */
+                    <div className="flex flex-col items-center text-center py-4 space-y-4 w-full animate-fade-in">
+                      <div className="w-16 h-16 rounded-full border border-dashed border-accent-coral/20 flex items-center justify-center bg-[#FF6B6B]/5 text-accent-coral shrink-0">
+                        <AlertCircle className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-white uppercase tracking-wider">Radar Offline</p>
+                        <p className="text-[10px] text-muted leading-relaxed max-w-[220px] mx-auto">
+                          AI anomaly tracking is suspended. Local statistics and clinical support hotlines remain active.
+                        </p>
+                      </div>
+                      <button
+                        onClick={fetchInsights}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-accent-coral/10 border border-accent-coral/20 hover:bg-accent-coral/20 text-accent-coral font-bold text-[9px] uppercase tracking-wider transition-all duration-200"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Reconnect Radar
+                      </button>
+                    </div>
+                  ) : (anomaly.insufficientData || (insights.totalEntries !== undefined && insights.totalEntries < 3)) ? (
                     /* Calibration State */
-                    <div className="flex flex-col items-center text-center py-4 space-y-4 w-full">
+                    <div className="flex flex-col items-center text-center py-4 space-y-4 w-full animate-fade-in">
                       <div className="w-20 h-20 relative flex items-center justify-center">
                         <svg className="w-20 h-20 transform -rotate-90">
                           <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.03)" strokeWidth="4" fill="transparent" />
-                          <circle cx="40" cy="40" r="32" stroke="#00D2C8" strokeWidth="4" fill="transparent" strokeDasharray="201" strokeDashoffset={201 - (201 * (insights?.moodDistribution && insights.moodDistribution.length > 0 ? 60 : 0)) / 100} className="transition-all duration-1000" />
+                          <circle cx="40" cy="40" r="32" stroke="#00D2C8" strokeWidth="4" fill="transparent" strokeDasharray="201" strokeDashoffset={201 - (201 * (insights?.totalEntries || 0)) / 3} className="transition-all duration-1000" />
                         </svg>
                         <div className="absolute text-center">
                           <Brain className="w-5 h-5 text-accent-teal mx-auto mb-0.5 animate-pulse" />
                           <span className="text-[8px] font-bold text-accent-teal uppercase">
-                            {insights?.moodDistribution && insights.moodDistribution.length > 0 ? "60%" : "0%"}
+                            {Math.round(((insights?.totalEntries || 0) / 3) * 100)}%
                           </span>
                         </div>
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-bold text-white uppercase tracking-wider">Radar Calibrating</p>
                         <p className="text-[10px] text-muted leading-relaxed max-w-[220px] mx-auto">
-                          We require at least 5 mood check-ins in the last 30 days to calculate baseline deviations and identify burnout patterns.
+                          We require at least 3 mood check-ins to calculate baseline deviations and identify burnout patterns.
                         </p>
                       </div>
 
@@ -501,12 +656,12 @@ export default function InsightsPage() {
                       <div className="w-full space-y-2 border-t border-white/[0.04] pt-3">
                         <div className="flex justify-between text-[8px] text-muted font-bold uppercase tracking-wider">
                           <span>Progress</span>
-                          <span>{insights?.moodDistribution && insights.moodDistribution.length > 0 ? "3" : "0"} / 5 entries</span>
+                          <span>{insights?.totalEntries || 0} / 3 entries</span>
                         </div>
                         <div className="h-1.5 w-full bg-[#0A0A14] rounded-full overflow-hidden border border-white/5">
                           <div 
                             className="h-full bg-accent-teal transition-all duration-500" 
-                            style={{ width: `${insights?.moodDistribution && insights.moodDistribution.length > 0 ? 60 : 0}%` }}
+                            style={{ width: `${((insights?.totalEntries || 0) / 3) * 100}%` }}
                           />
                         </div>
                         <div className="pt-2">
@@ -584,7 +739,7 @@ export default function InsightsPage() {
                         </div>
 
                         <div className="p-3.5 rounded-2xl bg-[#0A0A14]/50 border border-white/[0.02] space-y-2">
-                          <p className="text-[11px] text-gray-200 leading-relaxed font-sans">
+                          <p className="text-[11px] text-gray-200 leading-relaxed font-sans font-medium">
                             {anomaly?.supportiveInsight}
                           </p>
                           {anomaly?.suggestedAction && (
@@ -658,7 +813,41 @@ export default function InsightsPage() {
                 </div>
 
                 <div className="relative w-full min-w-0 h-[280px] min-h-[280px] flex items-center justify-center">
-                  {insights.moodDistribution.length > 0 ? (
+                  {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
+                    <>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-20 backdrop-blur-[3px] bg-background/55 rounded-2xl border border-white/[0.02]">
+                        <div className="w-9 h-9 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mb-2.5 animate-pulse">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Awaiting Calibration</h4>
+                        <p className="text-[10px] text-muted max-w-[200px] mt-1 leading-relaxed">
+                          Log at least 3 entries to unlock distribution metrics.
+                        </p>
+                      </div>
+                      <div className="w-full h-full opacity-20 pointer-events-none select-none blur-[1px] relative">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                          <PieChart>
+                            <Pie
+                              data={MOCK_PIE_DATA}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={70}
+                              outerRadius={95}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {MOCK_PIE_DATA.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} stroke="#12122A" strokeWidth={2} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center mt-[-10px]">
+                          <Brain className="w-6 h-6 text-accent-teal/40" />
+                        </div>
+                      </div>
+                    </>
+                  ) : insights.moodDistribution.length > 0 ? (
                     <>
                       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <PieChart>
@@ -727,8 +916,29 @@ export default function InsightsPage() {
                   </span>
                 </div>
 
-                <div className="w-full min-w-0 h-[280px] min-h-[280px]">
-                  {insights.timeOfDay.length > 0 ? (
+                <div className="w-full min-w-0 h-[280px] min-h-[280px] relative">
+                  {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
+                    <>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-20 backdrop-blur-[3px] bg-background/55 rounded-2xl border border-white/[0.02]">
+                        <div className="w-9 h-9 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mb-2.5 animate-pulse">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Awaiting Calibration</h4>
+                        <p className="text-[10px] text-muted max-w-[200px] mt-1 leading-relaxed">
+                          Log at least 3 entries to unlock circadian patterns.
+                        </p>
+                      </div>
+                      <div className="w-full h-full opacity-20 pointer-events-none select-none blur-[1px]">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                          <BarChart data={MOCK_BAR_DATA} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
+                            <XAxis dataKey="hourLabel" stroke="rgba(255,255,255,0.1)" fontSize={9} tickLine={false} axisLine={false} dy={8} />
+                            <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} stroke="rgba(255,255,255,0.1)" fontSize={9} tickLine={false} axisLine={false} dx={-8} />
+                            <Bar dataKey="avgScore" fill="rgba(0, 210, 200, 0.2)" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </>
+                  ) : insights.timeOfDay.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <BarChart data={insights.timeOfDay} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
                         <defs>

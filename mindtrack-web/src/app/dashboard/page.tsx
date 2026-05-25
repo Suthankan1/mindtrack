@@ -26,7 +26,9 @@ import {
   Check,
   AlertOctagon,
   Info,
-  X
+  X,
+  AlertCircle,
+  Lock
 } from "lucide-react";
 import CosmicErrorCard from "@/components/CosmicErrorCard";
 
@@ -119,9 +121,11 @@ export default function DashboardPage() {
         }
       );
       setAiPrompt(res.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error generating reflection prompt:", err);
-      const errMsg = err.response?.data?.error || err.message || "Failed to generate reflection prompt.";
+      const errMsg = axios.isAxiosError(err)
+        ? err.response?.data?.error || err.message
+        : err instanceof Error ? err.message : "Failed to generate reflection prompt.";
       setPromptError(errMsg);
     } finally {
       setIsGeneratingPrompt(false);
@@ -461,6 +465,10 @@ export default function DashboardPage() {
             <div className="mt-4 flex items-baseline gap-2">
               {isVisualLoading ? (
                 <div className="h-10 w-16 shimmer-pulse rounded-xl" />
+              ) : error ? (
+                <span className="text-xl font-bold text-accent-coral/60 font-display">Err</span>
+              ) : stats.totalEntries === 0 ? (
+                <span className="text-4xl font-bold text-amber-400 tracking-tight font-display">—</span>
               ) : (
                 <>
                   <span className="text-4xl font-bold text-amber-400 tracking-tight font-display">
@@ -483,6 +491,10 @@ export default function DashboardPage() {
             <div className="mt-4 flex items-baseline gap-2">
               {isVisualLoading ? (
                 <div className="h-10 w-24 shimmer-pulse rounded-xl" />
+              ) : error ? (
+                <span className="text-xl font-bold text-accent-coral/60 font-display">Err</span>
+              ) : stats.totalEntries === 0 ? (
+                <span className="text-4xl font-bold text-accent-teal tracking-tight font-display">—</span>
               ) : (
                 <>
                   <span className="text-4xl font-bold text-accent-teal tracking-tight font-display">
@@ -505,6 +517,10 @@ export default function DashboardPage() {
             <div className="mt-4 flex items-baseline gap-2">
               {isVisualLoading ? (
                 <div className="h-10 w-20 shimmer-pulse rounded-xl" />
+              ) : error ? (
+                <span className="text-xl font-bold text-accent-coral/60 font-display">Err</span>
+              ) : stats.totalEntries === 0 ? (
+                <span className="text-4xl font-bold text-violet-400 tracking-tight font-display">—</span>
               ) : (
                 <>
                   <span className="text-4xl font-bold text-violet-400 tracking-tight font-display">
@@ -527,6 +543,8 @@ export default function DashboardPage() {
             <div className="mt-4 flex items-baseline gap-2">
               {isVisualLoading ? (
                 <div className="h-10 w-16 shimmer-pulse rounded-xl" />
+              ) : error ? (
+                <span className="text-xl font-bold text-accent-coral/60 font-display">Err</span>
               ) : (
                 <>
                   <span className="text-4xl font-bold text-emerald-400 tracking-tight font-display">
@@ -650,9 +668,27 @@ export default function DashboardPage() {
                     )}
 
                     {promptError && (
-                      <p className="text-[10px] text-accent-coral font-medium mt-1">
-                        {promptError}
-                      </p>
+                      <div className="p-4 rounded-2xl bg-[#1C0F14]/50 border border-accent-coral/20 space-y-3 transition-all">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-accent-coral shrink-0" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-accent-coral">
+                            AI Engine Offline
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-300 leading-relaxed font-medium">
+                          AI Companion is restfully recharging. Click generate again to reconnect.
+                        </p>
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={handleGeneratePrompt}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-coral/10 hover:bg-accent-coral/20 border border-accent-coral/30 text-[9px] font-bold text-white uppercase tracking-wider transition-all"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Retry Reconnection
+                          </button>
+                        </div>
+                      </div>
                     )}
 
                     {aiPrompt && (
@@ -745,6 +781,31 @@ export default function DashboardPage() {
               <div className="flex-1 w-full min-w-0 h-[220px] min-h-[220px]">
                 {isVisualLoading ? (
                   <div className="w-full h-full shimmer-pulse rounded-2xl" />
+                ) : error ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 border border-accent-coral/20 rounded-2xl bg-[#1c0f14]/40 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-accent-coral/[0.02] to-transparent pointer-events-none" />
+                    <div className="relative z-10 space-y-4 max-w-sm">
+                      <div className="w-12 h-12 rounded-full bg-accent-coral/10 border border-accent-coral/20 flex items-center justify-center text-accent-coral mx-auto">
+                        <AlertCircle className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Telemetry Sync Offline</h4>
+                        <p className="text-[10px] text-muted leading-relaxed">
+                          Secure database handshake interrupted. Dashboard metrics could not be synchronized.
+                        </p>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={fetchHistory}
+                          className="px-4 py-2 rounded-xl bg-accent-coral/10 hover:bg-accent-coral/20 border border-accent-coral/30 text-white font-bold text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all inline-flex items-center gap-1.5"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Sync Dashboard</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 ) : chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -832,7 +893,7 @@ export default function DashboardPage() {
                       <div className="space-y-1">
                         <h4 className="text-sm font-bold text-white uppercase tracking-wider">Your Emotional Universe is Waiting</h4>
                         <p className="text-[10px] text-muted leading-relaxed">
-                          Let's chart your mental telemetry! Log your first conscious vibe check-in using the reflection companion form.
+                          Let&apos;s chart your mental telemetry! Log your first conscious vibe check-in using the reflection companion form.
                         </p>
                       </div>
                       <div className="pt-2">
@@ -878,13 +939,13 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-6 justify-center py-2">
+              <div className="flex flex-col md:flex-row items-center gap-6 justify-center py-2 relative min-h-[144px]">
                 {isVisualLoading ? (
                   <div className="h-36 w-full shimmer-pulse rounded-2xl" />
                 ) : (
                   <>
                     {/* 7 rows x 5 columns calendar grid */}
-                    <div className="flex gap-2">
+                    <div className={`flex gap-2 relative ${error || entries.length === 0 ? "blur-[1.5px] pointer-events-none select-none opacity-40" : ""}`}>
                       
                       {/* Left Label column */}
                       <div className="grid grid-rows-7 text-[8px] text-muted font-bold h-36 items-center pr-1 select-none">
@@ -922,13 +983,44 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Additional Heatmap context card */}
-                    <div className="flex-1 border border-white/[0.03] rounded-2xl p-4 bg-[#0A0A14]/30 space-y-2 max-w-[240px]">
+                    <div className={`flex-1 border border-white/[0.03] rounded-2xl p-4 bg-[#0A0A14]/30 space-y-2 max-w-[240px] ${error || entries.length === 0 ? "blur-[1.5px] pointer-events-none select-none opacity-40" : ""}`}>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">Matrix Log Range</p>
                       <p className="text-xs text-white font-medium">35-Day Emotional Grid</p>
                       <p className="text-[10px] text-muted leading-relaxed">
                         Visualizes consistency clusters. Deep teal represent peaks in mental clarity, while dark reds denote stress events.
                       </p>
                     </div>
+
+                    {/* Absolute Overlays to avoid layout shifts */}
+                    {(error || entries.length === 0) && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-10">
+                        {error ? (
+                          <div className="space-y-3 bg-[#12122A]/90 backdrop-blur-md p-5 rounded-2xl border border-accent-coral/20 max-w-xs shadow-xl">
+                            <div className="w-9 h-9 rounded-full bg-accent-coral/10 border border-accent-coral/20 flex items-center justify-center text-accent-coral mx-auto">
+                              <AlertCircle className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-white uppercase tracking-wider">Matrix Sync Offline</h4>
+                              <p className="text-[9px] text-muted mt-1 leading-relaxed">
+                                Calendar calibration is unavailable while backend database remains unreachable.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 bg-[#12122A]/90 backdrop-blur-md p-5 rounded-2xl border border-accent-teal/20 max-w-xs shadow-xl">
+                            <div className="w-9 h-9 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mx-auto">
+                              <Lock className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-white uppercase tracking-wider font-display">Matrix Calibrating</h4>
+                              <p className="text-[9px] text-muted mt-1 leading-relaxed">
+                                Complete your first daily vibe check-in to calibrate the 35-day emotional clarity matrix.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -951,6 +1043,22 @@ export default function DashboardPage() {
               {[1, 2, 3].map((skeleton) => (
                 <div key={skeleton} className="h-20 w-full shimmer-pulse rounded-2xl" />
               ))}
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center text-center p-8 border border-accent-coral/20 rounded-2xl bg-[#1c0f14]/20 relative overflow-hidden">
+              <AlertCircle className="w-8 h-8 text-accent-coral animate-pulse mb-3" />
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1">Telemetry Sync Offline</h4>
+              <p className="text-[10px] text-muted max-w-sm leading-relaxed mb-3">
+                Cannot retrieve your historical entries while connection is interrupted.
+              </p>
+              <button
+                type="button"
+                onClick={fetchHistory}
+                className="px-3 py-1.5 rounded-xl bg-accent-coral/10 hover:bg-accent-coral/20 border border-accent-coral/20 text-white font-bold text-[9px] uppercase tracking-wider transition-all inline-flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Retry Sync
+              </button>
             </div>
           ) : entries.length > 0 ? (
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">

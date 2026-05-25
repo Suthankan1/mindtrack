@@ -75,11 +75,8 @@ export async function GET() {
         });
         insight = response.data.insight;
       } catch (backendError) {
-        console.error("Spring Boot backend AI insight fetch failed:", backendError);
-        return NextResponse.json(
-          { error: "Bad Gateway: Spring Boot backend AI insight engine is offline or unavailable." },
-          { status: 502 }
-        );
+        console.error("Spring Boot backend AI insight fetch failed, fallback to offline state:", backendError);
+        insight = "AI_UNAVAILABLE";
       }
     }
 
@@ -136,6 +133,7 @@ export async function GET() {
       insight,
       moodDistribution,
       timeOfDay,
+      totalEntries: entries.length,
     });
   } catch (error: unknown) {
     console.error("Error in GET /api/insights/weekly:", error);

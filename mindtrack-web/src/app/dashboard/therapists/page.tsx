@@ -11,12 +11,13 @@ import {
   Send,
   X,
   FileText,
-  AlertCircle,
   RefreshCw,
   SlidersHorizontal,
   CheckCircle2,
-  Lock
+  Lock,
+  Users
 } from "lucide-react";
+import CosmicErrorCard from "@/components/CosmicErrorCard";
 
 interface Therapist {
   id: string;
@@ -29,6 +30,7 @@ interface Therapist {
   avatarGradient: string;
   tags: string[];
   email: string;
+  verified?: boolean;
 }
 
 export default function TherapistsPage() {
@@ -190,19 +192,12 @@ export default function TherapistsPage() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 text-red-200 text-xs flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-accent-coral shrink-0" />
-          <div className="flex-1">
-            <span className="font-semibold">Diagnostic Connection Issue: </span>
-            {error}
-          </div>
-          <button
-            onClick={fetchTherapists}
-            className="px-3 py-1 bg-[#FF6B6B]/20 text-white rounded-lg hover:bg-[#FF6B6B]/30 transition-all font-semibold"
-          >
-            Retry
-          </button>
-        </div>
+        <CosmicErrorCard
+          title="Clinical Directory Offline"
+          message={error}
+          onRetry={fetchTherapists}
+          isLoading={isLoading}
+        />
       )}
 
       {/* 2. Interactive Search & Filters Row */}
@@ -369,9 +364,49 @@ export default function TherapistsPage() {
                 </motion.div>
               ))}
             </motion.div>
+          ) : therapists.length === 0 ? (
+            <div className="glass-card rounded-3xl p-12 border border-white/5 text-center min-h-[350px] flex flex-col items-center justify-center space-y-5 relative overflow-hidden">
+              <div className="absolute inset-0 animated-cosmic-bg opacity-30 pointer-events-none" />
+              <div className="w-12 h-12 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mx-auto animate-pulse relative z-10">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5 max-w-sm relative z-10">
+                <h3 className="text-md font-bold font-display text-white">Clinical Directory Empty</h3>
+                <p className="text-xs text-muted leading-relaxed">
+                  No licensed counselors are registered in the local data registry. Click sync below to populate standard directory lists.
+                </p>
+              </div>
+              <button
+                onClick={fetchTherapists}
+                disabled={isLoading}
+                className="relative z-10 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 hover:shadow-glow"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                Sync Vetted Listings
+              </button>
+            </div>
           ) : (
-            <div className="text-center py-14 text-muted text-xs border border-white/[0.02] bg-[#12122A]/20 rounded-3xl">
-              No matching clinical professionals found in secure directory search.
+            <div className="glass-card rounded-3xl p-12 border border-white/5 text-center min-h-[350px] flex flex-col items-center justify-center space-y-5 relative overflow-hidden">
+              <div className="absolute inset-0 animated-cosmic-bg opacity-20 pointer-events-none" />
+              <div className="w-12 h-12 rounded-full bg-accent-coral/10 border border-accent-coral/20 flex items-center justify-center text-accent-coral mx-auto relative z-10">
+                <Search className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5 max-w-sm relative z-10">
+                <h3 className="text-md font-bold font-display text-white">No Profiles Found</h3>
+                <p className="text-xs text-muted leading-relaxed">
+                  No clinical professionals align with your current search queries or specialty and location filters.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedSpecialty("All");
+                  setSelectedLocation("All");
+                }}
+                className="relative z-10 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 text-xs text-white font-semibold transition-all"
+              >
+                Clear Search & Filters
+              </button>
             </div>
           )}
         </>

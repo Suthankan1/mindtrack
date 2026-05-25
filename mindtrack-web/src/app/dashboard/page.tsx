@@ -62,6 +62,10 @@ export default function DashboardPage() {
   
   // React client-side hydration lock
   const [mounted, setMounted] = useState(false);
+  // Defers chart rendering until after the first paint so Recharts can
+  // measure real DOM dimensions instead of the -1×-1 it sees during
+  // Framer Motion's initial hidden/y:20 state.
+  const [chartsReady, setChartsReady] = useState(false);
   
   // Toast state
   const [toast, setToast] = useState<Toast | null>(null);
@@ -145,6 +149,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true);
+    // Defer chart mount until after the first browser paint so Recharts
+    // measures real layout dimensions, not -1×-1 from Framer Motion's
+    // initial hidden/translated state.
+    const raf = requestAnimationFrame(() => setChartsReady(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const fetchUserStats = useCallback(async () => {
@@ -806,7 +815,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                ) : chartData.length > 0 ? (
+                ) : chartData.length > 0 && chartsReady ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <defs>

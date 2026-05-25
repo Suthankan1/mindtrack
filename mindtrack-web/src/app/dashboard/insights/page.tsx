@@ -191,9 +191,16 @@ export default function InsightsPage() {
   // Interaction States
   const [isDownloading, setIsDownloading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  // Defers chart rendering until after the first paint so Recharts can
+  // measure real DOM dimensions instead of -1×-1 from Framer Motion's
+  // initial hidden/y:20 state.
+  const [chartsReady, setChartsReady] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Defer chart mount until after the first browser paint.
+    const raf = requestAnimationFrame(() => setChartsReady(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const fetchInsights = useCallback(async () => {
@@ -825,6 +832,7 @@ export default function InsightsPage() {
                         </p>
                       </div>
                       <div className="w-full h-full opacity-20 pointer-events-none select-none blur-[1px] relative">
+                        {chartsReady && (
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                           <PieChart>
                             <Pie
@@ -842,12 +850,13 @@ export default function InsightsPage() {
                             </Pie>
                           </PieChart>
                         </ResponsiveContainer>
+                        )}
                         <div className="absolute inset-0 flex flex-col items-center justify-center mt-[-10px]">
                           <Brain className="w-6 h-6 text-accent-teal/40" />
                         </div>
                       </div>
                     </>
-                  ) : insights.moodDistribution.length > 0 ? (
+                  ) : insights.moodDistribution.length > 0 && chartsReady ? (
                     <>
                       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <PieChart>
@@ -929,6 +938,7 @@ export default function InsightsPage() {
                         </p>
                       </div>
                       <div className="w-full h-full opacity-20 pointer-events-none select-none blur-[1px]">
+                        {chartsReady && (
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                           <BarChart data={MOCK_BAR_DATA} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
                             <XAxis dataKey="hourLabel" stroke="rgba(255,255,255,0.1)" fontSize={9} tickLine={false} axisLine={false} dy={8} />
@@ -936,9 +946,10 @@ export default function InsightsPage() {
                             <Bar dataKey="avgScore" fill="rgba(0, 210, 200, 0.2)" radius={[6, 6, 0, 0]} maxBarSize={30} />
                           </BarChart>
                         </ResponsiveContainer>
+                        )}
                       </div>
                     </>
-                  ) : insights.timeOfDay.length > 0 ? (
+                  ) : insights.timeOfDay.length > 0 && chartsReady ? (
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <BarChart data={insights.timeOfDay} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
                         <defs>

@@ -36,16 +36,18 @@ public class Therapist {
     @Column(nullable = false)
     private boolean verified;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "TEXT DEFAULT ''", nullable = false)
     private String bio;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "float8 DEFAULT 0.0", nullable = false)
     private double rating;
 
-    @Column(nullable = false)
+    // columnDefinition includes a DEFAULT so PostgreSQL can backfill existing
+    // null rows when Hibernate's ddl-auto=update runs ALTER TABLE ADD COLUMN.
+    @Column(columnDefinition = "varchar(255) DEFAULT 'Available'", nullable = false)
     private String availability;
 
-    @Column(name = "avatar_gradient", nullable = false)
+    @Column(name = "avatar_gradient", columnDefinition = "varchar(255) DEFAULT 'from-slate-500 to-slate-700'", nullable = false)
     private String avatarGradient;
 
     @ElementCollection(fetch = FetchType.EAGER)

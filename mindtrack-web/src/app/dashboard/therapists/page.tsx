@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -56,6 +56,9 @@ export default function TherapistsPage() {
     setMounted(true);
   }, []);
 
+  // Prevent hammering a dead backend — only auto-fetch once per page load.
+  const hasAttemptedFetch = useRef(false);
+
   const fetchTherapists = useCallback(async () => {
     if (!session?.user?.accessToken) return;
     setIsLoading(true);
@@ -76,7 +79,8 @@ export default function TherapistsPage() {
   }, [session]);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && !hasAttemptedFetch.current) {
+      hasAttemptedFetch.current = true;
       fetchTherapists();
     } else if (status === "unauthenticated") {
       setIsLoading(false);

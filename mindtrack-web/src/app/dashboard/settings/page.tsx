@@ -138,8 +138,8 @@ export default function SettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters long.");
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters long.");
       return;
     }
 
@@ -174,9 +174,15 @@ export default function SettingsPage() {
       setIsPasswordDialogOpen(false);
     } catch (err: unknown) {
       console.error("Change password error:", err);
-      const errMsg = axios.isAxiosError(err)
-        ? err.response?.data?.error || err.message
-        : "Failed to establish database connection. Please try again.";
+      let errMsg = "Failed to establish database connection. Please try again.";
+      if (axios.isAxiosError(err) && err.response) {
+        const data = err.response.data;
+        if (data.errors && typeof data.errors === "object") {
+          errMsg = Object.values(data.errors).join(". ");
+        } else {
+          errMsg = data.message || data.error || err.message;
+        }
+      }
       setPasswordError(errMsg);
     } finally {
       setIsChangingPassword(false);

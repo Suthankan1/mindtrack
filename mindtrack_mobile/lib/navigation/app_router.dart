@@ -9,6 +9,7 @@ import '../screens/chat_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
+import '../screens/therapists_screen.dart';
 import '../theme/app_theme.dart';
 import 'bottom_nav_bar.dart';
 
@@ -142,6 +143,12 @@ class AppRouter {
                 path: '/profile',
                 pageBuilder: (context, state) =>
                     const NoTransitionPage(child: ProfileScreen()),
+                routes: [
+                  GoRoute(
+                    path: 'therapists',
+                    builder: (context, state) => const TherapistsScreen(),
+                  ),
+                ],
               ),
             ],
           ),

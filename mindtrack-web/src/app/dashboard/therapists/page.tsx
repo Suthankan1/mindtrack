@@ -41,6 +41,7 @@ export default function TherapistsPage() {
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
+  const [selectedLocation, setSelectedLocation] = useState("All");
 
   // Secure Message Portal Modal States
   const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
@@ -80,7 +81,7 @@ export default function TherapistsPage() {
     }
   }, [status, fetchTherapists]);
 
-  // Client-side search and specialty filters
+  // Client-side search and specialty/location filters
   const filteredTherapists = therapists.filter((therapist) => {
     const matchesSearch =
       therapist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -92,7 +93,11 @@ export default function TherapistsPage() {
       therapist.tags.some((tag) => tag.toLowerCase() === selectedSpecialty.toLowerCase()) ||
       therapist.specialty.toLowerCase().includes(selectedSpecialty.toLowerCase());
 
-    return matchesSearch && matchesSpecialty;
+    const matchesLocation =
+      selectedLocation === "All" ||
+      therapist.location.toLowerCase().includes(selectedLocation.toLowerCase());
+
+    return matchesSearch && matchesSpecialty && matchesLocation;
   });
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -116,6 +121,7 @@ export default function TherapistsPage() {
   };
 
   const activeSpecialties = ["All", "CBT", "Anxiety", "Mindfulness", "ADHD", "Somatic"];
+  const activeLocations = ["All", "New York", "Colombo", "Mumbai", "Remote"];
 
   // Framer Motion staggered variants
   const gridVariants = {
@@ -169,6 +175,20 @@ export default function TherapistsPage() {
         </button>
       </div>
 
+      {/* SDG 3 Support Banner */}
+      <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-lg shadow-emerald-950/10">
+        <div className="w-12 h-12 rounded-2xl bg-[#4C9F38] flex flex-col items-center justify-center text-white shrink-0 shadow-md shadow-emerald-950/30">
+          <span className="text-[8px] font-extrabold leading-none">SDG</span>
+          <span className="text-xl font-black leading-none">3</span>
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">UN Sustainable Goal 3: Good Health & Well-Being</h4>
+          <p className="text-[11px] text-muted leading-relaxed">
+            MindTrack supports Goal 3 by democratizing access to professional mental health care. Every therapist in this directory is fully verified and licensed to provide support.
+          </p>
+        </div>
+      </div>
+
       {error && (
         <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 text-red-200 text-xs flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-accent-coral shrink-0" />
@@ -186,7 +206,7 @@ export default function TherapistsPage() {
       )}
 
       {/* 2. Interactive Search & Filters Row */}
-      <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
+      <div className="flex flex-col lg:flex-row gap-6 justify-between items-stretch lg:items-center">
         {/* Search input with glowing teal border */}
         <div className="relative flex-1 max-w-lg">
           <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted">
@@ -201,26 +221,52 @@ export default function TherapistsPage() {
           />
         </div>
 
-        {/* Quick specialty filters */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted hidden sm:inline-flex items-center gap-1">
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filter:
-          </span>
-          <div className="flex gap-1.5 pr-2">
-            {activeSpecialties.map((spec) => (
-              <button
-                key={spec}
-                onClick={() => setSelectedSpecialty(spec)}
-                className={`px-3.5 py-1.5 rounded-xl text-[10px] font-semibold border uppercase tracking-wider transition-all duration-300 ${
-                  selectedSpecialty === spec
-                    ? "bg-accent-teal/10 border-accent-teal text-accent-teal shadow-glow shadow-accent-teal/5"
-                    : "bg-[#12122A] border-white/[0.04] text-muted hover:border-white/10 hover:text-white"
-                }`}
-              >
-                {spec}
-              </button>
-            ))}
+        {/* Filters Group */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* Specialty filters */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted inline-flex items-center gap-1 shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Specialty:
+            </span>
+            <div className="flex gap-1.5 pr-2">
+              {activeSpecialties.map((spec) => (
+                <button
+                  key={spec}
+                  onClick={() => setSelectedSpecialty(spec)}
+                  className={`px-3.5 py-1.5 rounded-xl text-[10px] font-semibold border uppercase tracking-wider transition-all duration-300 ${
+                    selectedSpecialty === spec
+                      ? "bg-accent-teal/10 border-accent-teal text-accent-teal shadow-glow shadow-accent-teal/5"
+                      : "bg-[#12122A] border-white/[0.04] text-muted hover:border-white/10 hover:text-white"
+                  }`}
+                >
+                  {spec}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Location filters */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted inline-flex items-center gap-1 shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-accent-coral" />
+              Location:
+            </span>
+            <div className="flex gap-1.5 pr-2">
+              {activeLocations.map((loc) => (
+                <button
+                  key={loc}
+                  onClick={() => setSelectedLocation(loc)}
+                  className={`px-3.5 py-1.5 rounded-xl text-[10px] font-semibold border uppercase tracking-wider transition-all duration-300 ${
+                    selectedLocation === loc
+                      ? "bg-accent-coral/10 border-accent-coral text-accent-coral shadow-glow shadow-accent-coral/5"
+                      : "bg-[#12122A] border-white/[0.04] text-muted hover:border-white/10 hover:text-white"
+                  }`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -276,8 +322,11 @@ export default function TherapistsPage() {
 
                     {/* Name & Specialty BADGE */}
                     <div className="space-y-1.5">
-                      <h3 className="text-md font-bold text-white font-display leading-tight group-hover:text-accent-teal transition-colors">
+                      <h3 className="text-md font-bold text-white font-display leading-tight group-hover:text-accent-teal transition-colors flex items-center gap-1.5">
                         {therapist.name}
+                        {therapist.verified && (
+                          <CheckCircle2 className="w-4 h-4 text-accent-teal shrink-0 fill-accent-teal/10" />
+                        )}
                       </h3>
                       
                       <div className="inline-block px-2.5 py-0.5 rounded-md bg-accent-teal/5 border border-accent-teal/15 text-accent-teal text-[9px] font-bold uppercase tracking-wider">

@@ -35,4 +35,21 @@ public class Therapist {
 
     @Column(nullable = false)
     private boolean verified;
+
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String bio;
+
+    @Column(nullable = false)
+    private double rating;
+
+    @Column(nullable = false)
+    private String availability;
+
+    @Column(name = "avatar_gradient", nullable = false)
+    private String avatarGradient;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "therapist_tags", joinColumns = @JoinColumn(name = "therapist_id"))
+    @Column(name = "tag")
+    private java.util.List<String> tags;
 }

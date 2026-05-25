@@ -704,7 +704,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: _buildCrisisButton(
                           label: 'Find Therapist',
                           icon: Icons.search_rounded,
-                          onPressed: () => _launchUrl('https://www.psychologytoday.com'),
+                          onPressed: () => context.go('/profile/therapists'),
                         ),
                       ),
                       const SizedBox(width: 10),

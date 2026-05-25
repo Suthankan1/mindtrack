@@ -25,13 +25,56 @@ class DioService {
     _init();
   }
 
+  String get baseUrl => _dio.options.baseUrl;
+
   static String _determineBaseUrl() {
+    const String dartDefineUrl = String.fromEnvironment('API_BASE_URL');
+    if (dartDefineUrl.isNotEmpty) {
+      return dartDefineUrl;
+    }
     // Android Emulator routes localhost through 10.0.2.2.
     // iOS and macOS use localhost directly.
     if (!kIsWeb && Platform.isAndroid) {
       return 'http://10.0.2.2:8080';
     }
     return 'http://localhost:8080';
+  }
+
+  String handleDioError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+        return 'Connection timeout: The server at ${e.requestOptions.baseUrl} took too long to respond. Please check your network and ensure the backend is running.';
+      case DioExceptionType.sendTimeout:
+        return 'Send timeout: Failed to transmit data to the server.';
+      case DioExceptionType.receiveTimeout:
+        return 'Receive timeout: The server took too long to return a response.';
+      case DioExceptionType.connectionError:
+        return 'Connection error: Unable to reach the server at ${e.requestOptions.baseUrl}. Please verify that the backend is active, your IP is correct, and your device is on the same network.';
+      case DioExceptionType.badResponse:
+        final code = e.response?.statusCode;
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('message')) {
+          return '${data['message']} (Status code: $code)';
+        }
+        return 'Server error (Status code: $code)';
+      case DioExceptionType.badCertificate:
+        return 'Secure connection failed due to an invalid certificate.';
+      case DioExceptionType.cancel:
+        return 'The request was cancelled.';
+      case DioExceptionType.unknown:
+        if (e.error is SocketException) {
+          return 'Network unreachable: Please check if your device is connected to the same network as the server at ${e.requestOptions.baseUrl}. Details: ${e.error}';
+        }
+        return 'Unexpected network issue: ${e.message ?? e.error?.toString()}';
+    }
+  }
+
+  Future<T> _request<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } on DioException catch (e) {
+      throw Exception(handleDioError(e));
+    }
   }
 
   void _init() {
@@ -75,9 +118,16 @@ class DioService {
       }
       throw Exception('Login failed: Invalid server response.');
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          (e.type == DioExceptionType.unknown && e.error is SocketException)) {
+        throw Exception(handleDioError(e));
+      }
       final msg = e.response?.data != null && e.response?.data is Map
           ? (e.response?.data['message'] ?? 'Invalid email or password')
-          : 'Failed to connect to authentication server.';
+          : handleDioError(e);
       throw Exception(msg);
     }
   }
@@ -105,9 +155,16 @@ class DioService {
       }
       throw Exception('Registration failed: Invalid server response.');
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          (e.type == DioExceptionType.unknown && e.error is SocketException)) {
+        throw Exception(handleDioError(e));
+      }
       final msg = e.response?.data != null && e.response?.data is Map
           ? (e.response?.data['message'] ?? 'Registration failed')
-          : 'Failed to connect to authentication server.';
+          : handleDioError(e);
       throw Exception(msg);
     }
   }
@@ -128,16 +185,13 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get('/api/mood/today');
       if (response.statusCode == 200 && response.data != null) {
         return response.data as List<dynamic>;
       }
       return [];
-    } catch (e) {
-      debugPrint('DioService: Error fetching today\'s mood logs: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Fetches the last 30 days of mood logs.
@@ -149,7 +203,7 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get(
         '/api/mood/history',
         queryParameters: {'days': days},
@@ -158,10 +212,7 @@ class DioService {
         return response.data as List<dynamic>;
       }
       return [];
-    } catch (e) {
-      debugPrint('DioService: Error fetching mood history: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Logs a new mood entry.
@@ -177,7 +228,7 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.post(
         '/api/mood/log',
         data: {'moodScore': score, 'note': note, 'tags': tags},
@@ -190,10 +241,7 @@ class DioService {
       throw Exception(
         'DioService: Failed to log mood. Status: ${response.statusCode}',
       );
-    } catch (e) {
-      debugPrint('DioService: Error logging mood: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Logs a completed coping session.
@@ -245,16 +293,13 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get('/api/user/stats');
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to load user stats: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error fetching user stats: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Fetches sentiment analysis for a specific mood entry.
@@ -266,16 +311,13 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get('/api/ai/sentiment/$entryId');
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to load sentiment analysis');
-    } catch (e) {
-      debugPrint('DioService: Error fetching sentiment analysis: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Fetches an AI-powered coping suggestion from the API.
@@ -292,7 +334,7 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.post(
         '/api/ai/coping/suggest',
         data: {
@@ -306,10 +348,7 @@ class DioService {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to fetch coping suggestion: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error fetching AI coping suggestion: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Generates a personalized AI journal reflection prompt based on mood score and tags.
@@ -325,7 +364,7 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.post(
         '/api/ai/journal/prompt',
         data: {
@@ -338,10 +377,7 @@ class DioService {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to generate journal prompt: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error generating journal prompt: $e');
-      rethrow;
-    }
+    });
   }
 
 
@@ -358,7 +394,7 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.post(
         '/api/ai/chat',
         data: {
@@ -371,10 +407,7 @@ class DioService {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to send chat message: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error sending chat message: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Fetches weekly mood anomalies & burnout trends
@@ -386,16 +419,13 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get('/api/ai/anomaly/weekly');
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to load anomaly detection: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error fetching anomaly detection: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Fetches the therapist directory profiles from the Spring Boot backend.
@@ -407,16 +437,13 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get('/api/therapists');
       if (response.statusCode == 200 && response.data != null) {
         return response.data as List<dynamic>;
       }
       return [];
-    } catch (e) {
-      debugPrint('DioService: Error fetching therapists: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Fetches the user preferences from the Spring Boot backend.
@@ -428,16 +455,13 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.get('/api/user/preferences');
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to load user preferences: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error fetching user preferences: $e');
-      rethrow;
-    }
+    });
   }
 
   /// Updates the user preferences in the Spring Boot backend.
@@ -449,7 +473,7 @@ class DioService {
     if (_token == null) {
       throw Exception('Not authenticated. Please log in.');
     }
-    try {
+    return _request(() async {
       final response = await _dio.put(
         '/api/user/preferences',
         data: preferences,
@@ -458,10 +482,7 @@ class DioService {
         return response.data as Map<String, dynamic>;
       }
       throw Exception('Failed to update user preferences: status ${response.statusCode}');
-    } catch (e) {
-      debugPrint('DioService: Error updating user preferences: $e');
-      rethrow;
-    }
+    });
   }
 }
 

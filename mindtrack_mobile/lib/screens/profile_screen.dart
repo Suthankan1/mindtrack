@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -584,6 +585,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         }
                       },
                     ),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Debug Info',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSettingItem(
+                        icon: Icons.dns_outlined,
+                        title: 'Backend API URL',
+                        subtitle: ref.watch(dioServiceProvider).baseUrl,
+                        trailing: const Icon(
+                          Icons.bug_report_outlined,
+                          size: 18,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 32),
 
                     // SDG 3 - Good Health & Well-being Card
@@ -832,6 +854,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildSettingItem({
     required IconData icon,
     required String title,
+    String? subtitle,
     required Widget trailing,
     VoidCallback? onTap,
   }) {
@@ -860,12 +883,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               trailing,

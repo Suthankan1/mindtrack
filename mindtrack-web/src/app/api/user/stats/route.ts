@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getMockStats } from "@/lib/mockStore";
 import axios from "axios";
-import { isDemoToken, backendUrl } from "@/lib/apiMode";
+import { backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +12,6 @@ export async function GET() {
 
     if (!session || !session.user?.accessToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (isDemoToken(session.user.accessToken)) {
-      return NextResponse.json(getMockStats());
     }
 
     try {
@@ -34,8 +29,8 @@ export async function GET() {
         backendError
       );
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {

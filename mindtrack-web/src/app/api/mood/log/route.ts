@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { addMockEntry } from "@/lib/mockStore";
 import axios from "axios";
-import { isDemoToken, backendUrl } from "@/lib/apiMode";
+import { backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +13,11 @@ export const dynamic = "force-dynamic";
  * client to the Spring Boot backend. Attaches the user's JWT (from the
  * NextAuth session) as a Bearer token so the backend can authenticate the call.
  *
- * Intercepts and logs in the local in-memory fallback database only if:
- * 1. The user is logged in with the demo account and demo mode is explicitly enabled.
- *
  * @param req - The incoming Next.js request containing the mood payload
  *              (moodScore: number, note?: string, tags?: string[])
  * @returns 201 with the saved mood entry on success,
  *          401 if the session is missing or expired,
- *          502 if backend is offline/failed,
+ *          503 if backend is offline/failed,
  *          or 500 on unexpected errors.
  */
 export async function POST(req: NextRequest) {
@@ -33,12 +29,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-
-    // Handle developer demo session instantly without bothering the backend
-    if (isDemoToken(session.user.accessToken)) {
-      const mockSaved = addMockEntry(body.moodScore, body.note, body.tags);
-      return NextResponse.json(mockSaved, { status: 201 });
-    }
 
     try {
       const url = backendUrl();
@@ -56,8 +46,8 @@ export async function POST(req: NextRequest) {
         backendError
       );
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {
@@ -71,4 +61,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

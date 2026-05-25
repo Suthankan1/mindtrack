@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
-import { isDemoModeEnabled, backendUrl } from "./apiMode";
+import { backendUrl } from "./apiMode";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
@@ -21,15 +21,6 @@ export const authOptions: NextAuthOptions = {
         const email = normalizeEmail(credentials.email);
 
         try {
-          if (isDemoModeEnabled() && email === "demo@mindtrack.com" && credentials.password === "demo123") {
-            return {
-              id: "demo-user-1",
-              email,
-              name: "Demo User",
-              accessToken: "demo-mock-jwt-token-data",
-            };
-          }
-
           const url = backendUrl();
           const response = await axios.post(`${url}/api/auth/login`, {
             email,

@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import axios from "axios";
-import { isDemoToken, backendUrl } from "@/lib/apiMode";
-import { getMockPreferences, saveMockPreferences } from "@/lib/mockStore";
+import { backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/user/preferences
  *
- * Forwards preference retrieval to Spring Boot, supporting developer demo mode locally.
+ * Forwards preference retrieval to Spring Boot.
  */
 export async function GET() {
   try {
@@ -18,11 +17,6 @@ export async function GET() {
 
     if (!session || !session.user?.accessToken) {
       return NextResponse.json({ error: "Unauthorized access detected" }, { status: 401 });
-    }
-
-    // Handle developer demo session instantly without bothering the backend
-    if (isDemoToken(session.user.accessToken)) {
-      return NextResponse.json(getMockPreferences());
     }
 
     try {
@@ -40,8 +34,8 @@ export async function GET() {
         backendError
       );
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {
@@ -57,7 +51,7 @@ export async function GET() {
 /**
  * PUT /api/user/preferences
  *
- * Forwards preference updates to Spring Boot, supporting developer demo mode locally.
+ * Forwards preference updates to Spring Boot.
  */
 export async function PUT(req: NextRequest) {
   try {
@@ -68,11 +62,6 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-
-    // Handle developer demo session instantly without bothering the backend
-    if (isDemoToken(session.user.accessToken)) {
-      return NextResponse.json(saveMockPreferences(body));
-    }
 
     try {
       const url = backendUrl();
@@ -95,8 +84,8 @@ export async function PUT(req: NextRequest) {
         backendError
       );
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {

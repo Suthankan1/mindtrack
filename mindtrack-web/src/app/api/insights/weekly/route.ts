@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getMockEntries } from "@/lib/mockStore";
 import axios from "axios";
-import { isDemoToken, backendUrl } from "@/lib/apiMode";
+import { backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -41,43 +40,41 @@ export async function GET() {
 
     let entries: MoodEntry[] = [];
     let insight = "";
-    
-    if (isDemoToken(session.user.accessToken)) {
-      entries = getMockEntries(30);
-      insight = "Demo Mode: Your weekly cognitive baseline is operating in a stable state. Connect a live account and log 3 mood entries to activate real-time Gemini AI insights!";
-    } else {
-      try {
-        const url = backendUrl();
-        const response = await axios.get(`${url}/api/mood/history`, {
-          params: { days: 30 },
-          headers: {
-            Authorization: `Bearer ${session.user.accessToken}`,
-          },
-        });
-        entries = response.data || [];
-      } catch (backendError) {
-        console.error(
-          "Spring Boot backend offline or failed on weekly insights telemetry fetch:",
-          backendError
-        );
-        return NextResponse.json(
-          { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-          { status: 502 }
-        );
-      }
 
-      try {
-        const url = backendUrl();
-        const response = await axios.get(`${url}/api/ai/insight/weekly`, {
-          headers: {
-            Authorization: `Bearer ${session.user.accessToken}`,
-          },
-        });
-        insight = response.data.insight;
-      } catch (backendError) {
-        console.error("Spring Boot backend AI insight fetch failed, fallback to offline state:", backendError);
-        insight = "AI_UNAVAILABLE";
-      }
+    try {
+      const url = backendUrl();
+      const response = await axios.get(`${url}/api/mood/history`, {
+        params: { days: 30 },
+        headers: {
+          Authorization: `Bearer ${session.user.accessToken}`,
+        },
+      });
+      entries = response.data || [];
+    } catch (backendError) {
+      console.error(
+        "Spring Boot backend offline or failed on weekly insights telemetry fetch:",
+        backendError
+      );
+      return NextResponse.json(
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
+      );
+    }
+
+    try {
+      const url = backendUrl();
+      const response = await axios.get(`${url}/api/ai/insight/weekly`, {
+        headers: {
+          Authorization: `Bearer ${session.user.accessToken}`,
+        },
+      });
+      insight = response.data.insight;
+    } catch (backendError) {
+      console.error("Spring Boot backend failed on weekly AI insight fetch:", backendError);
+      return NextResponse.json(
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
+      );
     }
 
     // 1. Process Mood Distribution this month (last 30 days)

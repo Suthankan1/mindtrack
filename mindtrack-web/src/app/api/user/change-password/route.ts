@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import axios from "axios";
-import { isDemoToken, backendUrl } from "@/lib/apiMode";
+import { backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,6 @@ export const dynamic = "force-dynamic";
  * Server-side proxy route that forwards the password-change request to the
  * Spring Boot backend at BACKEND_URL/api/user/change-password. Attaches the
  * user's JWT as a Bearer token so the backend can authenticate the call.
- *
- * Resolves immediately with mock success if the user is in developer demo mode.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -47,14 +45,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Handle developer demo session instantly without bothering the backend
-    if (isDemoToken(session.user.accessToken)) {
-      return NextResponse.json(
-        { message: "Credentials modified successfully in the secure database." },
-        { status: 200 }
-      );
-    }
-
     try {
       const url = backendUrl();
       const response = await axios.post(
@@ -80,8 +70,8 @@ export async function POST(req: NextRequest) {
         backendError
       );
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {

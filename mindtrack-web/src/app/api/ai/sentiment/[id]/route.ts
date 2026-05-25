@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import axios from "axios";
-import { isDemoToken, backendUrl } from "@/lib/apiMode";
+import { backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -18,17 +18,6 @@ export async function GET(
     }
 
     const { id } = params;
-
-    // Handle developer demo session instantly without bothering the backend
-    if (isDemoToken(session.user.accessToken)) {
-      return NextResponse.json({
-        sentiment: "positive",
-        emotionalTone: "hopeful",
-        themes: ["clarity", "purpose", "growth"],
-        confidence: 0.92,
-        supportMessage: "Your log sparkles with positive energy and intentional growth. Continue exploring your inner sky!"
-      });
-    }
 
     try {
       const url = backendUrl();
@@ -46,8 +35,8 @@ export async function GET(
         err.message
       );
       return NextResponse.json(
-        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
-        { status: 502 }
+        { error: "Backend service unavailable. Please try again." },
+        { status: 503 }
       );
     }
   } catch (error: unknown) {

@@ -1,3 +1,5 @@
+// NOTE: Mock store is used ONLY for local development. In production all routes call Spring Boot.
+
 export interface MoodEntry {
   id: string;
   userId: string;

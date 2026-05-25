@@ -2,6 +2,8 @@ package com.mindtrack.backend.ai;
 
 import com.mindtrack.backend.dto.GeminiRequest;
 import com.mindtrack.backend.dto.GeminiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
@@ -17,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GeminiService {
+
+    private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -49,6 +53,13 @@ public class GeminiService {
      * Wraps request in try-catch to guarantee graceful failure fallbacks.
      */
     public String generateInsight(String prompt) {
+        return generateInsight(prompt, null, null);
+    }
+
+    /**
+     * Generates a mental health insight with custom response MIME type and temperature controls.
+     */
+    public String generateInsight(String prompt, String responseMimeType, Double temperature) {
         if (prompt == null || prompt.trim().isEmpty()) {
             return "Prompt cannot be empty.";
         }
@@ -60,6 +71,14 @@ public class GeminiService {
         }
 
         try {
+            GeminiRequest.GenerationConfig generationConfig = null;
+            if (responseMimeType != null || temperature != null) {
+                generationConfig = GeminiRequest.GenerationConfig.builder()
+                        .responseMimeType(responseMimeType)
+                        .temperature(temperature)
+                        .build();
+            }
+
             GeminiRequest request = GeminiRequest.builder()
                     .contents(List.of(
                             GeminiRequest.Content.builder()
@@ -70,6 +89,7 @@ public class GeminiService {
                                     ))
                                     .build()
                     ))
+                    .generationConfig(generationConfig)
                     .build();
 
             GeminiResponse response = webClient.post()
@@ -97,7 +117,7 @@ public class GeminiService {
             return "No insight generated. Please check back later.";
 
         } catch (Exception e) {
-            System.err.println("Gemini API call failed: " + e.getMessage());
+            log.error("Gemini API call failed: {}", e.getMessage());
             return "Unable to generate AI mental health insight at this time. Please continue tracking your mood to help identify patterns.";
         }
     }
@@ -106,11 +126,26 @@ public class GeminiService {
      * Generates a multi-turn chat response using system instructions and full conversation history.
      */
     public String generateChatResponse(List<GeminiRequest.Content> contents, String systemInstruction) {
+        return generateChatResponse(contents, systemInstruction, null, null);
+    }
+
+    /**
+     * Generates a multi-turn chat response with custom response MIME type and temperature controls.
+     */
+    public String generateChatResponse(List<GeminiRequest.Content> contents, String systemInstruction, String responseMimeType, Double temperature) {
         if (contents == null || contents.isEmpty()) {
             return "Conversation history is empty.";
         }
 
         try {
+            GeminiRequest.GenerationConfig generationConfig = null;
+            if (responseMimeType != null || temperature != null) {
+                generationConfig = GeminiRequest.GenerationConfig.builder()
+                        .responseMimeType(responseMimeType)
+                        .temperature(temperature)
+                        .build();
+            }
+
             GeminiRequest request = GeminiRequest.builder()
                     .contents(contents)
                     .systemInstruction(systemInstruction != null ?
@@ -121,6 +156,7 @@ public class GeminiService {
                                                     .build()
                                     ))
                                     .build() : null)
+                    .generationConfig(generationConfig)
                     .build();
 
             GeminiResponse response = webClient.post()
@@ -147,7 +183,7 @@ public class GeminiService {
             return "No response generated. Please check back later.";
 
         } catch (Exception e) {
-            System.err.println("Gemini Chat API call failed: " + e.getMessage());
+            log.error("Gemini Chat API call failed: {}", e.getMessage());
             return "Unable to generate AI chat response at this time.";
         }
     }

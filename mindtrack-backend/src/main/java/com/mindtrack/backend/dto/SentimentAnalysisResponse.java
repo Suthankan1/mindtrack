@@ -17,4 +17,7 @@ public class SentimentAnalysisResponse {
     private List<String> themes;
     private double confidence;
     private String supportMessage;
+
+    @Builder.Default
+    private boolean aiAvailable = true;
 }

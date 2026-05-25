@@ -15,6 +15,16 @@ public class GeminiRequest {
 
     private List<Content> contents;
     private SystemInstruction systemInstruction;
+    private GenerationConfig generationConfig;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GenerationConfig {
+        private String responseMimeType;
+        private Double temperature;
+    }
 
     @Data
     @Builder

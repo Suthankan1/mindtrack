@@ -8,6 +8,8 @@ import com.mindtrack.backend.model.StressPattern;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,11 +21,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class AiInsightService {
 
+    private static final Logger log = LoggerFactory.getLogger(AiInsightService.class);
+
     private final UserRepository userRepository;
     private final MoodPatternService moodPatternService;
     private final MoodEntryRepository moodEntryRepository;
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
+    private final JsonExtractionService jsonExtractionService;
 
     // Cache results by entryId (sentiment won't change for a saved note)
     private final Map<UUID, SentimentAnalysisResponse> sentimentCache = new ConcurrentHashMap<>();
@@ -33,12 +38,14 @@ public class AiInsightService {
             MoodPatternService moodPatternService,
             MoodEntryRepository moodEntryRepository,
             GeminiService geminiService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            JsonExtractionService jsonExtractionService) {
         this.userRepository = userRepository;
         this.moodPatternService = moodPatternService;
         this.moodEntryRepository = moodEntryRepository;
         this.geminiService = geminiService;
         this.objectMapper = objectMapper;
+        this.jsonExtractionService = jsonExtractionService;
     }
 
     /**
@@ -59,11 +66,16 @@ public class AiInsightService {
             response.put("weeklyAverage", 0.0);
             response.put("peakDay", "N/A");
             response.put("entryCount", entryCount);
+            response.put("aiAvailable", false);
         } else {
             response.put("insight", pattern.getAiInsight());
             response.put("weeklyAverage", pattern.getWeeklyAverage());
             response.put("peakDay", pattern.getPeakStressDay());
             response.put("entryCount", entryCount);
+            boolean available = pattern.getAiInsight() != null &&
+                    !pattern.getAiInsight().startsWith("Unable to generate AI") &&
+                    !pattern.getAiInsight().startsWith("No insight generated");
+            response.put("aiAvailable", available);
         }
 
         return response;
@@ -113,28 +125,21 @@ public class AiInsightService {
         }
         """, note);
 
-        String rawResponse = geminiService.generateInsight(prompt);
-        if (rawResponse == null || rawResponse.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to call AI service");
-        }
-
         try {
-            // Strip markdown fences
-            String cleanedResponse = cleanJsonMarkdown(rawResponse);
-
-            SentimentAnalysisResponse parsed = objectMapper.readValue(cleanedResponse, SentimentAnalysisResponse.class);
+            String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.1);
+            SentimentAnalysisResponse parsed = jsonExtractionService.extractAndParse(rawResponse, SentimentAnalysisResponse.class);
             sentimentCache.put(entryId, parsed);
             return parsed;
         } catch (Exception e) {
-            System.err.println("Failed to parse Gemini sentiment response: " + e.getMessage() + "\nRaw response: " + rawResponse);
+            log.error("Failed to process Gemini sentiment response: {}", e.getMessage());
             
-            // Graceful fallback response on parse failure
             SentimentAnalysisResponse fallback = SentimentAnalysisResponse.builder()
                     .sentiment("neutral")
                     .emotionalTone("uncertain")
                     .themes(Collections.emptyList())
                     .confidence(0.0)
                     .supportMessage("We are here to support you in every step of your journey.")
+                    .aiAvailable(false)
                     .build();
             return fallback;
         }
@@ -178,26 +183,19 @@ public class AiInsightService {
         }
         """, moodScore, timeOfDay, recentAverage, String.join(", ", lastTags));
 
-        String rawResponse = geminiService.generateInsight(prompt);
-        if (rawResponse == null || rawResponse.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to call AI service");
-        }
-
         try {
-            // Strip markdown fences
-            String cleanedResponse = cleanJsonMarkdown(rawResponse);
-
-            CopingSuggestResponse parsed = objectMapper.readValue(cleanedResponse, CopingSuggestResponse.class);
+            String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.1);
+            CopingSuggestResponse parsed = jsonExtractionService.extractAndParse(rawResponse, CopingSuggestResponse.class);
             return parsed;
         } catch (Exception e) {
-            System.err.println("Failed to parse Gemini coping suggestion response: " + e.getMessage() + "\nRaw response: " + rawResponse);
+            log.error("Failed to process Gemini coping suggestion: {}", e.getMessage());
             
-            // Graceful fallback response on parse failure
             CopingSuggestResponse fallback = CopingSuggestResponse.builder()
                     .technique("breathing_deep")
                     .reason("A deep, mindful breath is always a perfect way to center yourself.")
                     .durationMinutes(5)
                     .encouragement("Take a moment just for yourself right now.")
+                    .aiAvailable(false)
                     .build();
             return fallback;
         }
@@ -221,11 +219,16 @@ public class AiInsightService {
         Do NOT mention suicide or self-harm. Keep it hopeful.
         """;
 
-        String rawResponse = geminiService.generateInsight(prompt);
+        String rawResponse = geminiService.generateInsight(prompt, null, 0.7);
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", rawResponse);
         response.put("showCrisisResources", true);
+        
+        boolean available = rawResponse != null &&
+                !rawResponse.startsWith("Unable to generate AI") &&
+                !rawResponse.startsWith("No insight generated");
+        response.put("aiAvailable", available);
 
         return response;
     }
@@ -287,42 +290,20 @@ public class AiInsightService {
                 ))
                 .build());
 
-        // 3. Call Gemini
-        String rawResponse = geminiService.generateChatResponse(contents, systemPrompt);
-
-        if (rawResponse == null || rawResponse.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to call AI service");
-        }
-
-        // 4. Parse Response
+        // 3. Call Gemini and Parse Response
         try {
-            // Strip markdown fences
-            String cleanedResponse = cleanJsonMarkdown(rawResponse);
-
-            ChatResponse parsed = objectMapper.readValue(cleanedResponse, ChatResponse.class);
+            String rawResponse = geminiService.generateChatResponse(contents, systemPrompt, "application/json", 0.2);
+            ChatResponse parsed = jsonExtractionService.extractAndParse(rawResponse, ChatResponse.class);
             return parsed;
         } catch (Exception e) {
-            System.err.println("Failed to parse Gemini chat response as JSON: " + e.getMessage() + "\nRaw response: " + rawResponse);
+            log.error("Failed to process Gemini chat response: {}", e.getMessage());
             
-            // Graceful fallback response on parse failure: use the raw response as the reply
             ChatResponse fallback = ChatResponse.builder()
-                    .reply(rawResponse)
+                    .reply("I'm here for you. Although my advanced AI features are temporarily offline, I can still listen and support you. How are you feeling?")
                     .suggestedFollowUps(List.of("Can you tell me more about that?", "How does that make you feel?"))
+                    .aiAvailable(false)
                     .build();
             return fallback;
         }
-    }
-
-    private String cleanJsonMarkdown(String rawResponse) {
-        String cleaned = rawResponse.trim();
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
-        }
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
-        }
-        return cleaned.trim();
     }
 }

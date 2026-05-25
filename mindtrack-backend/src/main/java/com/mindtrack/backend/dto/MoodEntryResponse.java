@@ -24,6 +24,9 @@ public class MoodEntryResponse {
     private boolean crisisAlert;
     private String crisisMessage;
 
+    @Builder.Default
+    private boolean aiAvailable = true;
+
     public static MoodEntryResponse fromEntity(MoodEntry entry) {
         if (entry == null) {
             return null;
@@ -37,6 +40,7 @@ public class MoodEntryResponse {
                 .tags(entry.getTags())
                 .crisisAlert(false)
                 .crisisMessage(null)
+                .aiAvailable(true)
                 .build();
     }
 }

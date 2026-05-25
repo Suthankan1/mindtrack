@@ -120,9 +120,14 @@ public class MoodController {
             Maximum 4 sentences. Tone: like a caring friend, not a doctor or therapist.
             Do NOT mention suicide or self-harm. Keep it hopeful.
             """;
-            String rawResponse = geminiService.generateInsight(prompt);
+            String rawResponse = geminiService.generateInsight(prompt, null, 0.7);
             response.setCrisisAlert(true);
             response.setCrisisMessage(rawResponse);
+            
+            boolean available = rawResponse != null &&
+                    !rawResponse.startsWith("Unable to generate AI") &&
+                    !rawResponse.startsWith("No insight generated");
+            response.setAiAvailable(available);
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

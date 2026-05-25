@@ -14,4 +14,7 @@ public class CopingSuggestResponse {
     private String reason;
     private int durationMinutes;
     private String encouragement;
+
+    @Builder.Default
+    private boolean aiAvailable = true;
 }

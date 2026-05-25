@@ -7,6 +7,8 @@ import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.StressPatternRepository;
 import com.mindtrack.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class MoodPatternService {
+
+    private static final Logger log = LoggerFactory.getLogger(MoodPatternService.class);
 
     private final MoodEntryRepository moodEntryRepository;
     private final StressPatternRepository stressPatternRepository;
@@ -119,7 +123,7 @@ public class MoodPatternService {
         Maximum 60 words. Do NOT use bullet points.
         """, entryCount, average, peakDayStr, scoreBreakdown, topTags);
 
-        String aiInsight = geminiService.generateInsight(geminiPrompt);
+        String aiInsight = geminiService.generateInsight(geminiPrompt, null, 0.7);
 
         StressPattern pattern = StressPattern.builder()
                 .user(user)
@@ -149,7 +153,7 @@ public class MoodPatternService {
                 calculateWeeklyPattern(user, start, end);
             } catch (Exception e) {
                 // Log or handle user-specific processing errors gracefully to not crash entire scheduler loop
-                System.err.println("Error calculating stress pattern for user " + user.getId() + ": " + e.getMessage());
+                log.error("Error calculating stress pattern for user {}: {}", user.getId(), e.getMessage());
             }
         }
     }

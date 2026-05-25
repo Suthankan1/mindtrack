@@ -240,7 +240,10 @@ public class MoodControllerTest {
 
     @Test
     void moodPatternService_LogicVerification() {
-        org.mockito.Mockito.when(geminiService.generateInsight(org.mockito.Mockito.anyString()))
+        org.mockito.Mockito.when(geminiService.generateInsight(
+                        org.mockito.Mockito.anyString(),
+                        org.mockito.Mockito.any(),
+                        org.mockito.Mockito.any()))
                 .thenAnswer(invocation -> {
                     String prompt = invocation.getArgument(0);
                     if (prompt.contains("Average mood score: 3.0") || prompt.contains("Average mood score: 3,0")) {

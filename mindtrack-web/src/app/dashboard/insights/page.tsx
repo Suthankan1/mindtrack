@@ -311,14 +311,7 @@ export default function InsightsPage() {
     },
   };
 
-  if (!mounted || status === "loading") {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <RefreshCw className="w-8 h-8 text-accent-teal animate-spin" />
-        <p className="text-xs text-muted tracking-wider uppercase">Decoding weekly neuro-trends...</p>
-      </div>
-    );
-  }
+  const isVisualLoading = status === "loading" || !mounted || isLoading;
 
   return (
     <div className="space-y-8 pb-10 subtle-mesh">
@@ -359,16 +352,16 @@ export default function InsightsPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={fetchInsights}
-            disabled={isLoading}
+            disabled={isVisualLoading}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#12122A] hover:bg-[#1C1C3A] border border-[#1C1C3A] text-xs text-white transition-all disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isVisualLoading ? "animate-spin" : ""}`} />
             Refresh
           </button>
 
           <button
             onClick={handleDownload}
-            disabled={isLoading || isDownloading}
+            disabled={isVisualLoading || isDownloading}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-teal hover:opacity-90 active:scale-95 text-background font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50"
           >
             {isDownloading ? (
@@ -391,11 +384,11 @@ export default function InsightsPage() {
           title="Cognitive Engine Connection Failed"
           message={error}
           onRetry={fetchInsights}
-          isLoading={isLoading}
+          isLoading={isVisualLoading}
         />
       )}
 
-      {isLoading ? (
+      {isVisualLoading ? (
         /* Shimmer Loading Skeleton */
         <div className="space-y-6">
           <div className="h-44 w-full bg-[#12122A]/40 border border-white/[0.03] animate-pulse rounded-3xl" />
@@ -436,7 +429,7 @@ export default function InsightsPage() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-200 leading-relaxed font-sans max-w-4xl">
-                      {insights.insight}
+                      {insights.insight || "No emotional telemetry logs registered. Commit reflections in the Journal or Dashboard to trigger AI cognitive pattern recognition."}
                     </p>
                   </div>
                 </div>
@@ -484,22 +477,47 @@ export default function InsightsPage() {
                     </div>
                   ) : anomaly?.insufficientData ? (
                     /* Calibration State */
-                    <div className="flex flex-col items-center text-center py-4 space-y-3">
-                      <div className="w-24 h-24 relative flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90">
-                          <circle cx="48" cy="48" r="40" stroke="rgba(255,255,255,0.03)" strokeWidth="4" fill="transparent" />
-                          <circle cx="48" cy="48" r="40" stroke="#00D2C8" strokeWidth="4" fill="transparent" strokeDasharray="251.2" strokeDashoffset="180" className="transition-all duration-1000" />
+                    <div className="flex flex-col items-center text-center py-4 space-y-4 w-full">
+                      <div className="w-20 h-20 relative flex items-center justify-center">
+                        <svg className="w-20 h-20 transform -rotate-90">
+                          <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.03)" strokeWidth="4" fill="transparent" />
+                          <circle cx="40" cy="40" r="32" stroke="#00D2C8" strokeWidth="4" fill="transparent" strokeDasharray="201" strokeDashoffset={201 - (201 * (insights?.moodDistribution && insights.moodDistribution.length > 0 ? 60 : 0)) / 100} className="transition-all duration-1000" />
                         </svg>
                         <div className="absolute text-center">
                           <Brain className="w-5 h-5 text-accent-teal mx-auto mb-0.5 animate-pulse" />
-                          <span className="text-[9px] font-bold text-accent-teal uppercase">Calibrating</span>
+                          <span className="text-[8px] font-bold text-accent-teal uppercase">
+                            {insights?.moodDistribution && insights.moodDistribution.length > 0 ? "60%" : "0%"}
+                          </span>
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-white">Radar Calibrating</p>
-                        <p className="text-[10px] text-muted leading-relaxed">
+                        <p className="text-xs font-bold text-white uppercase tracking-wider">Radar Calibrating</p>
+                        <p className="text-[10px] text-muted leading-relaxed max-w-[220px] mx-auto">
                           We require at least 5 mood check-ins in the last 30 days to calculate baseline deviations and identify burnout patterns.
                         </p>
+                      </div>
+
+                      {/* Progress Bar and CTA */}
+                      <div className="w-full space-y-2 border-t border-white/[0.04] pt-3">
+                        <div className="flex justify-between text-[8px] text-muted font-bold uppercase tracking-wider">
+                          <span>Progress</span>
+                          <span>{insights?.moodDistribution && insights.moodDistribution.length > 0 ? "3" : "0"} / 5 entries</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-[#0A0A14] rounded-full overflow-hidden border border-white/5">
+                          <div 
+                            className="h-full bg-accent-teal transition-all duration-500" 
+                            style={{ width: `${insights?.moodDistribution && insights.moodDistribution.length > 0 ? 60 : 0}%` }}
+                          />
+                        </div>
+                        <div className="pt-2">
+                          <a
+                            href="/dashboard"
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-accent-teal hover:opacity-90 active:scale-95 text-background font-bold text-[9px] uppercase tracking-wider transition-all shadow-glow"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            Log Mood Entry
+                          </a>
+                        </div>
                       </div>
                     </div>
                   ) : (

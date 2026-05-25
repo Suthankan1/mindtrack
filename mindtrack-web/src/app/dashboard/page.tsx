@@ -406,15 +406,7 @@ export default function DashboardPage() {
     },
   };
 
-  // Fallback visual skeletons
-  if (status === "loading" || !mounted) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <RefreshCw className="w-8 h-8 text-accent-teal animate-spin" />
-        <p className="text-xs text-muted tracking-wider uppercase">Aligning mental health records...</p>
-      </div>
-    );
-  }
+  const isVisualLoading = status === "loading" || !mounted || isLoading;
 
   return (
     <div className="space-y-8 pb-10 subtle-mesh">
@@ -467,10 +459,16 @@ export default function DashboardPage() {
               <Flame className="w-5 h-5 text-amber-400 animate-pulse" />
             </div>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-amber-400 tracking-tight font-display">
-                {stats.currentStreak}
-              </span>
-              <span className="text-xs text-muted">{stats.currentStreak === 1 ? "day" : "days"}</span>
+              {isVisualLoading ? (
+                <div className="h-10 w-16 shimmer-pulse rounded-xl" />
+              ) : (
+                <>
+                  <span className="text-4xl font-bold text-amber-400 tracking-tight font-display">
+                    {stats.currentStreak}
+                  </span>
+                  <span className="text-xs text-muted">{stats.currentStreak === 1 ? "day" : "days"}</span>
+                </>
+              )}
             </div>
             <p className="text-[10px] text-muted mt-2">Consecutive daily journals logged.</p>
           </div>
@@ -483,10 +481,16 @@ export default function DashboardPage() {
               <TrendingUp className="w-5 h-5 text-accent-teal" />
             </div>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-accent-teal tracking-tight font-display">
-                {stats.avgMoodScoreThisWeek}
-              </span>
-              <span className="text-xs text-muted">/ 5.0</span>
+              {isVisualLoading ? (
+                <div className="h-10 w-24 shimmer-pulse rounded-xl" />
+              ) : (
+                <>
+                  <span className="text-4xl font-bold text-accent-teal tracking-tight font-display">
+                    {stats.avgMoodScoreThisWeek}
+                  </span>
+                  <span className="text-xs text-muted">/ 5.0</span>
+                </>
+              )}
             </div>
             <p className="text-[10px] text-muted mt-2">Overall balance over past week.</p>
           </div>
@@ -499,10 +503,16 @@ export default function DashboardPage() {
               <BookOpen className="w-5 h-5 text-violet-400" />
             </div>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-violet-400 tracking-tight font-display">
-                {stats.totalEntries}
-              </span>
-              <span className="text-xs text-muted">logs</span>
+              {isVisualLoading ? (
+                <div className="h-10 w-20 shimmer-pulse rounded-xl" />
+              ) : (
+                <>
+                  <span className="text-4xl font-bold text-violet-400 tracking-tight font-display">
+                    {stats.totalEntries}
+                  </span>
+                  <span className="text-xs text-muted">logs</span>
+                </>
+              )}
             </div>
             <p className="text-[10px] text-muted mt-2">All recorded entries in dashboard range.</p>
           </div>
@@ -515,10 +525,16 @@ export default function DashboardPage() {
               <CalendarDays className="w-5 h-5 text-emerald-400" />
             </div>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-emerald-400 tracking-tight font-display">
-                {stats.joinedDaysAgo}
-              </span>
-              <span className="text-xs text-muted">{stats.joinedDaysAgo === 1 ? "day" : "days"}</span>
+              {isVisualLoading ? (
+                <div className="h-10 w-16 shimmer-pulse rounded-xl" />
+              ) : (
+                <>
+                  <span className="text-4xl font-bold text-emerald-400 tracking-tight font-display">
+                    {stats.joinedDaysAgo}
+                  </span>
+                  <span className="text-xs text-muted">{stats.joinedDaysAgo === 1 ? "day" : "days"}</span>
+                </>
+              )}
             </div>
             <p className="text-[10px] text-muted mt-2">Days since joining MindTrack.</p>
           </div>
@@ -531,7 +547,7 @@ export default function DashboardPage() {
           
           {/* Column 1: Interactive Mood Logger Form (Staggered Animation Component 2) */}
           <motion.div variants={itemVariants} className="space-y-6 lg:col-span-1">
-            <div className="p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] flex flex-col justify-between h-full">
+            <div id="mood-form-container" className="p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] flex flex-col justify-between h-full transition-all duration-500">
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <PlusCircle className="w-5 h-5 text-accent-teal" />
@@ -557,7 +573,7 @@ export default function DashboardPage() {
                         <button
                           key={val}
                           type="button"
-                          disabled={isSubmitting}
+                          disabled={isVisualLoading || isSubmitting}
                           onClick={() => setNewMood(val)}
                           className={`py-3 rounded-xl border flex flex-col items-center gap-1 transition-all duration-300 ${
                             newMood === val
@@ -590,6 +606,7 @@ export default function DashboardPage() {
                           <button
                             key={tag}
                             type="button"
+                            disabled={isVisualLoading || isSubmitting}
                             onClick={() => handleToggleTag(tag)}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-medium border transition-all ${
                               isSelected
@@ -614,7 +631,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={handleGeneratePrompt}
-                        disabled={isGeneratingPrompt}
+                        disabled={isVisualLoading || isGeneratingPrompt || isSubmitting}
                         className="text-[10px] font-bold text-accent-teal uppercase tracking-wider bg-accent-teal/5 border border-accent-teal/20 hover:border-accent-teal/40 px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50 hover:bg-accent-teal/10"
                       >
                         {isGeneratingPrompt ? "Generating..." : "Generate Prompt"}
@@ -625,7 +642,7 @@ export default function DashboardPage() {
                       <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
                         <div className="flex items-center gap-2">
                           <div className="h-4 w-24 bg-white/5 rounded-lg" />
-                          <div className="h-4 w-12 bg-white/5 rounded-lg" />
+                           <div className="h-4 w-12 bg-white/5 rounded-lg" />
                         </div>
                         <div className="h-3 w-full bg-white/5 rounded" />
                         <div className="h-3 w-2/3 bg-white/5 rounded" />
@@ -644,7 +661,9 @@ export default function DashboardPage() {
                         animate={{ opacity: 1, y: 0 }}
                         className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-accent-teal/20 hover:border-accent-teal/40 transition-all cursor-pointer space-y-2 group shadow-[0_4px_16px_rgba(0,210,200,0.02)]"
                         onClick={() => {
-                          setNewNote(prev => prev ? aiPrompt.promptQuestion + "\n\n" + prev : aiPrompt.promptQuestion + "\n\n");
+                          if (!isVisualLoading) {
+                            setNewNote(prev => prev ? aiPrompt.promptQuestion + "\n\n" + prev : aiPrompt.promptQuestion + "\n\n");
+                          }
                         }}
                       >
                         <div className="flex items-center justify-between">
@@ -689,14 +708,14 @@ export default function DashboardPage() {
                       onChange={(e) => setNewNote(e.target.value)}
                       placeholder="Sleep quality, mindfulness check-in, recent triggers..."
                       rows={3}
-                      disabled={isSubmitting}
+                      disabled={isVisualLoading || isSubmitting}
                       className="w-full p-3 bg-[#0A0A14]/70 border border-[#1C1C3A] focus:border-accent-teal/50 rounded-xl text-xs text-white placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/20 resize-none transition-all"
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isVisualLoading || isSubmitting}
                     className="w-full py-3 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
                   >
                     {isSubmitting ? "Encrypting entry..." : "Commit Log"}
@@ -724,7 +743,9 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex-1 w-full min-w-0 h-[220px] min-h-[220px]">
-                {chartData.length > 0 ? (
+                {isVisualLoading ? (
+                  <div className="w-full h-full shimmer-pulse rounded-2xl" />
+                ) : chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <defs>
@@ -802,10 +823,38 @@ export default function DashboardPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30">
-                    <BookOpen className="w-8 h-8 opacity-40 text-muted" />
-                    <span className="text-[11px] font-semibold tracking-wide text-gray-400">Biological Wave Empty</span>
-                    <span className="text-[9px] opacity-60">Log your first state in the sidebar form to populate.</span>
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-accent-teal/20 rounded-2xl bg-[#0A0A14]/40 relative overflow-hidden glowing-orbit-border">
+                    <div className="absolute inset-0 animated-cosmic-bg opacity-30" />
+                    <div className="relative z-10 space-y-4 max-w-sm">
+                      <div className="w-12 h-12 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mx-auto animate-bounce">
+                        <Sparkles className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Your Emotional Universe is Waiting</h4>
+                        <p className="text-[10px] text-muted leading-relaxed">
+                          Let's chart your mental telemetry! Log your first conscious vibe check-in using the reflection companion form.
+                        </p>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const element = document.getElementById("mood-form-container");
+                            if (element) {
+                              element.scrollIntoView({ behavior: "smooth" });
+                              element.classList.add("glowing-orbit-border");
+                              setTimeout(() => {
+                                element.classList.remove("glowing-orbit-border");
+                              }, 3000);
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-accent-teal text-background font-bold text-[10px] uppercase tracking-wider active:scale-[0.98] transition-all hover:shadow-glow inline-flex items-center gap-1.5"
+                        >
+                          <span>Begin Guided Vibe Check</span>
+                          <PlusCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -830,52 +879,58 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex flex-col md:flex-row items-center gap-6 justify-center py-2">
-                {/* 7 rows x 5 columns calendar grid */}
-                <div className="flex gap-2">
-                  
-                  {/* Left Label column */}
-                  <div className="grid grid-rows-7 text-[8px] text-muted font-bold h-36 items-center pr-1 select-none">
-                    <span>Mon</span>
-                    <span className="opacity-0">Tue</span>
-                    <span>Wed</span>
-                    <span className="opacity-0">Thu</span>
-                    <span>Fri</span>
-                    <span className="opacity-0">Sat</span>
-                    <span>Sun</span>
-                  </div>
-
-                  {/* Grid element */}
-                  <div className="grid grid-flow-col grid-rows-7 gap-2">
-                    {heatmapCells.map((cell) => (
-                      <div 
-                        key={cell.dateStr}
-                        className="relative group cursor-pointer"
-                      >
-                        <div 
-                          className={`w-[18px] h-[18px] rounded-sm transition-all duration-300 hover:scale-110 ${getHeatmapColor(cell.score)}`} 
-                        />
-                        
-                        {/* Hover Tooltip - Pure HTML/CSS for instant zero lag responsive execution */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 bg-[#12122A] border border-[#1C1C3A] text-white text-[9px] py-1.5 px-2.5 rounded-xl whitespace-nowrap shadow-xl">
-                          <p className="font-bold text-white">{cell.dateLabel}</p>
-                          <p className="text-accent-teal mt-0.5 font-semibold">
-                            {cell.score ? `Score: ${cell.score}/5 (${getMoodLabel(cell.score)})` : "No Record Logged"}
-                          </p>
-                        </div>
+                {isVisualLoading ? (
+                  <div className="h-36 w-full shimmer-pulse rounded-2xl" />
+                ) : (
+                  <>
+                    {/* 7 rows x 5 columns calendar grid */}
+                    <div className="flex gap-2">
+                      
+                      {/* Left Label column */}
+                      <div className="grid grid-rows-7 text-[8px] text-muted font-bold h-36 items-center pr-1 select-none">
+                        <span>Mon</span>
+                        <span className="opacity-0">Tue</span>
+                        <span>Wed</span>
+                        <span className="opacity-0">Thu</span>
+                        <span>Fri</span>
+                        <span className="opacity-0">Sat</span>
+                        <span>Sun</span>
                       </div>
-                    ))}
-                  </div>
 
-                </div>
+                      {/* Grid element */}
+                      <div className="grid grid-flow-col grid-rows-7 gap-2">
+                        {heatmapCells.map((cell) => (
+                          <div 
+                            key={cell.dateStr}
+                            className="relative group cursor-pointer"
+                          >
+                            <div 
+                              className={`w-[18px] h-[18px] rounded-sm transition-all duration-300 hover:scale-110 ${getHeatmapColor(cell.score)}`} 
+                            />
+                            
+                            {/* Hover Tooltip - Pure HTML/CSS for instant zero lag responsive execution */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 bg-[#12122A] border border-[#1C1C3A] text-white text-[9px] py-1.5 px-2.5 rounded-xl whitespace-nowrap shadow-xl">
+                              <p className="font-bold text-white">{cell.dateLabel}</p>
+                              <p className="text-accent-teal mt-0.5 font-semibold">
+                                {cell.score ? `Score: ${cell.score}/5 (${getMoodLabel(cell.score)})` : "No Record Logged"}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
 
-                {/* Additional Heatmap context card */}
-                <div className="flex-1 border border-white/[0.03] rounded-2xl p-4 bg-[#0A0A14]/30 space-y-2 max-w-[240px]">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">Matrix Log Range</p>
-                  <p className="text-xs text-white font-medium">35-Day Emotional Grid</p>
-                  <p className="text-[10px] text-muted leading-relaxed">
-                    Visualizes consistency clusters. Deep teal represent peaks in mental clarity, while dark reds denote stress events.
-                  </p>
-                </div>
+                    </div>
+
+                    {/* Additional Heatmap context card */}
+                    <div className="flex-1 border border-white/[0.03] rounded-2xl p-4 bg-[#0A0A14]/30 space-y-2 max-w-[240px]">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">Matrix Log Range</p>
+                      <p className="text-xs text-white font-medium">35-Day Emotional Grid</p>
+                      <p className="text-[10px] text-muted leading-relaxed">
+                        Visualizes consistency clusters. Deep teal represent peaks in mental clarity, while dark reds denote stress events.
+                      </p>
+                    </div>
+                  </>
+                )}
 
               </div>
             </div>
@@ -891,7 +946,13 @@ export default function DashboardPage() {
             <h3 className="text-md font-bold text-white font-display">Recent Mind Logs</h3>
           </div>
 
-          {entries.length > 0 ? (
+          {isVisualLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((skeleton) => (
+                <div key={skeleton} className="h-20 w-full shimmer-pulse rounded-2xl" />
+              ))}
+            </div>
+          ) : entries.length > 0 ? (
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
               {entries.map((entry) => (
                 <div 

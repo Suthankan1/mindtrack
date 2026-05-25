@@ -353,15 +353,7 @@ export default function JournalPage() {
     },
   };
 
-  // Prevent hydration mismatches
-  if (!mounted || status === "loading") {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <RefreshCw className="w-8 h-8 text-accent-teal animate-spin" />
-        <p className="text-xs text-muted tracking-wider uppercase">Calibrating your cosmic logbooks...</p>
-      </div>
-    );
-  }
+  const isVisualLoading = status === "loading" || !mounted || isLoading;
 
   return (
     <div className="space-y-8 pb-12 subtle-mesh">
@@ -380,10 +372,10 @@ export default function JournalPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={fetchJournalHistory}
-            disabled={isLoading}
+            disabled={isVisualLoading}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#12122A] hover:bg-[#1C1C3A] border border-[#1C1C3A] text-xs text-white transition-all disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isVisualLoading ? "animate-spin" : ""}`} />
             Refresh
           </button>
 
@@ -698,7 +690,7 @@ export default function JournalPage() {
 
         {/* Timeline Stream Column */}
         <div className="lg:col-span-3 space-y-6">
-          {isLoading ? (
+          {isVisualLoading ? (
             <div className="space-y-6">
               {[1, 2, 3].map((skeleton) => (
                 <div key={skeleton} className="p-6 rounded-3xl bg-[#12122A]/50 border border-white/[0.02] space-y-4 animate-pulse">
@@ -888,9 +880,16 @@ export default function JournalPage() {
                                         Analyze Vibe
                                       </button>
                                       {sentimentErrors[entry.id] && (
-                                        <p className="text-[10px] text-accent-coral font-medium">
-                                          {sentimentErrors[entry.id]}
-                                        </p>
+                                        <div className="mt-1 p-2.5 rounded-xl bg-accent-coral/5 border border-accent-coral/15 text-accent-coral text-[9px] flex items-center justify-between gap-3 max-w-sm w-full">
+                                          <span className="font-semibold">⚠️ Companion engine is resting.</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAnalyzeSentiment(entry.id)}
+                                            className="px-2 py-0.5 rounded bg-accent-coral/10 hover:bg-accent-coral/25 border border-accent-coral/30 text-[8px] font-bold uppercase transition-all shrink-0"
+                                          >
+                                            Retry
+                                          </button>
+                                        </div>
                                       )}
                                     </div>
                                   ) : analyzingIds[entry.id] ? (

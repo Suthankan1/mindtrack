@@ -179,7 +179,8 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
   bool _showStarburst = false;
   bool _isSavingSession = false;
   bool _hasLoggedCompletion = false;
-  
+  bool _sessionSyncFailed = false;
+
   // Secondary overlay for mindfulness completion report
   bool _showCompletionCard = false;
 
@@ -329,17 +330,33 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
   Future<void> _logSessionToBackend() async {
     setState(() {
       _isSavingSession = true;
+      _sessionSyncFailed = false;
     });
 
     try {
       final dio = ref.read(dioServiceProvider);
-      // Log the session details
-      await dio.logCopingSession(
+      // logCopingSession returns {} on failure — it never throws.
+      final result = await dio.logCopingSession(
         type: 'breathing',
-        duration: _sessionDurationSeconds,
+        durationSeconds: _sessionDurationSeconds,
       );
+      // An empty map means the service swallowed an error; surface it.
+      if (result.isEmpty) {
+        debugPrint('BreatheScreen: coping session log returned empty — treating as non-fatal failure.');
+        if (mounted) {
+          setState(() {
+            _sessionSyncFailed = true;
+          });
+        }
+      }
     } catch (e) {
-      debugPrint('BreatheScreen: API logging failed gracefully. Error: $e');
+      // Should not happen given DioService's defensive return, but guard anyway.
+      debugPrint('BreatheScreen: Unexpected error during coping session log: $e');
+      if (mounted) {
+        setState(() {
+          _sessionSyncFailed = true;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -363,6 +380,7 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
       _sessionDurationSeconds = 0;
       _hasLoggedCompletion = false;
       _showCompletionCard = false;
+      _sessionSyncFailed = false;
       
       // Update duration config
       _phaseController.reset();
@@ -383,6 +401,7 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
       _sessionDurationSeconds = 0;
       _hasLoggedCompletion = false;
       _showCompletionCard = false;
+      _sessionSyncFailed = false;
       _phaseController.reset();
       _phaseController.duration = Duration(
         seconds: _currentTechnique.steps[0].durationSeconds,
@@ -1102,6 +1121,24 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
                     const SizedBox(width: 10),
                     Text(
                       'Saving practice details...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                )
+              else if (_sessionSyncFailed)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_outlined,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Couldn't save session — check your connection",
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                       ),

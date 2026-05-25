@@ -197,33 +197,42 @@ class DioService {
   }
 
   /// Logs a completed coping session.
+  ///
+  /// Sends `{ "type": ..., "durationSeconds": ... }` to POST /api/coping/session.
+  /// Returns the created session map on success, or an empty map on failure so
+  /// callers (e.g. the breathing UI) are never crashed by a network error.
   Future<Map<String, dynamic>> logCopingSession({
     required String type,
-    required int duration,
+    required int durationSeconds,
   }) async {
     if (_token == null) {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString(_kTokenKey);
     }
     if (_token == null) {
-      throw Exception('Not authenticated. Please log in.');
+      debugPrint('DioService: logCopingSession skipped — user not authenticated.');
+      return {};
     }
     try {
       final response = await _dio.post(
         '/api/coping/session',
-        data: {'type': type, 'duration': duration},
+        data: {'type': type, 'durationSeconds': durationSeconds},
       );
 
-      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
-        debugPrint('DioService: Coping session logged successfully. Type: $type, Duration: $duration');
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          response.data != null) {
+        debugPrint(
+          'DioService: Coping session logged. Type: $type, durationSeconds: $durationSeconds',
+        );
         return response.data as Map<String, dynamic>;
       }
-      throw Exception(
-        'DioService: Failed to log coping session. Status: ${response.statusCode}',
+      debugPrint(
+        'DioService: Unexpected status logging coping session: ${response.statusCode}',
       );
+      return {};
     } catch (e) {
-      debugPrint('DioService: Error logging coping session: $e');
-      rethrow;
+      debugPrint('DioService: Failed to log coping session (non-fatal): $e');
+      return {};
     }
   }
 

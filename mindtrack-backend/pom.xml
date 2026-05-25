@@ -22,12 +22,12 @@
 	</licenses>
 	<developers>
 		<developer>
-			<name>Your Name</name>
-			<email>your@email.com</email>
+			<name>Suthankan Balenthiran</name>
+			<email>Suthankanbala2019@gmail.com</email>
 		</developer>
 	</developers>
 	<scm>
-		<url>https://github.com/YOUR_USERNAME/mindtrack</url>
+		<url>https://github.com/Suthankan1/mindtrack</url>
 	</scm>
 	<properties>
 		<java.version>21</java.version>

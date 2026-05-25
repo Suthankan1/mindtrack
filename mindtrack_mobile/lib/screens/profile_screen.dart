@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -164,14 +163,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return 'May';
   }
 
-  String _getInitials(String name) {
-    if (name.trim().isEmpty) return '?';
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.length == 1) {
-      return parts[0].substring(0, math.min(2, parts[0].length)).toUpperCase();
-    }
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
+
 
   Future<void> _toggleNotifications(bool val) async {
     try {
@@ -222,41 +214,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  /// Computes the longest consecutive daily mood-logging streak from [entries].
-  ///
-  /// Deduplicates by calendar date and returns the longest unbroken run.
-  int _calculateLongestStreak(List<MoodEntry> entries) {
-    if (entries.isEmpty) return 0;
-    
-    // Sort entries by date ascending
-    final sorted = List<MoodEntry>.from(entries)
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-    // Extract unique yyyy-MM-dd dates
-    final uniqueDates = sorted.map((e) {
-      final t = e.timestamp.toLocal();
-      return DateTime(t.year, t.month, t.day);
-    }).toSet().toList();
-
-    if (uniqueDates.isEmpty) return 0;
-
-    int maxStreak = 1;
-    int currentStreak = 1;
-
-    for (int i = 1; i < uniqueDates.length; i++) {
-      final diff = uniqueDates[i].difference(uniqueDates[i - 1]).inDays;
-      if (diff == 1) {
-        currentStreak++;
-        if (currentStreak > maxStreak) {
-          maxStreak = currentStreak;
-        }
-      } else if (diff > 1) {
-        currentStreak = 1;
-      }
-    }
-
-    return maxStreak;
-  }
 
   /// Opens [urlString] in the platform's default browser / dialler.
   /// Shows an error snackbar if the URL cannot be launched.
@@ -330,7 +288,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isLightTheme = theme.brightness == Brightness.light;
     
     // Watch reactive state from Riverpod
-    final activeTheme = ref.watch(themeProvider);
+    ref.watch(themeProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,

@@ -2,10 +2,8 @@ package com.mindtrack.backend.ai;
 
 import com.mindtrack.backend.dto.GeminiRequest;
 import com.mindtrack.backend.dto.GeminiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,9 +16,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@Slf4j
 public class GeminiService {
-
-    private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -34,17 +31,6 @@ public class GeminiService {
 
     public GeminiService(WebClient geminiWebClient) {
         this.webClient = geminiWebClient;
-    }
-
-    /**
-     * Exposes a WebClient bean pointing to https://generativelanguage.googleapis.com.
-     * Declared as static to prevent circular dependency during injection into the service.
-     */
-    @Bean
-    public static WebClient geminiWebClient() {
-        return WebClient.builder()
-                .baseUrl("https://generativelanguage.googleapis.com")
-                .build();
     }
 
     /**

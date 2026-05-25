@@ -69,7 +69,7 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Password changed successfully")));
+                .andExpect(jsonPath("$.message", is("Password updated successfully.")));
 
         User updatedUser = userRepository.findByEmail("testuser@example.com")
                 .orElseThrow(() -> new AssertionError("Expected user not found"));
@@ -88,7 +88,7 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", is("Incorrect current password")));
+                .andExpect(jsonPath("$.message", is("Current password is incorrect.")));
 
         User updatedUser = userRepository.findByEmail("testuser@example.com")
                 .orElseThrow(() -> new AssertionError("Expected user not found"));
@@ -97,17 +97,21 @@ public class UserControllerTest {
 
     @Test
     @WithMockUser(username = "testuser@example.com")
-    void changePassword_SamePassword() throws Exception {
+    void changePassword_AllowsSixCharacterNewPassword() throws Exception {
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("oldPassword123")
-                .newPassword("oldPassword123")
+                .newPassword("new456")
                 .build();
 
         mockMvc.perform(post("/api/user/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", is("New password cannot be the same as the current password")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", is("Password updated successfully.")));
+
+        User updatedUser = userRepository.findByEmail("testuser@example.com")
+                .orElseThrow(() -> new AssertionError("Expected user not found"));
+        assertTrue(passwordEncoder.matches("new456", updatedUser.getPasswordHash()));
     }
 
     @Test
@@ -115,15 +119,14 @@ public class UserControllerTest {
     void changePassword_WeakNewPassword() throws Exception {
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("oldPassword123")
-                .newPassword("weak") // Less than 8 characters
+                .newPassword("weak")
                 .build();
 
         mockMvc.perform(post("/api/user/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error", is("Validation Failed")))
-                .andExpect(jsonPath("$.errors.newPassword", is("New password must be at least 8 characters")));
+                .andExpect(jsonPath("$.message", is("New password must be at least 6 characters.")));
     }
 
     @Test

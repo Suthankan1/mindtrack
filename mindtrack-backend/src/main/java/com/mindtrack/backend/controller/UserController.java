@@ -123,37 +123,34 @@ public class UserController {
      * credentials and validating standard password complexity.
      *
      * @param authentication the Spring Security authentication context (populated by JWT filter)
-     * @param request        the validated password change payload containing current and new passwords
+     * @param request        the password change payload containing current and new passwords
      * @return {@code 200 OK} with a safe success response on success,
-     *         or {@code 400 Bad Request} if verification fails or the new password is same as current
+     *         or {@code 400 Bad Request} if verification fails or the new password is too short
      */
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(
             Authentication authentication,
-            @Valid @RequestBody ChangePasswordRequest request) {
+            @RequestBody ChangePasswordRequest request) {
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
-        // Verify current password matches
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "Incorrect current password"));
+                    .body(Map.of("message", "Current password is incorrect."));
         }
 
-        // Verify new password is not the same as current
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "New password cannot be the same as the current password"));
+                    .body(Map.of("message", "New password must be at least 6 characters."));
         }
 
-        // Save new BCrypt hash
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
     }
 
     /**

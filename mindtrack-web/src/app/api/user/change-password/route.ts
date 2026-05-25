@@ -23,28 +23,6 @@ export async function POST(req: NextRequest) {
 
     const { currentPassword, newPassword } = await req.json();
 
-    // Basic request body validation
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json(
-        { error: "Current password and new password are required fields." },
-        { status: 400 }
-      );
-    }
-
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "New password must be at least 8 characters long." },
-        { status: 400 }
-      );
-    }
-
-    if (currentPassword === newPassword) {
-      return NextResponse.json(
-        { error: "New password cannot be identical to your current password." },
-        { status: 400 }
-      );
-    }
-
     try {
       const url = backendUrl();
       const response = await axios.post(

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getMockEntries } from "@/lib/mockStore";
 import axios from "axios";
+import { isDemoToken, backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +40,15 @@ export async function GET() {
     }
 
     let entries: MoodEntry[] = [];
+    let insight = "";
     
-    if (session.user.accessToken === "demo-mock-jwt-token-data") {
+    if (isDemoToken(session.user.accessToken)) {
       entries = getMockEntries(30);
+      insight = "Demo Mode: Your weekly cognitive baseline is operating in a stable state. Connect a live account and log 3 mood entries to activate real-time Gemini AI insights!";
     } else {
       try {
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/mood/history`, {
+        const url = backendUrl();
+        const response = await axios.get(`${url}/api/mood/history`, {
           params: { days: 30 },
           headers: {
             Authorization: `Bearer ${session.user.accessToken}`,
@@ -52,29 +56,30 @@ export async function GET() {
         });
         entries = response.data || [];
       } catch (backendError) {
-        console.warn(
-          "Spring Boot backend offline or failed on weekly insights telemetry fetch. Serving local mock data instead.",
+        console.error(
+          "Spring Boot backend offline or failed on weekly insights telemetry fetch:",
           backendError
         );
-        entries = getMockEntries(30);
+        return NextResponse.json(
+          { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
+          { status: 502 }
+        );
       }
-    }
 
-    // Call GET /api/ai/insight/weekly on the Spring Boot backend
-    let insight = "";
-    if (session.user.accessToken === "demo-mock-jwt-token-data") {
-      insight = "Demo Mode: Your weekly cognitive baseline is operating in a stable state. Connect a live account and log 3 mood entries to activate real-time Gemini AI insights!";
-    } else {
       try {
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/ai/insight/weekly`, {
+        const url = backendUrl();
+        const response = await axios.get(`${url}/api/ai/insight/weekly`, {
           headers: {
             Authorization: `Bearer ${session.user.accessToken}`,
           },
         });
         insight = response.data.insight;
       } catch (backendError) {
-        console.warn("Spring Boot backend AI insight fetch failed. Falling back to default.", backendError);
-        insight = "Unable to reach the mental health companion. Please verify the AI cognitive engine is online.";
+        console.error("Spring Boot backend AI insight fetch failed:", backendError);
+        return NextResponse.json(
+          { error: "Bad Gateway: Spring Boot backend AI insight engine is offline or unavailable." },
+          { status: 502 }
+        );
       }
     }
 

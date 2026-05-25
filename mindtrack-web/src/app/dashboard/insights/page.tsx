@@ -28,6 +28,7 @@ import {
   CheckCircle2,
   Calendar
 } from "lucide-react";
+import CosmicErrorCard from "@/components/CosmicErrorCard";
 
 interface MoodDistributionItem {
   name: string;
@@ -358,19 +359,12 @@ export default function InsightsPage() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 text-red-200 text-xs flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-accent-coral shrink-0" />
-          <div className="flex-1">
-            <span className="font-semibold">Engine Error: </span>
-            {error}
-          </div>
-          <button
-            onClick={fetchInsights}
-            className="px-3 py-1 bg-accent-coral/20 text-white rounded-lg hover:bg-accent-coral/30 transition-all font-semibold"
-          >
-            Retry
-          </button>
-        </div>
+        <CosmicErrorCard
+          title="Cognitive Engine Connection Failed"
+          message={error}
+          onRetry={fetchInsights}
+          isLoading={isLoading}
+        />
       )}
 
       {isLoading ? (

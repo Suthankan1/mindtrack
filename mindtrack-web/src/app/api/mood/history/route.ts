@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getMockEntries } from "@/lib/mockStore";
 import axios from "axios";
+import { isDemoToken, backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +14,14 @@ export const dynamic = "force-dynamic";
  * backend for the given number of days (defaults to 30). The user's JWT is
  * forwarded as a Bearer token for backend authentication.
  *
- * Bypasses the backend and serves rich synthetic mock data if:
- * 1. The user is logged in with the demo account ('demo-mock-jwt-token-data').
- * 2. The Spring Boot backend is offline or returns an authentication/server error.
+ * Serves rich synthetic mock data only if:
+ * 1. The user is logged in with the demo account and demo mode is explicitly enabled.
  *
  * @param req - The incoming Next.js request; reads the `days` query parameter
  * @returns 200 with an array of MoodEntry objects on success,
  *          401 if the session is missing or expired,
- *          or 200 with fallback mock entries if backend is offline.
+ *          502 if backend is offline/failed,
+ *          or 500 on unexpected errors.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -35,13 +36,14 @@ export async function GET(req: NextRequest) {
     const days = parseInt(daysStr, 10) || 30;
 
     // Handle developer demo session instantly without bothering the backend
-    if (session.user.accessToken === "demo-mock-jwt-token-data") {
+    if (isDemoToken(session.user.accessToken)) {
       const mockData = getMockEntries(days);
       return NextResponse.json(mockData);
     }
 
     try {
-      const response = await axios.get(`${process.env.BACKEND_URL}/api/mood/history`, {
+      const url = backendUrl();
+      const response = await axios.get(`${url}/api/mood/history`, {
         params: { days },
         headers: {
           Authorization: `Bearer ${session.user.accessToken}`,
@@ -50,12 +52,14 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json(response.data);
     } catch (backendError) {
-      console.warn(
-        "Spring Boot backend offline or failed on mood history fetch. Serving rich synthetic data instead.",
+      console.error(
+        "Spring Boot backend offline or failed on mood history fetch:",
         backendError
       );
-      const mockFallback = getMockEntries(days);
-      return NextResponse.json(mockFallback);
+      return NextResponse.json(
+        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
+        { status: 502 }
+      );
     }
   } catch (error: unknown) {
     const err = error as { response?: { data?: { message?: string } }; message?: string };

@@ -9,13 +9,21 @@ import {
   PlusCircle, 
   Search, 
   RefreshCw, 
-  AlertCircle, 
   Tag, 
   X, 
   Check, 
   Calendar,
   Sparkles
 } from "lucide-react";
+import CosmicErrorCard from "@/components/CosmicErrorCard";
+
+interface SentimentResult {
+  sentiment: string;
+  emotionalTone: string;
+  themes: string[];
+  confidence: number;
+  supportMessage?: string;
+}
 
 // Mood Entry Interface mapping the backend response format
 interface MoodEntry {
@@ -51,7 +59,7 @@ export default function JournalPage() {
   const [successFeedback, setSuccessFeedback] = useState(false);
 
   // AI Sentiment States
-  const [sentimentResults, setSentimentResults] = useState<Record<string, any>>({});
+  const [sentimentResults, setSentimentResults] = useState<Record<string, SentimentResult>>({});
   const [analyzingIds, setAnalyzingIds] = useState<Record<string, boolean>>({});
   const [sentimentErrors, setSentimentErrors] = useState<Record<string, string>>({});
 
@@ -71,9 +79,10 @@ export default function JournalPage() {
         },
       });
       setSentimentResults(prev => ({ ...prev, [entryId]: res.data }));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: string } }; message?: string };
       console.error(`Error analyzing sentiment for entry ${entryId}:`, err);
-      const errMsg = err.response?.data?.error || err.message || "Failed to analyze vibe.";
+      const errMsg = errorObj.response?.data?.error || errorObj.message || "Failed to analyze vibe.";
       setSentimentErrors(prev => ({ ...prev, [entryId]: errMsg }));
     } finally {
       setAnalyzingIds(prev => ({ ...prev, [entryId]: false }));
@@ -470,19 +479,12 @@ export default function JournalPage() {
 
       {/* 2. Diagnostic error notification */}
       {error && (
-        <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 text-red-200 text-xs flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-accent-coral shrink-0" />
-          <div className="flex-1">
-            <span className="font-semibold">Diagnostic Connection Issue: </span>
-            {error}
-          </div>
-          <button 
-            onClick={fetchJournalHistory}
-            className="px-3 py-1 bg-accent-coral/20 text-white rounded-lg hover:bg-accent-coral/30 transition-all font-semibold"
-          >
-            Retry
-          </button>
-        </div>
+        <CosmicErrorCard
+          title="Journal Database Connection Failed"
+          message={error}
+          onRetry={fetchJournalHistory}
+          isLoading={isLoading}
+        />
       )}
 
       {/* 3. Search, Filter Chips, and Timeline view */}
@@ -831,7 +833,7 @@ export default function JournalPage() {
                                               ? "bg-accent-coral/5 border-accent-coral/10 text-accent-coral/90"
                                               : "bg-white/[0.02] border-white/5 text-gray-300/90"
                                         }`}>
-                                          "{sentimentResults[entry.id].supportMessage}"
+                                          &quot;{sentimentResults[entry.id].supportMessage}&quot;
                                         </div>
                                       )}
                                     </motion.div>

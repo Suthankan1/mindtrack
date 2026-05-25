@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
+import { isDemoModeEnabled, backendUrl } from "./apiMode";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
@@ -20,7 +21,7 @@ export const authOptions: NextAuthOptions = {
         const email = normalizeEmail(credentials.email);
 
         try {
-          if (email === "demo@mindtrack.com" && credentials.password === "demo123") {
+          if (isDemoModeEnabled() && email === "demo@mindtrack.com" && credentials.password === "demo123") {
             return {
               id: "demo-user-1",
               email,
@@ -29,7 +30,8 @@ export const authOptions: NextAuthOptions = {
             };
           }
 
-          const response = await axios.post(`${process.env.BACKEND_URL}/api/auth/login`, {
+          const url = backendUrl();
+          const response = await axios.post(`${url}/api/auth/login`, {
             email,
             password: credentials.password,
           });

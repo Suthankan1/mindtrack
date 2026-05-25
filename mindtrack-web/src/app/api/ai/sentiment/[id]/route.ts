@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import axios from "axios";
+import { isDemoToken, backendUrl } from "@/lib/apiMode";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(
     const { id } = params;
 
     // Handle developer demo session instantly without bothering the backend
-    if (session.user.accessToken === "demo-mock-jwt-token-data") {
+    if (isDemoToken(session.user.accessToken)) {
       return NextResponse.json({
         sentiment: "positive",
         emotionalTone: "hopeful",
@@ -30,28 +31,28 @@ export async function GET(
     }
 
     try {
-      const response = await axios.get(`${process.env.BACKEND_URL}/api/ai/sentiment/${id}`, {
+      const url = backendUrl();
+      const response = await axios.get(`${url}/api/ai/sentiment/${id}`, {
         headers: {
           Authorization: `Bearer ${session.user.accessToken}`,
         },
       });
 
       return NextResponse.json(response.data);
-    } catch (backendError: any) {
-      console.warn(
-        `Spring Boot backend offline or failed on sentiment fetch for ${id}. Serving a calm fallback instead.`,
-        backendError.message
+    } catch (backendError: unknown) {
+      const err = backendError as { message?: string };
+      console.error(
+        `Spring Boot backend offline or failed on sentiment fetch for ${id}:`,
+        err.message
       );
-      return NextResponse.json({
-        sentiment: "neutral",
-        emotionalTone: "peaceful",
-        themes: ["reflection", "calm"],
-        confidence: 0.8,
-        supportMessage: "A moment of quiet contemplation recorded in your daily journal."
-      });
+      return NextResponse.json(
+        { error: "Bad Gateway: Spring Boot backend is offline or unavailable." },
+        { status: 502 }
+      );
     }
-  } catch (error: any) {
-    console.error("Error in GET /api/ai/sentiment proxy:", error.message);
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    console.error("Error in GET /api/ai/sentiment proxy:", err.message);
     return NextResponse.json(
       { error: "Failed to fetch sentiment analysis." },
       { status: 500 }

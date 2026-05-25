@@ -14,7 +14,12 @@ import {
   Check, 
   Calendar,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Info,
+  Filter
 } from "lucide-react";
 import CosmicErrorCard from "@/components/CosmicErrorCard";
 
@@ -50,6 +55,23 @@ export default function JournalPage() {
   // Interactive Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilterTag, setActiveFilterTag] = useState<string | null>(null);
+  const [activeMoodFilters, setActiveMoodFilters] = useState<number[]>([]);
+  const [activeSentimentFilter, setActiveSentimentFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  
+  // Expanded Cards for AI reflection
+  const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({});
+
+  // Inline Logging Form States
+  const [inlineMood, setInlineMood] = useState<number>(4);
+  const [inlineNote, setInlineNote] = useState("");
+  const [inlineSelectedTags, setInlineSelectedTags] = useState<string[]>([]);
+  const [isInlineSubmitting, setIsInlineSubmitting] = useState(false);
+  const [inlineSuccessFeedback, setInlineSuccessFeedback] = useState(false);
+  const [inlineAiPrompt, setInlineAiPrompt] = useState<JournalPrompt | null>(null);
+  const [isInlineGeneratingPrompt, setIsInlineGeneratingPrompt] = useState(false);
+  const [inlinePromptError, setInlinePromptError] = useState<string | null>(null);
   
   // Modal Logging Form States
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -125,7 +147,14 @@ export default function JournalPage() {
           Authorization: `Bearer ${session.user.accessToken}`,
         },
       });
-      setSentimentResults(prev => ({ ...prev, [entryId]: res.data }));
+      const data = res.data;
+      setSentimentResults(prev => {
+        const next = { ...prev, [entryId]: data };
+        if (typeof window !== "undefined") {
+          localStorage.setItem("mindtrack_sentiment_cache", JSON.stringify(next));
+        }
+        return next;
+      });
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { error?: string } }; message?: string };
       console.error(`Error analyzing sentiment for entry ${entryId}:`, err);
@@ -135,6 +164,33 @@ export default function JournalPage() {
       setAnalyzingIds(prev => ({ ...prev, [entryId]: false }));
     }
   };
+
+  const toggleEntryExpansion = (entryId: string) => {
+    setExpandedEntries(prev => {
+      const nextExpanded = !prev[entryId];
+      
+      // Lazy load sentiment call if expanding and not already loaded/analyzing
+      if (nextExpanded && !sentimentResults[entryId] && !analyzingIds[entryId]) {
+        handleAnalyzeSentiment(entryId);
+      }
+      
+      return { ...prev, [entryId]: nextExpanded };
+    });
+  };
+
+  // Load cached sentiments on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("mindtrack_sentiment_cache");
+      if (cached) {
+        try {
+          setSentimentResults(JSON.parse(cached));
+        } catch (e) {
+          console.error("Failed to parse cached sentiment", e);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -223,6 +279,133 @@ export default function JournalPage() {
     }
   };
 
+  const toggleInlineTagSelection = (tag: string) => {
+    if (inlineSelectedTags.includes(tag)) {
+      setInlineSelectedTags(inlineSelectedTags.filter(t => t !== tag));
+    } else {
+      setInlineSelectedTags([...inlineSelectedTags, tag]);
+    }
+  };
+
+  const handleGenerateInlinePrompt = async () => {
+    if (!session?.user?.accessToken) return;
+
+    setIsInlineGeneratingPrompt(true);
+    setInlinePromptError(null);
+    setInlineAiPrompt(null);
+
+    try {
+      const res = await axios.post(
+        "/api/ai/journal/prompt",
+        {
+          moodScore: inlineMood,
+          tags: inlineSelectedTags,
+          recentNoteSummaries: []
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.accessToken}`,
+          },
+        }
+      );
+      setInlineAiPrompt(res.data);
+    } catch (err: unknown) {
+      console.error("Error generating inline reflection prompt:", err);
+      const errMsg = axios.isAxiosError(err)
+        ? err.response?.data?.error || err.message
+        : err instanceof Error ? err.message : "Failed to generate reflection prompt.";
+      setInlinePromptError(errMsg);
+    } finally {
+      setIsInlineGeneratingPrompt(false);
+    }
+  };
+
+  const handleLogInlineEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inlineMood < 1 || inlineMood > 5 || !session?.user?.accessToken) return;
+
+    setIsInlineSubmitting(true);
+    try {
+      await axios.post(
+        "/api/mood/log",
+        {
+          moodScore: inlineMood,
+          note: inlineNote || "Recorded a moment of mindful reflection.",
+          tags: inlineSelectedTags,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${session.user.accessToken}`,
+          },
+        }
+      );
+
+      // Success sequence
+      setInlineNote("");
+      setInlineSelectedTags([]);
+      setInlineMood(4);
+      setInlineAiPrompt(null);
+      setInlineSuccessFeedback(true);
+      
+      // Sync log list instantly
+      await fetchJournalHistory();
+      
+      setTimeout(() => {
+        setInlineSuccessFeedback(false);
+      }, 3000);
+    } catch (err: unknown) {
+      console.error("Error submitting inline journal entry:", err);
+      setError("Failed to record mood snapshot. Please verify server connection.");
+    } finally {
+      setIsInlineSubmitting(false);
+    }
+  };
+
+  const handleExportJSON = () => {
+    try {
+      const dataStr = JSON.stringify(entries, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `mindtrack_journal_${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export data as JSON:", err);
+    }
+  };
+
+  const toggleMoodFilter = (score: number) => {
+    if (activeMoodFilters.includes(score)) {
+      setActiveMoodFilters(activeMoodFilters.filter(s => s !== score));
+    } else {
+      setActiveMoodFilters([...activeMoodFilters, score]);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setActiveFilterTag(null);
+    setActiveMoodFilters([]);
+    setActiveSentimentFilter("all");
+    setStartDate("");
+    setEndDate("");
+  };
+
+  const isFilterActive = useMemo(() => {
+    return (
+      searchQuery !== "" ||
+      activeFilterTag !== null ||
+      activeMoodFilters.length > 0 ||
+      activeSentimentFilter !== "all" ||
+      startDate !== "" ||
+      endDate !== ""
+    );
+  }, [searchQuery, activeFilterTag, activeMoodFilters, activeSentimentFilter, startDate, endDate]);
+
   // Get details (Labels, Emojis, Colors) for each score
   const getMoodDetails = (score: number) => {
     switch (score) {
@@ -274,17 +457,46 @@ export default function JournalPage() {
   // Client-Side Search & Tag Filter Logic
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
+      // 1. Search Query (note text or tags)
       const matchesSearch = 
         entry.note.toLowerCase().includes(searchQuery.toLowerCase()) ||
         entry.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
       
+      // 2. Tag Filter
       const matchesTagFilter = activeFilterTag 
         ? entry.tags.includes(activeFilterTag) 
         : true;
 
-      return matchesSearch && matchesTagFilter;
+      // 3. Mood Score Filter
+      const matchesMood = activeMoodFilters.length === 0 || activeMoodFilters.includes(entry.moodScore);
+
+      // 4. Sentiment Filter
+      let matchesSentiment = true;
+      if (activeSentimentFilter !== "all") {
+        const entrySentiment = sentimentResults[entry.id]?.sentiment?.toLowerCase();
+        if (activeSentimentFilter === "unanalyzed") {
+          matchesSentiment = !entrySentiment;
+        } else {
+          matchesSentiment = entrySentiment === activeSentimentFilter;
+        }
+      }
+
+      // 5. Date Range Filter
+      let matchesDate = true;
+      if (startDate || endDate) {
+        const dateFormatted = new Date(entry.timestamp);
+        const year = dateFormatted.getFullYear();
+        const month = String(dateFormatted.getMonth() + 1).padStart(2, '0');
+        const day = String(dateFormatted.getDate()).padStart(2, '0');
+        const entryDateStr = `${year}-${month}-${day}`;
+        
+        if (startDate && entryDateStr < startDate) matchesDate = false;
+        if (endDate && entryDateStr > endDate) matchesDate = false;
+      }
+
+      return matchesSearch && matchesTagFilter && matchesMood && matchesSentiment && matchesDate;
     });
-  }, [entries, searchQuery, activeFilterTag]);
+  }, [entries, searchQuery, activeFilterTag, activeMoodFilters, activeSentimentFilter, startDate, endDate, sentimentResults]);
 
   // Grouping chronological logs by day (Local Calendar Date)
   const groupedEntriesByDay = useMemo(() => {
@@ -616,8 +828,11 @@ export default function JournalPage() {
         <div className="lg:col-span-1 space-y-6">
           <div className="p-6 rounded-3xl bg-[#12122A] border border-white/[0.03] space-y-5">
             <div className="space-y-1.5">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Search Timeline</h3>
-              <p className="text-[10px] text-muted">Locate journals by notes or tags instantenously.</p>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-accent-teal" />
+                Search Timeline
+              </h3>
+              <p className="text-[10px] text-muted">Locate journals by notes or tags instantaneously.</p>
             </div>
 
             <div className="relative">
@@ -639,9 +854,111 @@ export default function JournalPage() {
               )}
             </div>
 
+            {/* Mood score filter */}
+            <div className="border-t border-white/[0.04] pt-4 space-y-2">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-accent-teal" />
+                  Mood Filter
+                </h4>
+                <p className="text-[9px] text-muted">Filter by specific mood levels.</p>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[1, 2, 3, 4, 5].map((val) => {
+                  const isSelected = activeMoodFilters.includes(val);
+                  const mood = getMoodDetails(val);
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => toggleMoodFilter(val)}
+                      title={mood.label}
+                      className={`py-2 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                        isSelected
+                          ? "bg-accent-teal/15 border-accent-teal text-accent-teal scale-105"
+                          : "bg-[#0A0A14]/40 border-white/[0.02] text-muted hover:border-white/10 hover:text-white"
+                      }`}
+                    >
+                      <span className="text-sm">{mood.emoji}</span>
+                      <span className="text-[8px] font-bold mt-0.5">{val}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sentiment Vibe Filter */}
+            <div className="border-t border-white/[0.04] pt-4 space-y-2.5">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-accent-teal" />
+                  AI Sentiment Filter
+                </h4>
+                <p className="text-[9px] text-muted">Filter by AI-extracted emotional tone.</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: "all", label: "All" },
+                  { value: "positive", label: "Positive" },
+                  { value: "neutral", label: "Neutral" },
+                  { value: "negative", label: "Negative" },
+                  { value: "unanalyzed", label: "Unanalyzed" }
+                ].map((opt) => {
+                  const isActive = activeSentimentFilter === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setActiveSentimentFilter(opt.value)}
+                      className={`px-2.5 py-1.5 rounded-xl text-[9px] font-bold border transition-all ${
+                        isActive
+                          ? "bg-accent-teal/10 border-accent-teal/40 text-accent-teal"
+                          : "bg-[#0A0A14]/30 border-white/[0.02] text-muted hover:border-white/10 hover:text-white"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Date Range Filter */}
+            <div className="border-t border-white/[0.04] pt-4 space-y-2.5">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-accent-teal" />
+                  Date Range
+                </h4>
+                <p className="text-[9px] text-muted">Filter by local entry calendar dates.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <span className="text-[8px] text-muted font-bold uppercase tracking-wider">From</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-[#0A0A14]/70 border border-white/5 focus:border-accent-teal/50 rounded-lg text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-accent-teal/20 transition-all [color-scheme:dark]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[8px] text-muted font-bold uppercase tracking-wider">To</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-[#0A0A14]/70 border border-white/5 focus:border-accent-teal/50 rounded-lg text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-accent-teal/20 transition-all [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tag Filtering (Existing) */}
             <div className="border-t border-white/[0.04] pt-4 space-y-4">
               <div className="space-y-1">
-                <h4 className="text-[10px] font-bold text-white uppercase tracking-widest">Tag Filtering</h4>
+                <h4 className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-accent-teal" />
+                  Tag Filtering
+                </h4>
                 <p className="text-[9px] text-muted">Filter timeline to single conscious category.</p>
               </div>
 
@@ -688,11 +1005,232 @@ export default function JournalPage() {
                 })}
               </div>
             </div>
+
+            {/* Clear All Filters Button */}
+            {isFilterActive && (
+              <div className="border-t border-white/[0.04] pt-4">
+                <button
+                  onClick={handleClearFilters}
+                  className="w-full py-2.5 rounded-xl bg-accent-coral/10 hover:bg-accent-coral/20 border border-accent-coral/30 text-accent-coral text-xs font-bold uppercase tracking-wider transition-all"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+            )}
+
+            {/* Export as JSON Button */}
+            <div className="border-t border-white/[0.04] pt-4">
+              <button
+                onClick={handleExportJSON}
+                className="w-full py-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-gray-300 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <Download className="w-3.5 h-3.5 text-accent-teal animate-pulse" />
+                Export Logs (JSON)
+              </button>
+            </div>
+
+            {/* Sidebar Privacy Note */}
+            <div className="border-t border-white/[0.04] pt-4 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[9px] text-muted font-semibold uppercase tracking-wider">
+                <Info className="w-3.5 h-3.5 text-accent-teal" />
+                Data Protection
+              </div>
+              <p className="text-[9px] text-muted leading-relaxed">
+                Journal texts are used strictly for local state rendering and real-time AI insight synthesis. Your personal reflections remain confidential and are never shared.
+              </p>
+            </div>
+
           </div>
         </div>
 
         {/* Timeline Stream Column */}
         <div className="lg:col-span-3 space-y-6">
+          
+          {/* Quick Reflection Logging Form */}
+          <div className="p-6 rounded-3xl bg-[#12122A] border border-white/[0.04] glow-card-teal space-y-5 relative overflow-hidden">
+            <div className="absolute inset-0 animated-cosmic-bg opacity-20 pointer-events-none" />
+            <div className="flex items-center justify-between relative z-10">
+              <h3 className="text-md font-bold font-display text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-accent-teal animate-pulse" />
+                Reflect on Your Day
+              </h3>
+              <span className="text-[10px] text-muted flex items-center gap-1 bg-white/[0.02] px-2.5 py-1 rounded-lg border border-white/5">
+                <Info className="w-3 h-3 text-accent-teal" />
+                Secure & Encrypted
+              </span>
+            </div>
+
+            {inlineSuccessFeedback && (
+              <div className="p-3 rounded-xl bg-accent-teal/10 border border-accent-teal/20 text-accent-teal text-xs text-center font-medium animate-pulse relative z-10">
+                🌱 Mood snapshot recorded successfully inside your constellation!
+              </div>
+            )}
+
+            <form onSubmit={handleLogInlineEntry} className="space-y-4 relative z-10">
+              {/* Mood score row */}
+              <div className="space-y-2">
+                <label className="text-xs text-gray-300 font-semibold">How is your focus and energy level?</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map((val) => {
+                    const mood = getMoodDetails(val);
+                    const isSelected = inlineMood === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setInlineMood(val)}
+                        className={`py-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all duration-300 ${
+                          isSelected
+                            ? "bg-accent-teal/10 border-accent-teal text-accent-teal scale-105 shadow-[0_0_12px_rgba(0,210,200,0.15)]"
+                            : "bg-[#0A0A14]/60 border-white/[0.03] text-muted hover:border-white/10 hover:text-white"
+                        }`}
+                      >
+                        <span className="text-xl">{mood.emoji}</span>
+                        <span className="text-[10px] font-bold">{val}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-center mt-2">
+                  <span className="text-[10px] font-bold text-accent-teal uppercase tracking-widest bg-accent-teal/5 px-2.5 py-1 rounded-md border border-accent-teal/10">
+                    Current Vibe: {getMoodDetails(inlineMood).label}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tags Selector */}
+              <div className="space-y-2">
+                <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-muted" />
+                  Select Associated Activities
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map((tag) => {
+                    const isSelected = inlineSelectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleInlineTagSelection(tag)}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-medium border flex items-center gap-1 transition-all active:scale-[0.98] ${
+                          isSelected
+                            ? "bg-accent-teal/10 border-accent-teal text-accent-teal"
+                            : "bg-[#0A0A14]/30 border-white/[0.03] text-muted hover:border-white/10 hover:text-white"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3" />}
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* AI prompt helper */}
+              <div className="space-y-2 border-t border-white/[0.04] pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-accent-teal" />
+                    Need inspiration?
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateInlinePrompt}
+                    disabled={isInlineGeneratingPrompt}
+                    className="text-[10px] font-bold text-accent-teal uppercase tracking-wider bg-accent-teal/5 border border-accent-teal/20 hover:border-accent-teal/40 px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50 hover:bg-accent-teal/10"
+                  >
+                    {isInlineGeneratingPrompt ? "Crafting Prompt..." : "Generate AI Prompt"}
+                  </button>
+                </div>
+
+                {isInlineGeneratingPrompt && (
+                  <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-24 bg-white/5 rounded-lg" />
+                      <div className="h-4 w-12 bg-white/5 rounded-lg" />
+                    </div>
+                    <div className="h-3 w-full bg-white/5 rounded" />
+                    <div className="h-3 w-2/3 bg-white/5 rounded" />
+                  </div>
+                )}
+
+                {inlinePromptError && (
+                  <p className="text-[10px] text-accent-coral font-medium mt-1">
+                    {inlinePromptError}
+                  </p>
+                )}
+
+                {inlineAiPrompt && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-accent-teal/20 hover:border-accent-teal/40 transition-all cursor-pointer space-y-2 group shadow-[0_4px_16px_rgba(0,210,200,0.02)]"
+                    onClick={() => {
+                      setInlineNote(prev => prev ? inlineAiPrompt.promptQuestion + "\n\n" + prev : inlineAiPrompt.promptQuestion + "\n\n");
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">
+                        {inlineAiPrompt.promptTitle}
+                      </span>
+                      <div className="flex items-center gap-2 text-[8px] text-muted">
+                        <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5">
+                          ⏱️ {inlineAiPrompt.estimatedMinutes} min
+                        </span>
+                        <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5 uppercase font-semibold">
+                          Tone: {inlineAiPrompt.tone}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-white group-hover:text-accent-teal transition-all leading-relaxed font-medium">
+                      {inlineAiPrompt.promptQuestion}
+                    </p>
+                    <div className="text-[9px] text-muted group-hover:text-accent-teal/70 transition-all flex items-center gap-1 font-semibold pt-1">
+                      <span>✨ Tap to apply inside textarea below</span>
+                    </div>
+                    
+                    {inlineAiPrompt.followUpQuestions && inlineAiPrompt.followUpQuestions.length === 3 && (
+                      <div className="mt-2 pt-2 border-t border-white/[0.03] space-y-1.5">
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest text-left">Follow-up considerations:</p>
+                        {inlineAiPrompt.followUpQuestions.map((q, idx) => (
+                          <p key={idx} className="text-[10px] text-gray-400 pl-2 border-l border-white/10 leading-normal text-left">
+                            • {q}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Reflection text area */}
+              <div className="space-y-2">
+                <label className="text-xs text-gray-300 font-semibold">Reflection Note</label>
+                <textarea
+                  value={inlineNote}
+                  onChange={(e) => setInlineNote(e.target.value)}
+                  placeholder="Record your thoughts, sleep quality, stress levels, or details of note..."
+                  rows={4}
+                  className="w-full p-3.5 bg-[#0A0A14]/70 border border-white/5 focus:border-accent-teal/50 rounded-xl text-xs text-white placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/20 resize-none transition-all"
+                />
+              </div>
+
+              {/* Submit / Privacy Footer */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                <span className="text-[9px] text-muted leading-relaxed max-w-sm">
+                  Privacy Note: Your journal note is only used to generate AI insights and sentiments. Raw text is never shared.
+                </span>
+                <button
+                  type="submit"
+                  disabled={isInlineSubmitting}
+                  className="px-5 py-3 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-50 shadow-glow shrink-0"
+                >
+                  {isInlineSubmitting ? "Encrypting..." : "Log Reflection"}
+                </button>
+              </div>
+            </form>
+          </div>
+
           {isVisualLoading ? (
             <div className="space-y-6">
               {[1, 2, 3].map((skeleton) => (
@@ -867,7 +1405,7 @@ export default function JournalPage() {
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                                 
                                 {/* Badge details */}
-                                <div className="flex items-center gap-2.5">
+                                <div className="flex flex-wrap items-center gap-2.5">
                                   <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${mood.colorClass}`}>
                                     <span>{mood.emoji}</span>
                                     <span>{mood.label}</span>
@@ -876,6 +1414,20 @@ export default function JournalPage() {
                                   <span className="text-[10px] text-muted bg-white/[0.02] border border-white/5 px-2.5 py-1 rounded-lg">
                                     Score: <span className="font-bold text-white">{entry.moodScore}</span> / 5
                                   </span>
+
+                                  {/* Sentiment Badge from Cache */}
+                                  {sentimentResults[entry.id] && !sentimentErrors[entry.id] && (
+                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 ${
+                                      sentimentResults[entry.id].sentiment === "positive"
+                                        ? "bg-accent-teal/10 border-accent-teal/30 text-accent-teal shadow-[0_0_8px_rgba(0,210,200,0.1)]"
+                                        : sentimentResults[entry.id].sentiment === "negative"
+                                          ? "bg-accent-coral/10 border-accent-coral/30 text-accent-coral shadow-[0_0_8px_rgba(255,107,107,0.1)]"
+                                          : "bg-gray-500/10 border-gray-500/30 text-gray-400"
+                                    }`}>
+                                      <Sparkles className="w-2.5 h-2.5 animate-pulse" />
+                                      {sentimentResults[entry.id].sentiment}
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* Timestamp */}
@@ -893,102 +1445,141 @@ export default function JournalPage() {
                               {/* AI Sentiment Analysis Section */}
                               {entry.note && entry.note.trim().length > 0 && (
                                 <div className="space-y-3 pt-1">
-                                  {!sentimentResults[entry.id] && !analyzingIds[entry.id] ? (
-                                    <div className="flex flex-col items-start gap-2">
-                                      <button
-                                        onClick={() => handleAnalyzeSentiment(entry.id)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-teal/5 hover:bg-accent-teal/15 border border-accent-teal/20 hover:border-accent-teal/40 text-[10px] font-bold text-accent-teal uppercase tracking-wider active:scale-[0.98] transition-all"
-                                      >
-                                        <Sparkles className="w-3.5 h-3.5" />
-                                        Analyze Vibe
-                                      </button>
-                                      {sentimentErrors[entry.id] && (
-                                        <div className="mt-1 p-3 rounded-xl bg-accent-coral/5 border border-accent-coral/20 text-accent-coral text-[10px] flex items-center justify-between gap-3 max-w-md w-full glass-card hover:bg-accent-coral/10 transition-all">
-                                          <span className="font-medium flex items-center gap-1.5">
-                                            <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
-                                            AI Vibe engine is temporarily offline.
-                                          </span>
+                                  {/* Toggle Button */}
+                                  <button
+                                    onClick={() => toggleEntryExpansion(entry.id)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-[10px] font-bold text-gray-300 uppercase tracking-wider transition-all active:scale-[0.98]"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5 text-accent-teal animate-pulse" />
+                                    {expandedEntries[entry.id] ? "Hide AI Reflection" : "Show AI Reflection"}
+                                    {expandedEntries[entry.id] ? (
+                                      <ChevronUp className="w-3 h-3 text-muted" />
+                                    ) : (
+                                      <ChevronDown className="w-3 h-3 text-muted" />
+                                    )}
+                                  </button>
+
+                                  {/* Expandable Content Panel */}
+                                  {expandedEntries[entry.id] && (
+                                    <div className="space-y-3">
+                                      {!sentimentResults[entry.id] && !analyzingIds[entry.id] ? (
+                                        <div className="flex flex-col items-start gap-2">
                                           <button
-                                            type="button"
                                             onClick={() => handleAnalyzeSentiment(entry.id)}
-                                            className="px-2.5 py-1 rounded-lg bg-accent-coral/15 hover:bg-accent-coral/25 border border-accent-coral/30 text-[9px] font-bold uppercase tracking-wider transition-all shrink-0 active:scale-95 duration-200"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-teal/5 hover:bg-accent-teal/15 border border-accent-teal/20 hover:border-accent-teal/40 text-[10px] font-bold text-accent-teal uppercase tracking-wider active:scale-[0.98] transition-all"
                                           >
-                                            Retry
+                                            <Sparkles className="w-3.5 h-3.5" />
+                                            Analyze Vibe
                                           </button>
+                                          {sentimentErrors[entry.id] && (
+                                            <div className="mt-1 p-3 rounded-xl bg-accent-coral/5 border border-accent-coral/20 text-accent-coral text-[10px] flex items-center justify-between gap-3 max-w-md w-full glass-card hover:bg-accent-coral/10 transition-all">
+                                              <span className="font-medium flex items-center gap-1.5">
+                                                <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+                                                AI Vibe engine is temporarily offline.
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleAnalyzeSentiment(entry.id)}
+                                                className="px-2.5 py-1 rounded-lg bg-accent-coral/15 hover:bg-accent-coral/25 border border-accent-coral/30 text-[9px] font-bold uppercase tracking-wider transition-all shrink-0 active:scale-95 duration-200"
+                                              >
+                                                Retry
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
+                                      ) : analyzingIds[entry.id] ? (
+                                        /* Loading skeleton shimmer */
+                                        <div className="p-3.5 rounded-xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
+                                          <div className="flex gap-2">
+                                            <div className="h-4 w-16 bg-white/5 rounded-lg" />
+                                            <div className="h-4 w-12 bg-white/5 rounded-lg" />
+                                          </div>
+                                          <div className="h-3 w-full bg-white/5 rounded" />
+                                          <div className="h-3 w-3/4 bg-white/5 rounded" />
+                                        </div>
+                                      ) : (
+                                        /* Sentiment Analysis Result with smooth framer-motion reveal */
+                                        <motion.div
+                                          initial={{ opacity: 0, y: 10 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          transition={{ duration: 0.35, ease: "easeOut" }}
+                                          className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-white/[0.03] space-y-3"
+                                        >
+                                          {sentimentErrors[entry.id] && (
+                                            <div className="p-3 rounded-xl bg-accent-coral/5 border border-accent-coral/20 text-accent-coral text-[10px] flex items-center justify-between gap-3 max-w-md w-full glass-card hover:bg-accent-coral/10 transition-all">
+                                              <span className="font-medium flex items-center gap-1.5">
+                                                <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+                                                AI Vibe engine failed: {sentimentErrors[entry.id]}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleAnalyzeSentiment(entry.id)}
+                                                className="px-2.5 py-1 rounded-lg bg-accent-coral/15 hover:bg-accent-coral/25 border border-accent-coral/30 text-[9px] font-bold uppercase tracking-wider transition-all shrink-0 active:scale-95 duration-200"
+                                              >
+                                                Retry
+                                              </button>
+                                            </div>
+                                          )}
+
+                                          {!sentimentErrors[entry.id] && (
+                                            <>
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                {/* Sentiment Pill */}
+                                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 ${
+                                                  sentimentResults[entry.id].sentiment === "positive"
+                                                    ? "bg-accent-teal/10 border-accent-teal/30 text-accent-teal"
+                                                    : sentimentResults[entry.id].sentiment === "negative"
+                                                      ? "bg-accent-coral/10 border-accent-coral/30 text-accent-coral"
+                                                      : "bg-gray-500/10 border-gray-500/30 text-gray-400"
+                                                }`}>
+                                                  <Sparkles className="w-2.5 h-2.5" />
+                                                  {sentimentResults[entry.id].sentiment}
+                                                </span>
+
+                                                {/* Tone Pill */}
+                                                <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white">
+                                                  Tone: {sentimentResults[entry.id].emotionalTone}
+                                                </span>
+                                                
+                                                {/* Confidence Pill */}
+                                                {sentimentResults[entry.id].confidence > 0 && (
+                                                  <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold text-muted bg-white/[0.02]">
+                                                    Confidence: {Math.round(sentimentResults[entry.id].confidence * 100)}%
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              {/* Key Themes as chips */}
+                                              {sentimentResults[entry.id].themes && sentimentResults[entry.id].themes.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                  {sentimentResults[entry.id].themes.map((theme: string) => (
+                                                    <span
+                                                      key={theme}
+                                                      className="px-1.5 py-0.5 rounded bg-white/[0.02] border border-white/[0.04] text-[8px] font-medium text-muted uppercase"
+                                                    >
+                                                      #{theme}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              )}
+
+                                              {/* Support Message */}
+                                              {sentimentResults[entry.id].supportMessage && (
+                                                <div className={`p-3 rounded-xl text-xs font-sans italic border ${
+                                                  sentimentResults[entry.id].sentiment === "positive"
+                                                    ? "bg-accent-teal/5 border-accent-teal/10 text-accent-teal/90"
+                                                    : sentimentResults[entry.id].sentiment === "negative"
+                                                      ? "bg-accent-coral/5 border-accent-coral/10 text-accent-coral/90"
+                                                      : "bg-white/[0.02] border-white/5 text-gray-300/90"
+                                                }`}>
+                                                  &quot;{sentimentResults[entry.id].supportMessage}&quot;
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+                                        </motion.div>
                                       )}
                                     </div>
-                                  ) : analyzingIds[entry.id] ? (
-                                    /* Loading skeleton shimmer */
-                                    <div className="p-3.5 rounded-xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
-                                      <div className="flex gap-2">
-                                        <div className="h-4 w-16 bg-white/5 rounded-lg" />
-                                        <div className="h-4 w-12 bg-white/5 rounded-lg" />
-                                      </div>
-                                      <div className="h-3 w-full bg-white/5 rounded" />
-                                      <div className="h-3 w-3/4 bg-white/5 rounded" />
-                                    </div>
-                                  ) : (
-                                    /* Sentiment Analysis Result with smooth framer-motion reveal */
-                                    <motion.div
-                                      initial={{ opacity: 0, y: 10 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      transition={{ duration: 0.35, ease: "easeOut" }}
-                                      className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-white/[0.03] space-y-3"
-                                    >
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        {/* Sentiment Pill */}
-                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 ${
-                                          sentimentResults[entry.id].sentiment === "positive"
-                                            ? "bg-accent-teal/10 border-accent-teal/30 text-accent-teal"
-                                            : sentimentResults[entry.id].sentiment === "negative"
-                                              ? "bg-accent-coral/10 border-accent-coral/30 text-accent-coral"
-                                              : "bg-gray-500/10 border-gray-500/30 text-gray-400"
-                                        }`}>
-                                          <Sparkles className="w-2.5 h-2.5" />
-                                          {sentimentResults[entry.id].sentiment}
-                                        </span>
-
-                                        {/* Tone Pill */}
-                                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white">
-                                          Tone: {sentimentResults[entry.id].emotionalTone}
-                                        </span>
-                                        
-                                        {/* Confidence Pill */}
-                                        {sentimentResults[entry.id].confidence > 0 && (
-                                          <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold text-muted bg-white/[0.02]">
-                                            Confidence: {Math.round(sentimentResults[entry.id].confidence * 100)}%
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      {/* Key Themes as chips */}
-                                      {sentimentResults[entry.id].themes && sentimentResults[entry.id].themes.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {sentimentResults[entry.id].themes.map((theme: string) => (
-                                            <span
-                                              key={theme}
-                                              className="px-1.5 py-0.5 rounded bg-white/[0.02] border border-white/[0.04] text-[8px] font-medium text-muted uppercase"
-                                            >
-                                              #{theme}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-
-                                      {/* Support Message */}
-                                      {sentimentResults[entry.id].supportMessage && (
-                                        <div className={`p-3 rounded-xl text-xs font-sans italic border ${
-                                          sentimentResults[entry.id].sentiment === "positive"
-                                            ? "bg-accent-teal/5 border-accent-teal/10 text-accent-teal/90"
-                                            : sentimentResults[entry.id].sentiment === "negative"
-                                              ? "bg-accent-coral/5 border-accent-coral/10 text-accent-coral/90"
-                                              : "bg-white/[0.02] border-white/5 text-gray-300/90"
-                                        }`}>
-                                          &quot;{sentimentResults[entry.id].supportMessage}&quot;
-                                        </div>
-                                      )}
-                                    </motion.div>
                                   )}
                                 </div>
                               )}

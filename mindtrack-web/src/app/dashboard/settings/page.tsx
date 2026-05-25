@@ -61,36 +61,54 @@ export default function SettingsPage() {
   // Account - Exporting State
   const [isExporting, setIsExporting] = useState(false);
 
-  // Preferences States (backed by localStorage)
+  // Preferences States (backed by Spring Boot API)
+  const [themeMode, setThemeMode] = useState("dark");
   const [dailyReminder, setDailyReminder] = useState(false);
   const [reminderTime, setReminderTime] = useState("20:00");
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [defaultCopingTechnique, setDefaultCopingTechnique] = useState("Breathing");
+  const [privacyMode, setPrivacyMode] = useState("standard");
+  const [entriesPerPage, setEntriesPerPage] = useState(10); // Local-only
 
   // Danger Zone - Clear Data Dialog State
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
 
-  // Mount logic to handle localstorage & prevent hydration mismatches
+  // Mount logic to handle localstorage & fetch settings from server
   useEffect(() => {
     setMounted(true);
 
-    // Sync preferences with localStorage on client mount
     if (typeof window !== "undefined") {
-      const storedReminder = localStorage.getItem("mindtrack_daily_reminder_enabled");
-      if (storedReminder !== null) {
-        setDailyReminder(storedReminder === "true");
-      }
-
-      const storedTime = localStorage.getItem("mindtrack_daily_reminder_time");
-      if (storedTime !== null) {
-        setReminderTime(storedTime);
-      }
-
       const storedEntries = localStorage.getItem("mindtrack_entries_per_page");
       if (storedEntries !== null) {
         setEntriesPerPage(parseInt(storedEntries, 10));
       }
     }
-  }, []);
+
+    const fetchPreferences = async () => {
+      if (!session?.user?.accessToken) return;
+      try {
+        const response = await axios.get("/api/user/preferences", {
+          headers: {
+            Authorization: `Bearer ${session.user.accessToken}`,
+          },
+        });
+        const prefs = response.data;
+        if (prefs) {
+          setThemeMode(prefs.themeMode || "dark");
+          setDailyReminder(prefs.reminderEnabled ?? true);
+          setReminderTime(prefs.reminderTime || "20:00");
+          setDefaultCopingTechnique(prefs.defaultCopingTechnique || "Breathing");
+          setPrivacyMode(prefs.privacyMode || "standard");
+        }
+      } catch (err: unknown) {
+        console.error("Failed to load preferences:", err);
+        showToast("Unable to synchronize settings with server.", "error");
+      }
+    };
+
+    if (status === "authenticated") {
+      fetchPreferences();
+    }
+  }, [session, status]);
 
   // Show a toast message helper
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -100,13 +118,60 @@ export default function SettingsPage() {
     }, 4000);
   };
 
+  const updatePreferenceOnBackend = async (updatedFields: {
+    themeMode?: string;
+    reminderEnabled?: boolean;
+    reminderTime?: string;
+    defaultCopingTechnique?: string;
+    privacyMode?: string;
+  }) => {
+    // Save previous state for reverting on error
+    const prevTheme = themeMode;
+    const prevReminder = dailyReminder;
+    const prevTime = reminderTime;
+    const prevCoping = defaultCopingTechnique;
+    const prevPrivacy = privacyMode;
+
+    // Optimistically apply state
+    if (updatedFields.themeMode !== undefined) setThemeMode(updatedFields.themeMode);
+    if (updatedFields.reminderEnabled !== undefined) setDailyReminder(updatedFields.reminderEnabled);
+    if (updatedFields.reminderTime !== undefined) setReminderTime(updatedFields.reminderTime);
+    if (updatedFields.defaultCopingTechnique !== undefined) setDefaultCopingTechnique(updatedFields.defaultCopingTechnique);
+    if (updatedFields.privacyMode !== undefined) setPrivacyMode(updatedFields.privacyMode);
+
+    try {
+      const payload = {
+        themeMode: updatedFields.themeMode !== undefined ? updatedFields.themeMode : prevTheme,
+        reminderEnabled: updatedFields.reminderEnabled !== undefined ? updatedFields.reminderEnabled : prevReminder,
+        reminderTime: updatedFields.reminderTime !== undefined ? updatedFields.reminderTime : prevTime,
+        defaultCopingTechnique: updatedFields.defaultCopingTechnique !== undefined ? updatedFields.defaultCopingTechnique : prevCoping,
+        privacyMode: updatedFields.privacyMode !== undefined ? updatedFields.privacyMode : prevPrivacy,
+      };
+
+      await axios.put("/api/user/preferences", payload, {
+        headers: {
+          Authorization: `Bearer ${session?.user?.accessToken || ""}`,
+        },
+      });
+    } catch (err: unknown) {
+      console.error("Failed to update preferences on backend:", err);
+      // Revert state
+      setThemeMode(prevTheme);
+      setDailyReminder(prevReminder);
+      setReminderTime(prevTime);
+      setDefaultCopingTechnique(prevCoping);
+      setPrivacyMode(prevPrivacy);
+
+      showToast("Failed to save preference. Reverting change.", "error");
+    }
+  };
+
   // Preference Handlers
   const handleToggleReminder = (enabled: boolean) => {
-    setDailyReminder(enabled);
-    localStorage.setItem("mindtrack_daily_reminder_enabled", String(enabled));
+    updatePreferenceOnBackend({ reminderEnabled: enabled });
     showToast(
       enabled
-        ? `Daily notification reminder activated for ${reminderTime}!`
+        ? `Daily notification reminder scheduled for ${reminderTime}!`
         : "Daily notification reminder deactivated.",
       "info"
     );
@@ -114,12 +179,26 @@ export default function SettingsPage() {
 
   const handleChangeReminderTime = (time: string) => {
     setReminderTime(time);
-    localStorage.setItem("mindtrack_daily_reminder_time", time);
-    // Silent save, show tiny feedback if wanted
   };
 
   const handleTimeBlur = () => {
+    updatePreferenceOnBackend({ reminderTime });
     showToast(`Reminder alert time rescheduled to ${reminderTime}.`, "success");
+  };
+
+  const handleChangeThemeMode = (mode: string) => {
+    updatePreferenceOnBackend({ themeMode: mode });
+    showToast(`Theme mode updated to ${mode}.`, "success");
+  };
+
+  const handleChangeCopingTechnique = (tech: string) => {
+    updatePreferenceOnBackend({ defaultCopingTechnique: tech });
+    showToast(`Default coping technique set to ${tech}.`, "success");
+  };
+
+  const handleChangePrivacyMode = (mode: string) => {
+    updatePreferenceOnBackend({ privacyMode: mode });
+    showToast(`Privacy mode updated to ${mode}.`, "success");
   };
 
   const handleChangeEntriesPerPage = (entries: number) => {
@@ -603,6 +682,81 @@ export default function SettingsPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Theme Mode Segmented Selector */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-accent-teal" />
+                  Synced App Theme Mode
+                </span>
+                <span className="text-[10px] text-muted block leading-tight">
+                  Synchronize active theme (dark/light) across all your devices.
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 bg-[#0A0A14]/60 p-1.5 rounded-xl border border-white/[0.02]">
+                {["dark", "light"].map((mode) => {
+                  const isSelected = themeMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => handleChangeThemeMode(mode)}
+                      className={`py-2 rounded-lg text-xs font-bold transition-all capitalize ${
+                        isSelected
+                          ? "bg-accent-teal/10 border border-accent-teal/30 text-accent-teal shadow-[0_0_8px_rgba(0,210,200,0.1)]"
+                          : "bg-transparent text-muted hover:text-white border border-transparent"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Default Coping Technique Dropdown */}
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-accent-teal" />
+                  Default Coping Technique
+                </span>
+                <span className="text-[10px] text-muted block leading-tight">
+                  Choose the starting focus for your guided relief sessions.
+                </span>
+              </div>
+              <select
+                value={defaultCopingTechnique}
+                onChange={(e) => handleChangeCopingTechnique(e.target.value)}
+                className="w-full p-3 bg-[#0A0A14]/70 border border-white/5 focus:border-accent-teal/50 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent-teal/20 transition-all cursor-pointer"
+              >
+                <option value="Breathing" className="bg-[#12122A]">Breathing</option>
+                <option value="Meditation" className="bg-[#12122A]">Meditation</option>
+                <option value="Grounding" className="bg-[#12122A]">Grounding</option>
+              </select>
+            </div>
+
+            {/* Privacy Mode Dropdown */}
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-accent-teal" />
+                  Privacy Isolation Mode
+                </span>
+                <span className="text-[10px] text-muted block leading-tight">
+                  Configure cryptography parameters and data sharing boundaries.
+                </span>
+              </div>
+              <select
+                value={privacyMode}
+                onChange={(e) => handleChangePrivacyMode(e.target.value)}
+                className="w-full p-3 bg-[#0A0A14]/70 border border-white/5 focus:border-accent-teal/50 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-accent-teal/20 transition-all cursor-pointer"
+              >
+                <option value="standard" className="bg-[#12122A]">Standard (HIPAA Compliant)</option>
+                <option value="strict" className="bg-[#12122A]">Strict Isolation</option>
+                <option value="anonymous" className="bg-[#12122A]">Complete Anonymity</option>
+              </select>
+            </div>
 
             {/* Entries Per Page Segmented Selector */}
             <div className="space-y-3">

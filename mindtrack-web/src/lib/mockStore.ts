@@ -16,9 +16,19 @@ export interface UserStats {
   joinedDaysAgo: number;
 }
 
+export interface UserPreferences {
+  themeMode: string;
+  reminderEnabled: boolean;
+  reminderTime: string;
+  defaultCopingTechnique: string;
+  privacyMode: string;
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var mockMoodEntries: MoodEntry[] | undefined;
+  // eslint-disable-next-line no-var
+  var mockUserPreferences: UserPreferences | undefined;
 }
 
 const DEFAULT_MOCK_ENTRIES: MoodEntry[] = [
@@ -228,4 +238,27 @@ export function getMockStats(): UserStats {
     avgMoodScoreThisWeek: average(weeklyEntries),
     joinedDaysAgo: 42,
   };
+}
+
+const DEFAULT_MOCK_PREFERENCES: UserPreferences = {
+  themeMode: "dark",
+  reminderEnabled: true,
+  reminderTime: "20:00",
+  defaultCopingTechnique: "Breathing",
+  privacyMode: "standard",
+};
+
+export function getMockPreferences(): UserPreferences {
+  if (!global.mockUserPreferences) {
+    global.mockUserPreferences = { ...DEFAULT_MOCK_PREFERENCES };
+  }
+  return global.mockUserPreferences;
+}
+
+export function saveMockPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  if (!global.mockUserPreferences) {
+    global.mockUserPreferences = { ...DEFAULT_MOCK_PREFERENCES };
+  }
+  global.mockUserPreferences = { ...global.mockUserPreferences, ...prefs };
+  return global.mockUserPreferences;
 }

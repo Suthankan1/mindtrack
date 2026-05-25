@@ -72,6 +72,22 @@ class FakeDioService extends DioService {
       'avgMoodScore': 4.2,
     };
   }
+
+  @override
+  Future<Map<String, dynamic>> getUserPreferences() async {
+    return {
+      'themeMode': 'dark',
+      'reminderEnabled': true,
+      'reminderTime': '20:00',
+      'defaultCopingTechnique': 'Breathing',
+      'privacyMode': 'standard',
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateUserPreferences(Map<String, dynamic> preferences) async {
+    return preferences;
+  }
 }
 
 void main() {

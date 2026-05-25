@@ -2,10 +2,13 @@ package com.mindtrack.backend.controller;
 
 import com.mindtrack.backend.dto.ChangePasswordRequest;
 import com.mindtrack.backend.dto.UserStatsResponse;
+import com.mindtrack.backend.dto.UserPreferenceDto;
 import com.mindtrack.backend.model.Streak;
 import com.mindtrack.backend.model.User;
+import com.mindtrack.backend.model.UserPreference;
 import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
+import com.mindtrack.backend.repository.UserPreferenceRepository;
 import com.mindtrack.backend.service.StreakService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -36,24 +39,28 @@ public class UserController {
     private final MoodEntryRepository moodEntryRepository;
     private final StreakService streakService;
     private final PasswordEncoder passwordEncoder;
+    private final UserPreferenceRepository userPreferenceRepository;
 
     /**
      * Constructs the {@code UserController} with all required dependencies.
      *
-     * @param userRepository      repository for user account lookups
-     * @param moodEntryRepository repository for mood entry aggregation queries
-     * @param streakService       service to retrieve current and longest check-in streaks
-     * @param passwordEncoder     encoder for BCrypt password verification
+     * @param userRepository            repository for user account lookups
+     * @param moodEntryRepository       repository for mood entry aggregation queries
+     * @param streakService             service to retrieve current and longest check-in streaks
+     * @param passwordEncoder           encoder for BCrypt password verification
+     * @param userPreferenceRepository  repository for user preferences persistence
      */
     public UserController(
             UserRepository userRepository,
             MoodEntryRepository moodEntryRepository,
             StreakService streakService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            UserPreferenceRepository userPreferenceRepository) {
         this.userRepository = userRepository;
         this.moodEntryRepository = moodEntryRepository;
         this.streakService = streakService;
         this.passwordEncoder = passwordEncoder;
+        this.userPreferenceRepository = userPreferenceRepository;
     }
 
     /**
@@ -147,5 +154,72 @@ public class UserController {
         userRepository.save(user);
 
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+    }
+
+    /**
+     * Retrieves the preferences of the currently authenticated user.
+     * If preferences do not exist yet, they are initialized with default values.
+     *
+     * @param authentication the Spring Security authentication context
+     * @return 200 OK with the UserPreferenceDto
+     */
+    @GetMapping("/preferences")
+    public ResponseEntity<UserPreferenceDto> getPreferences(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        UserPreference preference = userPreferenceRepository.findByUser(user)
+                .orElseGet(() -> {
+                    UserPreference defaultPreference = UserPreference.builder()
+                            .user(user)
+                            .themeMode("dark")
+                            .reminderEnabled(true)
+                            .reminderTime("20:00")
+                            .defaultCopingTechnique("Breathing")
+                            .privacyMode("standard")
+                            .build();
+                    return userPreferenceRepository.save(defaultPreference);
+                });
+
+        return ResponseEntity.ok(convertToDto(preference));
+    }
+
+    /**
+     * Updates the preferences of the currently authenticated user.
+     *
+     * @param authentication the Spring Security authentication context
+     * @param dto the new preferences values
+     * @return 200 OK with the updated UserPreferenceDto
+     */
+    @PutMapping("/preferences")
+    public ResponseEntity<UserPreferenceDto> updatePreferences(
+            Authentication authentication,
+            @Valid @RequestBody UserPreferenceDto dto) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        UserPreference preference = userPreferenceRepository.findByUser(user)
+                .orElseGet(() -> UserPreference.builder().user(user).build());
+
+        preference.setThemeMode(dto.getThemeMode());
+        preference.setReminderEnabled(dto.isReminderEnabled());
+        preference.setReminderTime(dto.getReminderTime());
+        preference.setDefaultCopingTechnique(dto.getDefaultCopingTechnique());
+        preference.setPrivacyMode(dto.getPrivacyMode());
+
+        UserPreference saved = userPreferenceRepository.save(preference);
+        return ResponseEntity.ok(convertToDto(saved));
+    }
+
+    private UserPreferenceDto convertToDto(UserPreference preference) {
+        return UserPreferenceDto.builder()
+                .themeMode(preference.getThemeMode())
+                .reminderEnabled(preference.isReminderEnabled())
+                .reminderTime(preference.getReminderTime())
+                .defaultCopingTechnique(preference.getDefaultCopingTechnique())
+                .privacyMode(preference.getPrivacyMode())
+                .build();
     }
 }

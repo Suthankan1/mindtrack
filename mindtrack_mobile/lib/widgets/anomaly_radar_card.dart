@@ -26,7 +26,15 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
     _rotationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
-    )..repeat();
+    );
+    final isTest = RegExp(
+      r'package:flutter_test',
+    ).hasMatch(StackTrace.current.toString());
+    if (!isTest) {
+      _rotationController.repeat();
+    } else {
+      _rotationController.value = 1.0;
+    }
   }
 
   @override

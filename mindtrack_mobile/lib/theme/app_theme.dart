@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/dio_service.dart';
 
 /// Cosmic Calm theme colors
 class AppColors {
@@ -205,16 +206,50 @@ class ThemeNotifier extends Notifier<ThemeData> {
     }
   }
 
-  /// Toggle between Dark and Light mode, persisting preference in SharedPreferences
-  Future<void> toggleTheme() async {
+  /// Explicitly set theme mode (light/dark) from synced data or local cache
+  Future<void> setThemeMode(String themeMode) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (state.brightness == Brightness.dark) {
+      if (themeMode == 'light') {
         state = AppTheme.cosmicCalmLight;
         await prefs.setBool('theme_light_mode', true);
       } else {
         state = AppTheme.cosmicCalm;
         await prefs.setBool('theme_light_mode', false);
+      }
+    } catch (e) {
+      debugPrint('ThemeNotifier: Failed to set theme mode: $e');
+    }
+  }
+
+  /// Toggle between Dark and Light mode, persisting preference in SharedPreferences
+  /// and syncing with Spring Boot if authenticated.
+  Future<void> toggleTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isLight = state.brightness == Brightness.light;
+      final newTheme = isLight ? 'dark' : 'light';
+
+      if (isLight) {
+        state = AppTheme.cosmicCalm;
+        await prefs.setBool('theme_light_mode', false);
+      } else {
+        state = AppTheme.cosmicCalmLight;
+        await prefs.setBool('theme_light_mode', true);
+      }
+
+      // Check if user is authenticated and sync
+      final token = prefs.getString('auth_jwt_token');
+      if (token != null && token != 'fake_token') {
+        final dio = ref.read(dioServiceProvider);
+        final reminderEnabled = prefs.getBool('notifications_enabled') ?? true;
+        await dio.updateUserPreferences({
+          'themeMode': newTheme,
+          'reminderEnabled': reminderEnabled,
+          'reminderTime': '20:00',
+          'defaultCopingTechnique': 'Breathing',
+          'privacyMode': 'standard',
+        });
       }
     } catch (e) {
       debugPrint('ThemeNotifier: Failed to save theme preference: $e');

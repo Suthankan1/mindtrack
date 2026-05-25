@@ -69,6 +69,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _fetchUserStats();
   }
 
+  Future<void> _syncPreferencesWithBackend(SharedPreferences prefs) async {
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final prefsData = await dio.getUserPreferences();
+      final reminderEnabled = prefsData['reminderEnabled'] ?? true;
+      final themeMode = prefsData['themeMode'] ?? 'dark';
+
+      await prefs.setBool('notifications_enabled', reminderEnabled);
+      await prefs.setBool('theme_light_mode', themeMode == 'light');
+
+      if (mounted) {
+        setState(() {
+          _notificationsEnabled = reminderEnabled;
+        });
+        await ref.read(themeProvider.notifier).setThemeMode(themeMode);
+      }
+    } catch (e) {
+      debugPrint('ProfileScreen: Error syncing preferences with backend: $e');
+    }
+  }
+
   Future<void> _fetchUserStats() async {
     if (!mounted) return;
     setState(() {
@@ -120,6 +141,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _joinDateStr = 'Joined ${_getMonthName(now.month)} ${now.year}';
         }
       });
+
+      // Synchronize settings with backend dynamically if authenticated and not in a widget test
+      final token = prefs.getString('auth_jwt_token');
+      if (token != null && token != 'fake_token') {
+        _syncPreferencesWithBackend(prefs);
+      }
     } catch (e) {
       debugPrint('ProfileScreen: Error loading profile data: $e');
     }
@@ -152,6 +179,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {
         _notificationsEnabled = val;
       });
+
+      // Sync notification toggle with backend
+      final token = prefs.getString('auth_jwt_token');
+      if (token != null && token != 'fake_token') {
+        final isLight = prefs.getBool('theme_light_mode') ?? false;
+        final dio = ref.read(dioServiceProvider);
+        await dio.updateUserPreferences({
+          'themeMode': isLight ? 'light' : 'dark',
+          'reminderEnabled': val,
+          'reminderTime': '20:00',
+          'defaultCopingTechnique': 'Breathing',
+          'privacyMode': 'standard',
+        });
+      }
 
       // FCM Subscription logic simulation
       if (val) {

@@ -418,6 +418,51 @@ class DioService {
       rethrow;
     }
   }
+
+  /// Fetches the user preferences from the Spring Boot backend.
+  Future<Map<String, dynamic>> getUserPreferences() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.get('/api/user/preferences');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to load user preferences: status ${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error fetching user preferences: $e');
+      rethrow;
+    }
+  }
+
+  /// Updates the user preferences in the Spring Boot backend.
+  Future<Map<String, dynamic>> updateUserPreferences(Map<String, dynamic> preferences) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    try {
+      final response = await _dio.put(
+        '/api/user/preferences',
+        data: preferences,
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to update user preferences: status ${response.statusCode}');
+    } catch (e) {
+      debugPrint('DioService: Error updating user preferences: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for DioService singleton

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mindtrack.backend.dto.ChangePasswordRequest;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.UserRepository;
+import com.mindtrack.backend.repository.UserPreferenceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class UserControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private UserPreferenceRepository userPreferenceRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -42,6 +46,7 @@ public class UserControllerTest {
 
     @BeforeEach
     void setUp() {
+        userPreferenceRepository.deleteAll();
         userRepository.deleteAll();
 
         testUser = User.builder()
@@ -131,6 +136,46 @@ public class UserControllerTest {
         mockMvc.perform(post("/api/user/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getPreferences_Success_CreatesDefault() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/preferences"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.themeMode", is("dark")))
+                .andExpect(jsonPath("$.reminderEnabled", is(true)))
+                .andExpect(jsonPath("$.reminderTime", is("20:00")))
+                .andExpect(jsonPath("$.defaultCopingTechnique", is("Breathing")))
+                .andExpect(jsonPath("$.privacyMode", is("standard")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updatePreferences_Success() throws Exception {
+        com.mindtrack.backend.dto.UserPreferenceDto updateDto = com.mindtrack.backend.dto.UserPreferenceDto.builder()
+                .themeMode("light")
+                .reminderEnabled(false)
+                .reminderTime("08:00")
+                .defaultCopingTechnique("Meditation")
+                .privacyMode("strict")
+                .build();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.themeMode", is("light")))
+                .andExpect(jsonPath("$.reminderEnabled", is(false)))
+                .andExpect(jsonPath("$.reminderTime", is("08:00")))
+                .andExpect(jsonPath("$.defaultCopingTechnique", is("Meditation")))
+                .andExpect(jsonPath("$.privacyMode", is("strict")));
+    }
+
+    @Test
+    void getPreferences_Unauthenticated() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/preferences"))
                 .andExpect(status().isForbidden());
     }
 }

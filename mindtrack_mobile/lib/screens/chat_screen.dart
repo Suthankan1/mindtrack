@@ -110,12 +110,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       final String reply = response['reply'] as String? ?? "I'm here to listen. Tell me more.";
       final List<String> followUps = List<String>.from(response['suggestedFollowUps'] ?? []);
+      final bool showCrisisResources = response['showCrisisResources'] == true;
+      final List<dynamic> crisisResources = response['crisisResources'] ?? [];
 
       if (mounted) {
         setState(() {
           _messages.add({
             'role': 'model',
             'text': reply,
+            'showCrisisResources': showCrisisResources,
+            'crisisResources': crisisResources,
           });
           _suggestedFollowUps = followUps;
           _isLoading = false;
@@ -233,6 +237,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 final msg = _messages[index];
                 final bool isUser = msg['role'] == 'user';
                 final isLast = index == _messages.length - 1;
+                final bool showCrisis = msg['showCrisisResources'] == true;
+                final List<dynamic> resources = msg['crisisResources'] ?? [];
 
                 return Column(
                   crossAxisAlignment: isUser
@@ -251,6 +257,113 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                       ),
                     ),
+                    // Show crisis resource card if requested and has resources
+                    if (showCrisis && resources.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * 0.8,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.errorColor.withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.support_agent_rounded,
+                                    color: AppColors.errorColor,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Crisis Support Resources',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              ...resources.map((res) {
+                                final name = res['lineName'] ?? 'Helpline';
+                                final phone = res['phoneNumber'] ?? '';
+                                final web = res['website'] ?? '';
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.borderOverlay),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            if (phone.isNotEmpty) ...[
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.phone, size: 12, color: AppColors.primaryColor),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    phone,
+                                                    style: const TextStyle(
+                                                      color: AppColors.primaryColor,
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(width: 16),
+                                            ],
+                                            if (web.isNotEmpty)
+                                              Expanded(
+                                                child: Text(
+                                                  web,
+                                                  style: const TextStyle(
+                                                    color: AppColors.navBarUnselected,
+                                                    fontSize: 12,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    decoration: TextDecoration.underline,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     // Show suggested follow-up chips below the last AI message
                     if (!isUser && isLast && _suggestedFollowUps.isNotEmpty) ...[
                       const SizedBox(height: 12),

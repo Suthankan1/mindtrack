@@ -1,5 +1,6 @@
 package com.mindtrack.backend.dto;
 
+import com.mindtrack.backend.model.CrisisResource;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,4 +18,9 @@ public class ChatResponse {
 
     @Builder.Default
     private boolean aiAvailable = true;
+
+    @Builder.Default
+    private boolean showCrisisResources = false;
+
+    private List<CrisisResource> crisisResources;
 }

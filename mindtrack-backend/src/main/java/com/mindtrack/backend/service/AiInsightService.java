@@ -29,6 +29,7 @@ public class AiInsightService {
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
     private final JsonExtractionService jsonExtractionService;
+    private final MentalHealthSafetyService mentalHealthSafetyService;
 
     // Cache results by entryId (sentiment won't change for a saved note)
     private final Map<UUID, SentimentAnalysisResponse> sentimentCache = new ConcurrentHashMap<>();
@@ -39,13 +40,15 @@ public class AiInsightService {
             MoodEntryRepository moodEntryRepository,
             GeminiService geminiService,
             ObjectMapper objectMapper,
-            JsonExtractionService jsonExtractionService) {
+            JsonExtractionService jsonExtractionService,
+            MentalHealthSafetyService mentalHealthSafetyService) {
         this.userRepository = userRepository;
         this.moodPatternService = moodPatternService;
         this.moodEntryRepository = moodEntryRepository;
         this.geminiService = geminiService;
         this.objectMapper = objectMapper;
         this.jsonExtractionService = jsonExtractionService;
+        this.mentalHealthSafetyService = mentalHealthSafetyService;
     }
 
     /**
@@ -206,17 +209,17 @@ public class AiInsightService {
      */
     public Map<String, Object> getCrisisResponse() {
         String prompt = """
-        You are a compassionate mental health companion. A user has been experiencing
+        You are a compassionate mental wellness companion. A user has been experiencing
         consistently low mood (score 1-2 out of 5) for 3 or more days.
 
         Write a short, warm, non-clinical message that:
-        1. Acknowledges that they are going through a difficult time
-        2. Reminds them they are not alone
-        3. Gently encourages them to reach out to a professional or someone they trust
-        4. Does NOT diagnose, does NOT use clinical terms, does NOT be dismissive
+        1. Acknowledges that they are going through a difficult time without diagnosing them or labeling their condition.
+        2. Reminds them they are not alone and that support is always available.
+        3. Encourages seeking immediate local emergency support or calling a crisis helpline if they are in imminent danger.
+        4. Clearly indicates that MindTrack is an automated companion and cannot monitor, screen, or respond to emergencies in real-time.
+        5. Does NOT use clinical terminology, does NOT pretend the app is monitoring them, and is supportive and hopeful.
 
-        Maximum 4 sentences. Tone: like a caring friend, not a doctor or therapist.
-        Do NOT mention suicide or self-harm. Keep it hopeful.
+        Maximum 4 sentences. Tone: supportive, non-clinical, and aligned with SDG 3.
         """;
 
         String rawResponse = geminiService.generateInsight(prompt, null, 0.7);
@@ -237,6 +240,18 @@ public class AiInsightService {
      * MindChat endpoint for multi-turn empathetic AI conversation with mood context.
      */
     public ChatResponse chatWithAi(ChatRequest request) {
+        // Check for safety / high-risk words
+        if (mentalHealthSafetyService.isHighRisk(request.getMessage())) {
+            log.warn("High-risk safety keyword detected in user chat message. Intercepting and returning crisis resources.");
+            return ChatResponse.builder()
+                    .reply(mentalHealthSafetyService.getCrisisSafeMessage())
+                    .suggestedFollowUps(List.of("Can I try box breathing?", "Show me some coping suggestions."))
+                    .showCrisisResources(true)
+                    .crisisResources(mentalHealthSafetyService.getCrisisResources())
+                    .aiAvailable(true)
+                    .build();
+        }
+
         // 1. Build mood context string for the system prompt
         int score = 3;
         double avg = 3.0;

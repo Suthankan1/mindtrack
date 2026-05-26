@@ -27,7 +27,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _displayName = 'Cosmic Practitioner';
-  String _email = 'practitioner@mindtrack.com';
+  String _email = '';
   String _joinDateStr = 'Joined May 2026';
   bool _notificationsEnabled = true;
   bool _aiJournalAnalysisEnabled = false;
@@ -195,10 +195,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _loadProfileData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('user_email') ?? '';
       setState(() {
         _displayName =
             prefs.getString('user_display_name') ?? 'Cosmic Practitioner';
-        _email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
+        _email = email;
         _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
         _aiJournalAnalysisEnabled = prefs.getBool('ai_journal_analysis_enabled') ?? false;
         _aiChatHistoryEnabled = prefs.getBool('ai_chat_history_enabled') ?? false;

@@ -5,7 +5,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, AlertTriangle, ArrowRight, BrainCircuit, Sparkles } from "lucide-react";
+import { Mail, Lock, AlertTriangle, ArrowRight, BrainCircuit } from "lucide-react";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
@@ -56,12 +56,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleFillDemo = () => {
-    setEmail("demo@mindtrack.com");
-    setPassword("demo123");
-    setError(null);
-  };
-
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-background overflow-hidden">
       
@@ -99,7 +93,7 @@ export default function LoginPage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-xs text-muted mt-2 max-w-[280px]"
           >
-            Log in to access your mental health companion dashboard and check daily insights.
+            Sign in with your registered email and password to access your personal dashboard.
           </motion.p>
         </div>
 
@@ -142,7 +136,13 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center px-1">
                 <label className="text-xs font-semibold text-gray-300">Password</label>
-                <a href="#" className="text-[10px] text-accent-teal hover:underline font-medium">Forgot?</a>
+                <button
+                  type="button"
+                  onClick={() => setError('Password recovery is not available in this version. Please contact support.')}
+                  className="text-[10px] text-accent-teal hover:underline font-medium"
+                >
+                  Forgot?
+                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -173,21 +173,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Helper Box */}
-          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="flex items-center gap-2 text-xs text-muted hover:text-accent-teal bg-white/[0.02] border border-white/5 hover:border-accent-teal/30 px-4 py-2 rounded-xl transition-all duration-300 group"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-accent-coral group-hover:scale-110 duration-200" />
-              <span>Use Demo Account</span>
-            </button>
-            <span className="text-[10px] text-muted/60 mt-2">
-              Bypasses server requirement for quick testing.
-            </span>
-          </div>
 
         </motion.div>
 

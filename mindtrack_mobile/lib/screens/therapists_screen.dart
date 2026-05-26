@@ -23,18 +23,8 @@ class _TherapistsScreenState extends ConsumerState<TherapistsScreen> {
   String _selectedSpecialty = 'All';
   String _selectedLocation = 'All';
 
-  final List<String> _specialties = [
-    'All',
-    'CBT',
-    'Anxiety',
-    'Depression',
-    'Mindfulness',
-    'ADHD',
-    'Somatic',
-    'Trauma',
-    'Neurodiversity',
-  ];
-  final List<String> _locations = ['All', 'New York', 'Colombo', 'Mumbai', 'Remote'];
+  List<String> _specialties = ['All'];
+  List<String> _locations = ['All'];
 
   @override
   void initState() {
@@ -58,8 +48,19 @@ class _TherapistsScreenState extends ConsumerState<TherapistsScreen> {
       final dio = ref.read(dioServiceProvider);
       final list = await dio.getTherapists();
       if (mounted) {
+        final uniqueLocations = list
+            .map((t) => (t['location'] as String?)?.trim() ?? '')
+            .where((loc) => loc.isNotEmpty)
+            .toSet();
+        final uniqueSpecialties = list
+            .map((t) => (t['specialty'] as String?)?.trim() ?? '')
+            .where((spec) => spec.isNotEmpty)
+            .toSet();
+
         setState(() {
           _allTherapists = list;
+          _locations = ['All', ...uniqueLocations.toList()..sort()];
+          _specialties = ['All', ...uniqueSpecialties.toList()..sort()];
           _applyFilters();
           _isLoading = false;
         });

@@ -50,35 +50,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (raw != null) {
         final List decoded = jsonDecode(raw) as List;
         if (decoded.isNotEmpty) {
-        final loadedMessages = decoded
-            .map((m) => Map<String, dynamic>.from(m))
-            .toList();
+          final loadedMessages = decoded
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList();
 
-        bool hasCrisis = false;
-        List<dynamic> activeCrisis = [];
-        for (final msg in loadedMessages.reversed) {
-          if (msg['showCrisisResources'] == true &&
-              msg['crisisResources'] != null) {
-            hasCrisis = true;
-            activeCrisis = List<dynamic>.from(msg['crisisResources']);
-            break;
-          }
-        }
-
-        if (mounted) {
-          setState(() {
-            _messages = loadedMessages;
-            _hasCrisisActive = hasCrisis;
-            _activeCrisisResources = activeCrisis;
-            if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
-              _suggestedFollowUps = List<String>.from(
-                _messages.last['suggestedFollowUps'] ?? [],
-              );
+          bool hasCrisis = false;
+          List<dynamic> activeCrisis = [];
+          for (final msg in loadedMessages.reversed) {
+            if (msg['showCrisisResources'] == true &&
+                msg['crisisResources'] != null) {
+              hasCrisis = true;
+              activeCrisis = List<dynamic>.from(msg['crisisResources']);
+              break;
             }
-          });
-          _scrollToBottom();
-        }
-        return;
+          }
+
+          if (mounted) {
+            setState(() {
+              _messages = loadedMessages;
+              _hasCrisisActive = hasCrisis;
+              _activeCrisisResources = activeCrisis;
+              if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
+                _suggestedFollowUps = List<String>.from(
+                  _messages.last['suggestedFollowUps'] ?? [],
+                );
+              }
+            });
+            _scrollToBottom();
+          }
+          return;
         }
       }
     } catch (e) {
@@ -95,7 +95,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _messages.last['suggestedFollowUps'] = _suggestedFollowUps;
       }
 
-      await prefs.setString('mindchat_history', jsonEncode(_messages));
+      final messagesToSave = _messages.length > 50
+          ? _messages.sublist(_messages.length - 50)
+          : _messages;
+      await prefs.setString('mindchat_history', jsonEncode(messagesToSave));
     } catch (e) {
       debugPrint('Error saving chat history: $e');
     }

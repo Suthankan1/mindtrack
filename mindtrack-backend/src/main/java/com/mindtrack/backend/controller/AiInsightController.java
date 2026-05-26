@@ -1,7 +1,9 @@
 package com.mindtrack.backend.controller;
 
 import com.mindtrack.backend.dto.*;
+import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.model.User;
+import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.service.AiInsightService;
 import jakarta.validation.Valid;
@@ -16,8 +18,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST controller for AI-generated mental health insights.
@@ -27,12 +32,15 @@ import java.util.UUID;
 public class AiInsightController {
 
     private final UserRepository userRepository;
+    private final MoodEntryRepository moodEntryRepository;
     private final AiInsightService aiInsightService;
 
     public AiInsightController(
             UserRepository userRepository,
+            MoodEntryRepository moodEntryRepository,
             AiInsightService aiInsightService) {
         this.userRepository = userRepository;
+        this.moodEntryRepository = moodEntryRepository;
         this.aiInsightService = aiInsightService;
     }
 
@@ -110,8 +118,22 @@ public class AiInsightController {
 
         // Validate user authentication
         String email = authentication.getName();
-        userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        List<MoodEntry> recent = moodEntryRepository.findByUserAndTimestampAfterOrderByTimestampDesc(
+            user,
+            LocalDateTime.now().minusDays(3));
+        List<String> recentTags = recent.stream()
+            .filter(entry -> entry.getTags() != null)
+            .flatMap(entry -> entry.getTags().stream())
+            .distinct()
+            .limit(5)
+            .collect(Collectors.toList());
+
+        if (request.getLastTags() == null || request.getLastTags().isEmpty()) {
+            request.setLastTags(recentTags);
+        }
 
         CopingSuggestResponse response = aiInsightService.getCopingSuggestion(request);
         return ResponseEntity.ok(response);

@@ -616,8 +616,9 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
 
       // Compute recent average and last tags from mood history
       final history = ref.read(moodHistoryProvider).value ?? [];
+      final recentHistory = history;
       double recentAverage = 3.0;
-      List<String> lastTags = [];
+      final recentTags = recentHistory.isNotEmpty ? recentHistory.first.tags : <String>[];
 
       if (history.isNotEmpty) {
         final now = DateTime.now();
@@ -627,11 +628,9 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
         if (recentEntries.isNotEmpty) {
           final sum = recentEntries.map((e) => e.moodScore).reduce((a, b) => a + b);
           recentAverage = sum / recentEntries.length;
-          lastTags = recentEntries.expand((e) => e.tags).toSet().toList();
         } else {
           final sum = history.map((e) => e.moodScore).reduce((a, b) => a + b);
           recentAverage = sum / history.length;
-          lastTags = history.expand((e) => e.tags).toSet().toList();
         }
       }
 
@@ -640,7 +639,7 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
         moodScore: moodScore,
         timeOfDay: timeOfDay,
         recentAverage: recentAverage,
-        lastTags: lastTags,
+        lastTags: recentTags,
       );
 
       if (mounted) {

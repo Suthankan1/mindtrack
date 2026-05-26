@@ -13,6 +13,8 @@ import '../widgets/streak_card.dart';
 import '../widgets/wave_spark.dart';
 import '../widgets/anomaly_radar_card.dart';
 import '../widgets/cosmic_calm_sheet.dart';
+import '../widgets/quote_card.dart';
+import 'dart:math' as math;
 
 /// The primary Home tab displaying the user's mood ring, quick-log buttons,
 /// streak card, and a 7-day mini wave chart.
@@ -28,6 +30,18 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLogging = false;
   String _userEmail = '';
+  String? _dailyQuote;
+  bool _isLoadingQuote = true;
+
+  final List<String> _fallbackQuotes = const [
+    "Your mental health is a priority. Your happiness is an essential. Your self-care is a necessity.",
+    "Healing is not linear. Be gentle and patient with your mind as you navigate today's journey.",
+    "You do not have to be perfect to be amazing. Every small step forward is progress.",
+    "Quiet the mind and the soul will speak. Give yourself permission to pause and breathe.",
+    "Be proud of how hard you are trying. You are doing much better than you think.",
+    "Self-care is how you take your power back. Take a moment to ground yourself today.",
+    "Your presence in this world matters. Trust in your ability to grow through what you go through.",
+  ];
 
   final List<Color> _avatarColors = const [
     Color(0xFF00D2C8),
@@ -43,9 +57,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserEmail();
+    _fetchDailyQuote();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncProvider.notifier).syncPending();
     });
+  }
+
+  Future<void> _fetchDailyQuote() async {
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final quote = await dio.getDailyQuote();
+      if (!mounted) return;
+      setState(() {
+        _dailyQuote = quote;
+        _isLoadingQuote = false;
+      });
+    } catch (e) {
+      debugPrint('HomeScreen: Failed to fetch daily quote: $e');
+      if (!mounted) return;
+      
+      // Select a random quote from the fallback list of 7 wellness quotes
+      final random = math.Random();
+      final fallbackQuote = _fallbackQuotes[random.nextInt(_fallbackQuotes.length)];
+      setState(() {
+        _dailyQuote = fallbackQuote;
+        _isLoadingQuote = false;
+      });
+    }
   }
 
   Future<void> _loadUserEmail() async {
@@ -407,6 +445,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 // 4. StreakCard Widget
                 const StreakCard(),
+                const SizedBox(height: 20),
+
+                // QuoteCard Widget
+                QuoteCard(
+                  quote: _dailyQuote,
+                  isLoading: _isLoadingQuote,
+                ),
                 const SizedBox(height: 20),
 
                 // 5. Mini WaveSpark Widget (7-day fl_chart LineChart)

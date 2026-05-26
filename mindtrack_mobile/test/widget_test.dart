@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mindtrack_mobile/main.dart';
 import 'package:mindtrack_mobile/navigation/bottom_nav_bar.dart';
 import 'package:mindtrack_mobile/providers/mood_provider.dart';
+import 'package:mindtrack_mobile/services/dio_service.dart';
 
 class FakeTodayMoodNotifier extends TodayMoodNotifier {
   @override
@@ -25,6 +26,13 @@ class FakeMoodHistoryNotifier extends MoodHistoryNotifier {
       ];
 }
 
+class FakeDioService extends DioService {
+  @override
+  Future<String> getDailyQuote() async {
+    return 'Protect your emotional consistency spark.';
+  }
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
@@ -42,6 +50,7 @@ void main() {
         overrides: [
           todayMoodProvider.overrideWith(FakeTodayMoodNotifier.new),
           moodHistoryProvider.overrideWith(FakeMoodHistoryNotifier.new),
+          dioServiceProvider.overrideWith((ref) => FakeDioService()),
         ],
         child: const MindTrackApp(),
       ),

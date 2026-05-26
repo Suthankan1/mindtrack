@@ -37,6 +37,9 @@ public class AiInsightService {
     // Cache results by entryId (sentiment won't change for a saved note)
     private final Map<UUID, SentimentAnalysisResponse> sentimentCache = new ConcurrentHashMap<>();
 
+    // Cache the daily quote keyed by date string (caches for 24 hours/daily)
+    private final Map<String, String> dailyQuoteCache = new ConcurrentHashMap<>();
+
     public AiInsightService(
             UserRepository userRepository,
             MoodPatternService moodPatternService,
@@ -779,6 +782,34 @@ public class AiInsightService {
         } catch (Exception e) {
             log.error("Failed to generate and parse Gemini mood reflection: {}", e.getMessage());
             return getFallbackReflection(score, showCrisisResources);
+        }
+    }
+
+    /**
+     * Generates a short, uplifting mental wellness quote cached by date string.
+     *
+     * @return the generated quote
+     */
+    public String getDailyQuote() {
+        String dateKey = java.time.LocalDate.now().toString();
+        if (dailyQuoteCache.containsKey(dateKey)) {
+            return dailyQuoteCache.get(dateKey);
+        }
+
+        String prompt = "Generate one short (max 20 words), uplifting mental wellness quote for today. Return ONLY the quote text, no attribution, no quotes. Make it unique each call.";
+        try {
+            String rawResponse = geminiService.generateInsight(prompt);
+            if (rawResponse == null || rawResponse.trim().isEmpty() ||
+                    rawResponse.contains("Unable to generate") ||
+                    rawResponse.contains("No insight generated")) {
+                throw new RuntimeException("Failed to generate daily quote from Gemini API");
+            }
+            String quote = rawResponse.trim().replaceAll("^\"|\"$", "");
+            dailyQuoteCache.put(dateKey, quote);
+            return quote;
+        } catch (Exception e) {
+            log.error("Failed to fetch daily quote from Gemini: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate daily quote", e);
         }
     }
 

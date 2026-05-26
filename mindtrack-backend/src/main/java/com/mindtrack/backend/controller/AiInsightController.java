@@ -231,4 +231,17 @@ public class AiInsightController {
         MoodReflectionResponse response = aiInsightService.getMoodReflection(request, user);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * GET /api/ai/daily-quote
+     *
+     * Returns today's mental wellness quote, cached for 24 hours.
+     *
+     * @return the quote text string
+     */
+    @GetMapping("/daily-quote")
+    public ResponseEntity<String> getDailyQuote() {
+        String quote = aiInsightService.getDailyQuote();
+        return ResponseEntity.ok(quote);
+    }
 }

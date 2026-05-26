@@ -310,4 +310,28 @@ class AiInsightServiceTest {
         assertThat(sentPrompt).contains("Had a lovely run with friends this morning");
         assertThat(sentPrompt).contains("Exercise");
     }
+
+    @Test
+    void getDailyQuote_success_callsGeminiAndCaches() {
+        when(geminiService.generateInsight(anyString())).thenReturn("  \"Uplifting wellness quote.\"  ");
+
+        String quote = aiInsightService.getDailyQuote();
+
+        assertThat(quote).isEqualTo("Uplifting wellness quote.");
+        verify(geminiService, times(1)).generateInsight(anyString());
+
+        // Subsequent call on the same day should hit cache and not call geminiService again
+        String cachedQuote = aiInsightService.getDailyQuote();
+        assertThat(cachedQuote).isEqualTo("Uplifting wellness quote.");
+        verify(geminiService, times(1)).generateInsight(anyString());
+    }
+
+    @Test
+    void getDailyQuote_apiFailure_throwsException() {
+        when(geminiService.generateInsight(anyString())).thenReturn("Unable to generate AI insight at this time.");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> aiInsightService.getDailyQuote())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to generate daily quote");
+    }
 }

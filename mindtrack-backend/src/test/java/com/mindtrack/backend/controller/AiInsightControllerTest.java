@@ -30,8 +30,10 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -277,5 +279,16 @@ public class AiInsightControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", is("Validation Failed")))
                 .andExpect(jsonPath("$.errors.moodScore", is("Mood score must be between 1 and 5")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getDailyQuote_success_returnsQuote() throws Exception {
+        org.mockito.Mockito.when(aiInsightService.getDailyQuote())
+                .thenReturn("Protect your emotional consistency spark.");
+
+        mockMvc.perform(get("/api/ai/daily-quote"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Protect your emotional consistency spark."));
     }
 }

@@ -578,6 +578,24 @@ class DioService {
     });
   }
 
+  /// Fetches the daily mental wellness quote (GET /api/ai/daily-quote).
+  Future<String> getDailyQuote() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.get('/api/ai/daily-quote');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data.toString();
+      }
+      throw Exception('Failed to load daily quote: status ${response.statusCode}');
+    });
+  }
+
   /// Fetches the wellness passport details.
   Future<Map<String, dynamic>> getWellnessPassport() async {
     if (_token == null) {

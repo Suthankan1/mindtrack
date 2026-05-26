@@ -69,12 +69,19 @@ export async function GET() {
         },
       });
       insight = response.data.insight;
-    } catch (backendError) {
-      console.error("Spring Boot backend failed on weekly AI insight fetch:", backendError);
-      return NextResponse.json(
-        { error: "Backend service unavailable. Please try again." },
-        { status: 503 }
-      );
+    } catch (backendError: unknown) {
+      const status = axios.isAxiosError(backendError) ? backendError.response?.status ?? 0 : 0;
+      const msg = axios.isAxiosError(backendError) ? backendError.response?.data : backendError;
+      console.error('[Insights] AI insight fetch failed:', {
+        status,
+        message: msg,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (status === 401) insight = "Session expired — please sign in again.";
+      else if (status === 429) insight = "AI insights are rate-limited right now. Try again in a few minutes.";
+      else if (status === 503) insight = "The AI engine is temporarily offline. Your mood data is safe.";
+      else insight = "Unable to reach the mental health companion. Please verify the AI cognitive engine is online.";
     }
 
     // 1. Process Mood Distribution this month (last 30 days)

@@ -56,56 +56,71 @@ public class GeminiService {
             return entry.value;
         }
 
-        try {
-            GeminiRequest.GenerationConfig generationConfig = null;
-            if (responseMimeType != null || temperature != null) {
-                generationConfig = GeminiRequest.GenerationConfig.builder()
-                        .responseMimeType(responseMimeType)
-                        .temperature(temperature)
+        int maxRetries = 2;
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                GeminiRequest.GenerationConfig generationConfig = null;
+                if (responseMimeType != null || temperature != null) {
+                    generationConfig = GeminiRequest.GenerationConfig.builder()
+                            .responseMimeType(responseMimeType)
+                            .temperature(temperature)
+                            .build();
+                }
+
+                GeminiRequest request = GeminiRequest.builder()
+                        .contents(List.of(
+                                GeminiRequest.Content.builder()
+                                        .parts(List.of(
+                                                GeminiRequest.Part.builder()
+                                                        .text(prompt)
+                                                        .build()
+                                        ))
+                                        .build()
+                        ))
+                        .generationConfig(generationConfig)
                         .build();
-            }
 
-            GeminiRequest request = GeminiRequest.builder()
-                    .contents(List.of(
-                            GeminiRequest.Content.builder()
-                                    .parts(List.of(
-                                            GeminiRequest.Part.builder()
-                                                    .text(prompt)
-                                                    .build()
-                                    ))
-                                    .build()
-                    ))
-                    .generationConfig(generationConfig)
-                    .build();
+                GeminiResponse response = webClient.post()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/v1beta/models/{model}:generateContent")
+                                .queryParam("key", apiKey)
+                                .build(model))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(request)
+                        .retrieve()
+                        .bodyToMono(GeminiResponse.class)
+                        .block();
 
-            GeminiResponse response = webClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/{model}:generateContent")
-                            .queryParam("key", apiKey)
-                            .build(model))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(GeminiResponse.class)
-                    .block();
-
-            if (response != null && response.getCandidates() != null && !response.getCandidates().isEmpty()) {
-                GeminiResponse.Candidate candidate = response.getCandidates().get(0);
-                if (candidate.getContent() != null && candidate.getContent().getParts() != null && !candidate.getContent().getParts().isEmpty()) {
-                    String text = candidate.getContent().getParts().get(0).getText();
-                    if (text != null) {
-                        cache.put(key, new CacheEntry(text, CACHE_TTL_MS));
-                        return text;
+                if (response != null && response.getCandidates() != null && !response.getCandidates().isEmpty()) {
+                    GeminiResponse.Candidate candidate = response.getCandidates().get(0);
+                    if (candidate.getContent() != null && candidate.getContent().getParts() != null && !candidate.getContent().getParts().isEmpty()) {
+                        String text = candidate.getContent().getParts().get(0).getText();
+                        if (text != null) {
+                            cache.put(key, new CacheEntry(text, CACHE_TTL_MS));
+                            return text;
+                        }
                     }
                 }
+
+                return "No insight generated. Please check back later.";
+            } catch (Exception e) {
+                if (attempt == maxRetries) {
+                    log.error("Gemini API failed after {} retries: {}", maxRetries + 1, e.getMessage());
+                    return "Unable to generate AI insight at this time.";
+                }
+
+                log.warn("Gemini API attempt {} failed, retrying...", attempt + 1);
+                try {
+                    Thread.sleep(1000L * (attempt + 1));
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    log.error("Gemini API retry interrupted: {}", interruptedException.getMessage());
+                    return "Unable to generate AI insight at this time.";
+                }
             }
-
-            return "No insight generated. Please check back later.";
-
-        } catch (Exception e) {
-            log.error("Gemini API call failed: {}", e.getMessage());
-            return "Unable to generate AI mental health insight at this time. Please continue tracking your mood to help identify patterns.";
         }
+
+        return "Unable to generate AI insight at this time.";
     }
 
     /**

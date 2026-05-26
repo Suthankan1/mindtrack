@@ -15,4 +15,7 @@ public class UserPreferenceDto {
     private String reminderTime;
     private String defaultCopingTechnique;
     private String privacyMode;
+    private boolean aiJournalAnalysisEnabled;
+    private boolean aiChatHistoryEnabled;
+    private boolean shareNotesWithAi;
 }

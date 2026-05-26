@@ -39,4 +39,13 @@ public class UserPreference {
 
     @Column(name = "privacy_mode", nullable = false)
     private String privacyMode;
+
+    @Column(name = "ai_journal_analysis_enabled", nullable = false)
+    private boolean aiJournalAnalysisEnabled;
+
+    @Column(name = "ai_chat_history_enabled", nullable = false)
+    private boolean aiChatHistoryEnabled;
+
+    @Column(name = "share_notes_with_ai", nullable = false)
+    private boolean shareNotesWithAi;
 }

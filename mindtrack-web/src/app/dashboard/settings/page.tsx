@@ -19,7 +19,11 @@ import {
   Check,
   RefreshCw,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Brain,
+  Cpu,
+  History,
+  EyeOff
 } from "lucide-react";
 
 // Robust inline custom SVG GithubIcon to prevent version mismatches in Lucide imports
@@ -67,6 +71,9 @@ export default function SettingsPage() {
   const [reminderTime, setReminderTime] = useState("20:00");
   const [defaultCopingTechnique, setDefaultCopingTechnique] = useState("Breathing");
   const [privacyMode, setPrivacyMode] = useState("standard");
+  const [aiJournalAnalysisEnabled, setAiJournalAnalysisEnabled] = useState(false);
+  const [aiChatHistoryEnabled, setAiChatHistoryEnabled] = useState(false);
+  const [shareNotesWithAi, setShareNotesWithAi] = useState(false);
   const [entriesPerPage, setEntriesPerPage] = useState(10); // Local-only
 
   // Danger Zone - Clear Data Dialog State
@@ -98,6 +105,9 @@ export default function SettingsPage() {
           setReminderTime(prefs.reminderTime || "20:00");
           setDefaultCopingTechnique(prefs.defaultCopingTechnique || "Breathing");
           setPrivacyMode(prefs.privacyMode || "standard");
+          setAiJournalAnalysisEnabled(prefs.aiJournalAnalysisEnabled ?? false);
+          setAiChatHistoryEnabled(prefs.aiChatHistoryEnabled ?? false);
+          setShareNotesWithAi(prefs.shareNotesWithAi ?? false);
         }
       } catch (err: unknown) {
         console.error("Failed to load preferences:", err);
@@ -124,6 +134,9 @@ export default function SettingsPage() {
     reminderTime?: string;
     defaultCopingTechnique?: string;
     privacyMode?: string;
+    aiJournalAnalysisEnabled?: boolean;
+    aiChatHistoryEnabled?: boolean;
+    shareNotesWithAi?: boolean;
   }) => {
     // Save previous state for reverting on error
     const prevTheme = themeMode;
@@ -131,6 +144,9 @@ export default function SettingsPage() {
     const prevTime = reminderTime;
     const prevCoping = defaultCopingTechnique;
     const prevPrivacy = privacyMode;
+    const prevAiJournal = aiJournalAnalysisEnabled;
+    const prevAiChat = aiChatHistoryEnabled;
+    const prevShareNotes = shareNotesWithAi;
 
     // Optimistically apply state
     if (updatedFields.themeMode !== undefined) setThemeMode(updatedFields.themeMode);
@@ -138,6 +154,9 @@ export default function SettingsPage() {
     if (updatedFields.reminderTime !== undefined) setReminderTime(updatedFields.reminderTime);
     if (updatedFields.defaultCopingTechnique !== undefined) setDefaultCopingTechnique(updatedFields.defaultCopingTechnique);
     if (updatedFields.privacyMode !== undefined) setPrivacyMode(updatedFields.privacyMode);
+    if (updatedFields.aiJournalAnalysisEnabled !== undefined) setAiJournalAnalysisEnabled(updatedFields.aiJournalAnalysisEnabled);
+    if (updatedFields.aiChatHistoryEnabled !== undefined) setAiChatHistoryEnabled(updatedFields.aiChatHistoryEnabled);
+    if (updatedFields.shareNotesWithAi !== undefined) setShareNotesWithAi(updatedFields.shareNotesWithAi);
 
     try {
       const payload = {
@@ -146,6 +165,9 @@ export default function SettingsPage() {
         reminderTime: updatedFields.reminderTime !== undefined ? updatedFields.reminderTime : prevTime,
         defaultCopingTechnique: updatedFields.defaultCopingTechnique !== undefined ? updatedFields.defaultCopingTechnique : prevCoping,
         privacyMode: updatedFields.privacyMode !== undefined ? updatedFields.privacyMode : prevPrivacy,
+        aiJournalAnalysisEnabled: updatedFields.aiJournalAnalysisEnabled !== undefined ? updatedFields.aiJournalAnalysisEnabled : prevAiJournal,
+        aiChatHistoryEnabled: updatedFields.aiChatHistoryEnabled !== undefined ? updatedFields.aiChatHistoryEnabled : prevAiChat,
+        shareNotesWithAi: updatedFields.shareNotesWithAi !== undefined ? updatedFields.shareNotesWithAi : prevShareNotes,
       };
 
       await axios.put("/api/user/preferences", payload, {
@@ -161,6 +183,9 @@ export default function SettingsPage() {
       setReminderTime(prevTime);
       setDefaultCopingTechnique(prevCoping);
       setPrivacyMode(prevPrivacy);
+      setAiJournalAnalysisEnabled(prevAiJournal);
+      setAiChatHistoryEnabled(prevAiChat);
+      setShareNotesWithAi(prevShareNotes);
 
       showToast("Failed to save preference. Reverting change.", "error");
     }
@@ -756,6 +781,96 @@ export default function SettingsPage() {
                 <option value="strict" className="bg-[#12122A]">Strict Isolation</option>
                 <option value="anonymous" className="bg-[#12122A]">Complete Anonymity</option>
               </select>
+            </div>
+
+            {/* AI Privacy Controls */}
+            <div className="space-y-4 pt-4 border-t border-white/[0.04]">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                  <Brain className="w-3.5 h-3.5 text-accent-teal" />
+                  AI Privacy & Telemetry Policies
+                </span>
+                <span className="text-[10px] text-muted block leading-tight">
+                  Opt-in to automated features. All text transmission to Gemini uses TLS encryption.
+                </span>
+              </div>
+
+              <div className="space-y-4 mt-3">
+                {/* Journal Tone & Sentiment Analysis */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 pr-4">
+                    <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5 text-accent-teal" />
+                      AI Journal Analysis
+                    </span>
+                    <span className="text-[10px] text-muted block leading-tight">
+                      Analyze entries locally to detect emotional tone and mental health themes.
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => updatePreferenceOnBackend({ aiJournalAnalysisEnabled: !aiJournalAnalysisEnabled })}
+                    className={`w-12 h-6.5 rounded-full p-1 transition-all duration-300 shrink-0 ${
+                      aiJournalAnalysisEnabled ? "bg-accent-teal shadow-[0_0_12px_rgba(0,210,200,0.3)]" : "bg-[#0A0A14] border border-white/5"
+                    }`}
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full transition-all duration-300 ${
+                        aiJournalAnalysisEnabled ? "bg-background translate-x-5.5" : "bg-muted translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* AI Chat History */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 pr-4">
+                    <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-accent-teal" />
+                      Empathetic AI Chat History
+                    </span>
+                    <span className="text-[10px] text-muted block leading-tight">
+                      Allow MindChat to save active context history to ensure multi-turn conversation flows.
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => updatePreferenceOnBackend({ aiChatHistoryEnabled: !aiChatHistoryEnabled })}
+                    className={`w-12 h-6.5 rounded-full p-1 transition-all duration-300 shrink-0 ${
+                      aiChatHistoryEnabled ? "bg-accent-teal shadow-[0_0_12px_rgba(0,210,200,0.3)]" : "bg-[#0A0A14] border border-white/5"
+                    }`}
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full transition-all duration-300 ${
+                        aiChatHistoryEnabled ? "bg-background translate-x-5.5" : "bg-muted translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Share Notes with AI */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 pr-4">
+                    <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                      <EyeOff className="w-3.5 h-3.5 text-accent-teal" />
+                      Transmit Note Contents to AI
+                    </span>
+                    <span className="text-[10px] text-muted block leading-tight">
+                      Share journal note bodies to generate customized, high-precision mood reflections.
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => updatePreferenceOnBackend({ shareNotesWithAi: !shareNotesWithAi })}
+                    className={`w-12 h-6.5 rounded-full p-1 transition-all duration-300 shrink-0 ${
+                      shareNotesWithAi ? "bg-accent-teal shadow-[0_0_12px_rgba(0,210,200,0.3)]" : "bg-[#0A0A14] border border-white/5"
+                    }`}
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full transition-all duration-300 ${
+                        shareNotesWithAi ? "bg-background translate-x-5.5" : "bg-muted translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Entries Per Page Segmented Selector */}

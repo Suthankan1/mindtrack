@@ -174,13 +174,14 @@ public class AiInsightController {
             Authentication authentication) {
 
         // Validate user authentication
+        User user = null;
         if (authentication != null) {
             String email = authentication.getName();
-            userRepository.findByEmail(email)
+            user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         }
 
-        ChatResponse response = aiInsightService.chatWithAi(request);
+        ChatResponse response = aiInsightService.chatWithAi(request, user);
         return ResponseEntity.ok(response);
     }
 

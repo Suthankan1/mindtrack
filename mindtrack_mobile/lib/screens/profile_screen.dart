@@ -30,6 +30,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _email = 'practitioner@mindtrack.com';
   String _joinDateStr = 'Joined May 2026';
   bool _notificationsEnabled = true;
+  bool _aiJournalAnalysisEnabled = false;
+  bool _aiChatHistoryEnabled = false;
+  bool _shareNotesWithAi = false;
 
   bool _isLoadingStats = true;
   bool _isExporting = false;
@@ -81,13 +84,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final prefsData = await dio.getUserPreferences();
       final reminderEnabled = prefsData['reminderEnabled'] ?? true;
       final themeMode = prefsData['themeMode'] ?? 'dark';
+      final aiJournalAnalysisEnabled = prefsData['aiJournalAnalysisEnabled'] ?? false;
+      final aiChatHistoryEnabled = prefsData['aiChatHistoryEnabled'] ?? false;
+      final shareNotesWithAi = prefsData['shareNotesWithAi'] ?? false;
 
       await prefs.setBool('notifications_enabled', reminderEnabled);
       await prefs.setBool('theme_light_mode', themeMode == 'light');
+      await prefs.setBool('ai_journal_analysis_enabled', aiJournalAnalysisEnabled);
+      await prefs.setBool('ai_chat_history_enabled', aiChatHistoryEnabled);
+      await prefs.setBool('share_notes_with_ai', shareNotesWithAi);
 
       if (mounted) {
         setState(() {
           _notificationsEnabled = reminderEnabled;
+          _aiJournalAnalysisEnabled = aiJournalAnalysisEnabled;
+          _aiChatHistoryEnabled = aiChatHistoryEnabled;
+          _shareNotesWithAi = shareNotesWithAi;
         });
         await ref.read(themeProvider.notifier).setThemeMode(themeMode);
       }
@@ -188,6 +200,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             prefs.getString('user_display_name') ?? 'Cosmic Practitioner';
         _email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
         _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+        _aiJournalAnalysisEnabled = prefs.getBool('ai_journal_analysis_enabled') ?? false;
+        _aiChatHistoryEnabled = prefs.getBool('ai_chat_history_enabled') ?? false;
+        _shareNotesWithAi = prefs.getBool('share_notes_with_ai') ?? false;
 
         final rawJoinDate = prefs.getString('user_join_date');
         if (rawJoinDate != null) {
@@ -242,18 +257,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
 
       // Sync notification toggle with backend
-      final token = prefs.getString('auth_jwt_token');
-      if (token != null && token != 'fake_token') {
-        final isLight = prefs.getBool('theme_light_mode') ?? false;
-        final dio = ref.read(dioServiceProvider);
-        await dio.updateUserPreferences({
-          'themeMode': isLight ? 'light' : 'dark',
-          'reminderEnabled': val,
-          'reminderTime': '20:00',
-          'defaultCopingTechnique': 'Breathing',
-          'privacyMode': 'standard',
-        });
-      }
+      await _syncAllPreferencesToBackend();
 
       // FCM Subscription logic simulation
       if (val) {
@@ -279,6 +283,92 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } catch (e) {
       debugPrint('ProfileScreen: Error toggling notifications: $e');
+    }
+  }
+
+  Future<void> _toggleAiJournalAnalysis(bool val) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('ai_journal_analysis_enabled', val);
+      setState(() {
+        _aiJournalAnalysisEnabled = val;
+      });
+      await _syncAllPreferencesToBackend();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildCustomSnackBar(
+            message: val ? 'AI Journal Analysis Enabled' : 'AI Journal Analysis Disabled',
+            isSuccess: val,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error toggling AI Journal Analysis: $e');
+    }
+  }
+
+  Future<void> _toggleAiChatHistory(bool val) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('ai_chat_history_enabled', val);
+      setState(() {
+        _aiChatHistoryEnabled = val;
+      });
+      await _syncAllPreferencesToBackend();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildCustomSnackBar(
+            message: val ? 'AI Chat History Enabled' : 'AI Chat History Disabled',
+            isSuccess: val,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error toggling AI Chat History: $e');
+    }
+  }
+
+  Future<void> _toggleShareNotesWithAi(bool val) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('share_notes_with_ai', val);
+      setState(() {
+        _shareNotesWithAi = val;
+      });
+      await _syncAllPreferencesToBackend();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildCustomSnackBar(
+            message: val ? 'Share Notes with AI Enabled' : 'Share Notes with AI Disabled',
+            isSuccess: val,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error toggling Share Notes: $e');
+    }
+  }
+
+  Future<void> _syncAllPreferencesToBackend() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_jwt_token');
+      if (token != null && token != 'fake_token') {
+        final isLight = prefs.getBool('theme_light_mode') ?? false;
+        final dio = ref.read(dioServiceProvider);
+        await dio.updateUserPreferences({
+          'themeMode': isLight ? 'light' : 'dark',
+          'reminderEnabled': _notificationsEnabled,
+          'reminderTime': '20:00',
+          'defaultCopingTechnique': 'Breathing',
+          'privacyMode': 'standard',
+          'aiJournalAnalysisEnabled': _aiJournalAnalysisEnabled,
+          'aiChatHistoryEnabled': _aiChatHistoryEnabled,
+          'shareNotesWithAi': _shareNotesWithAi,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error syncing preferences to backend: $e');
     }
   }
 
@@ -601,6 +691,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       trailing: Switch(
                         value: _notificationsEnabled,
                         onChanged: _toggleNotifications,
+                        activeColor: const Color(0xFF00D2C8),
+                      ),
+                    ),
+
+                    // AI Privacy Controls
+                    _buildSettingItem(
+                      icon: Icons.psychology_outlined,
+                      title: 'AI Journal Analysis',
+                      subtitle: 'Locally extract journal sentiment and themes',
+                      trailing: Switch(
+                        value: _aiJournalAnalysisEnabled,
+                        onChanged: _toggleAiJournalAnalysis,
+                        activeColor: const Color(0xFF00D2C8),
+                      ),
+                    ),
+
+                    _buildSettingItem(
+                      icon: Icons.history_edu_outlined,
+                      title: 'AI Chat History',
+                      subtitle: 'Allows MindChat to remember recent turns',
+                      trailing: Switch(
+                        value: _aiChatHistoryEnabled,
+                        onChanged: _toggleAiChatHistory,
+                        activeColor: const Color(0xFF00D2C8),
+                      ),
+                    ),
+
+                    _buildSettingItem(
+                      icon: Icons.share_outlined,
+                      title: 'Share Notes with AI',
+                      subtitle: 'Sends journal bodies to generate reflections',
+                      trailing: Switch(
+                        value: _shareNotesWithAi,
+                        onChanged: _toggleShareNotesWithAi,
                         activeColor: const Color(0xFF00D2C8),
                       ),
                     ),

@@ -153,7 +153,10 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.reminderEnabled", is(true)))
                 .andExpect(jsonPath("$.reminderTime", is("20:00")))
                 .andExpect(jsonPath("$.defaultCopingTechnique", is("Breathing")))
-                .andExpect(jsonPath("$.privacyMode", is("standard")));
+                .andExpect(jsonPath("$.privacyMode", is("standard")))
+                .andExpect(jsonPath("$.aiJournalAnalysisEnabled", is(false)))
+                .andExpect(jsonPath("$.aiChatHistoryEnabled", is(false)))
+                .andExpect(jsonPath("$.shareNotesWithAi", is(false)));
     }
 
     @Test
@@ -165,6 +168,9 @@ public class UserControllerTest {
                 .reminderTime("08:00")
                 .defaultCopingTechnique("Meditation")
                 .privacyMode("strict")
+                .aiJournalAnalysisEnabled(true)
+                .aiChatHistoryEnabled(true)
+                .shareNotesWithAi(true)
                 .build();
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
@@ -175,7 +181,10 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.reminderEnabled", is(false)))
                 .andExpect(jsonPath("$.reminderTime", is("08:00")))
                 .andExpect(jsonPath("$.defaultCopingTechnique", is("Meditation")))
-                .andExpect(jsonPath("$.privacyMode", is("strict")));
+                .andExpect(jsonPath("$.privacyMode", is("strict")))
+                .andExpect(jsonPath("$.aiJournalAnalysisEnabled", is(true)))
+                .andExpect(jsonPath("$.aiChatHistoryEnabled", is(true)))
+                .andExpect(jsonPath("$.shareNotesWithAi", is(true)));
     }
 
     @Test

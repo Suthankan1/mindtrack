@@ -81,6 +81,9 @@ class FakeDioService extends DioService {
       'reminderTime': '20:00',
       'defaultCopingTechnique': 'Breathing',
       'privacyMode': 'standard',
+      'aiJournalAnalysisEnabled': false,
+      'aiChatHistoryEnabled': false,
+      'shareNotesWithAi': false,
     };
   }
 

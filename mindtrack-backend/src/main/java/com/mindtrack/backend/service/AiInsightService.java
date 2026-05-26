@@ -6,8 +6,10 @@ import com.mindtrack.backend.dto.*;
 import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.model.StressPattern;
 import com.mindtrack.backend.model.User;
+import com.mindtrack.backend.model.UserPreference;
 import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
+import com.mindtrack.backend.repository.UserPreferenceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ public class AiInsightService {
     private final ObjectMapper objectMapper;
     private final JsonExtractionService jsonExtractionService;
     private final MentalHealthSafetyService mentalHealthSafetyService;
+    private final UserPreferenceRepository userPreferenceRepository;
 
     // Cache results by entryId (sentiment won't change for a saved note)
     private final Map<UUID, SentimentAnalysisResponse> sentimentCache = new ConcurrentHashMap<>();
@@ -41,7 +44,8 @@ public class AiInsightService {
             GeminiService geminiService,
             ObjectMapper objectMapper,
             JsonExtractionService jsonExtractionService,
-            MentalHealthSafetyService mentalHealthSafetyService) {
+            MentalHealthSafetyService mentalHealthSafetyService,
+            UserPreferenceRepository userPreferenceRepository) {
         this.userRepository = userRepository;
         this.moodPatternService = moodPatternService;
         this.moodEntryRepository = moodEntryRepository;
@@ -49,6 +53,7 @@ public class AiInsightService {
         this.objectMapper = objectMapper;
         this.jsonExtractionService = jsonExtractionService;
         this.mentalHealthSafetyService = mentalHealthSafetyService;
+        this.userPreferenceRepository = userPreferenceRepository;
     }
 
     /**
@@ -261,6 +266,29 @@ public class AiInsightService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: this entry does not belong to you.");
         }
 
+        UserPreference pref = userPreferenceRepository.findByUser(user)
+                .orElseGet(() -> UserPreference.builder()
+                        .themeMode("dark")
+                        .reminderEnabled(true)
+                        .reminderTime("20:00")
+                        .defaultCopingTechnique("Breathing")
+                        .privacyMode("standard")
+                        .aiJournalAnalysisEnabled(false)
+                        .aiChatHistoryEnabled(false)
+                        .shareNotesWithAi(false)
+                        .build());
+
+        if (!pref.isAiJournalAnalysisEnabled() || !pref.isShareNotesWithAi()) {
+            return SentimentAnalysisResponse.builder()
+                    .sentiment("neutral")
+                    .emotionalTone("uncertain")
+                    .themes(Collections.emptyList())
+                    .confidence(0.0)
+                    .supportMessage("AI journal analysis is disabled in your privacy settings.")
+                    .aiAvailable(false)
+                    .build();
+        }
+
         // Return cached result if available
         if (sentimentCache.containsKey(entryId)) {
             return sentimentCache.get(entryId);
@@ -404,7 +432,7 @@ public class AiInsightService {
     /**
      * MindChat endpoint for multi-turn empathetic AI conversation with mood context.
      */
-    public ChatResponse chatWithAi(ChatRequest request) {
+    public ChatResponse chatWithAi(ChatRequest request, User user) {
         // Check for safety / high-risk words
         if (mentalHealthSafetyService.isHighRisk(request.getMessage())) {
             log.warn("High-risk safety keyword detected in user chat message. Intercepting and returning crisis resources.");
@@ -416,6 +444,32 @@ public class AiInsightService {
                     .aiAvailable(true)
                     .build();
         }
+
+        UserPreference pref = null;
+        if (user != null) {
+            pref = userPreferenceRepository.findByUser(user)
+                    .orElseGet(() -> UserPreference.builder()
+                            .themeMode("dark")
+                            .reminderEnabled(true)
+                            .reminderTime("20:00")
+                            .defaultCopingTechnique("Breathing")
+                            .privacyMode("standard")
+                            .aiJournalAnalysisEnabled(false)
+                            .aiChatHistoryEnabled(false)
+                            .shareNotesWithAi(false)
+                            .build());
+        }
+
+        final UserPreference finalPref = pref != null ? pref : UserPreference.builder()
+                .themeMode("dark")
+                .reminderEnabled(true)
+                .reminderTime("20:00")
+                .defaultCopingTechnique("Breathing")
+                .privacyMode("standard")
+                .aiJournalAnalysisEnabled(false)
+                .aiChatHistoryEnabled(false)
+                .shareNotesWithAi(false)
+                .build();
 
         // 1. Build mood context string for the system prompt
         int score = 3;
@@ -442,7 +496,7 @@ public class AiInsightService {
         List<com.mindtrack.backend.dto.GeminiRequest.Content> contents = new ArrayList<>();
 
         // Add history
-        if (request.getConversationHistory() != null) {
+        if (finalPref.isAiChatHistoryEnabled() && request.getConversationHistory() != null) {
             for (ChatMessageDto msg : request.getConversationHistory()) {
                 String role = msg.getRole();
                 // Ensure standard role matching for Gemini ("user" or "model")
@@ -618,6 +672,22 @@ public class AiInsightService {
         }
         String note = request.getNote();
         if (note == null) {
+            note = "";
+        }
+
+        UserPreference pref = userPreferenceRepository.findByUser(user)
+                .orElseGet(() -> UserPreference.builder()
+                        .themeMode("dark")
+                        .reminderEnabled(true)
+                        .reminderTime("20:00")
+                        .defaultCopingTechnique("Breathing")
+                        .privacyMode("standard")
+                        .aiJournalAnalysisEnabled(false)
+                        .aiChatHistoryEnabled(false)
+                        .shareNotesWithAi(false)
+                        .build());
+
+        if (!pref.isAiJournalAnalysisEnabled() || !pref.isShareNotesWithAi()) {
             note = "";
         }
 

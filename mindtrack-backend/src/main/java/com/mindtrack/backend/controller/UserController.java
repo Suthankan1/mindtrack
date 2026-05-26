@@ -250,6 +250,9 @@ public class UserController {
                             .reminderTime("20:00")
                             .defaultCopingTechnique("Breathing")
                             .privacyMode("standard")
+                            .aiJournalAnalysisEnabled(false)
+                            .aiChatHistoryEnabled(false)
+                            .shareNotesWithAi(false)
                             .build();
                     return userPreferenceRepository.save(defaultPreference);
                 });
@@ -280,6 +283,9 @@ public class UserController {
         preference.setReminderTime(dto.getReminderTime());
         preference.setDefaultCopingTechnique(dto.getDefaultCopingTechnique());
         preference.setPrivacyMode(dto.getPrivacyMode());
+        preference.setAiJournalAnalysisEnabled(dto.isAiJournalAnalysisEnabled());
+        preference.setAiChatHistoryEnabled(dto.isAiChatHistoryEnabled());
+        preference.setShareNotesWithAi(dto.isShareNotesWithAi());
 
         UserPreference saved = userPreferenceRepository.save(preference);
         return ResponseEntity.ok(convertToDto(saved));
@@ -292,6 +298,9 @@ public class UserController {
                 .reminderTime(preference.getReminderTime())
                 .defaultCopingTechnique(preference.getDefaultCopingTechnique())
                 .privacyMode(preference.getPrivacyMode())
+                .aiJournalAnalysisEnabled(preference.isAiJournalAnalysisEnabled())
+                .aiChatHistoryEnabled(preference.isAiChatHistoryEnabled())
+                .shareNotesWithAi(preference.isShareNotesWithAi())
                 .build();
     }
 }

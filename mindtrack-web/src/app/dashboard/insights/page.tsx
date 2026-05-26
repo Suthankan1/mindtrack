@@ -191,6 +191,8 @@ export default function InsightsPage() {
   const [isPassportLoading, setIsPassportLoading] = useState(false);
   const [isPassportModalOpen, setIsPassportModalOpen] = useState(false);
 
+  const [displayedInsight, setDisplayedInsight] = useState("");
+
   // Defers chart rendering until after the first paint so Recharts can
   // measure real DOM dimensions instead of -1×-1 from Framer Motion's
   // initial hidden/y:20 state.
@@ -202,6 +204,31 @@ export default function InsightsPage() {
     const raf = requestAnimationFrame(() => setChartsReady(true));
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  useEffect(() => {
+    const isVisualLoading = status === "loading" || !mounted || isLoading;
+    if (isVisualLoading || !insights?.insight || insights.insight === "AI_UNAVAILABLE" || insights.insight.includes("Welcome to MindTrack!")) {
+      setDisplayedInsight("");
+      return;
+    }
+
+    const text = insights.insight;
+    setDisplayedInsight("");
+    let currentText = "";
+    let index = 0;
+
+    const interval = setInterval(() => {
+      if (index < text.length) {
+        currentText += text.charAt(index);
+        setDisplayedInsight(currentText);
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [insights?.insight, status, mounted, isLoading]);
 
   const fetchInsights = useCallback(async () => {
     if (!session?.user?.accessToken) return;
@@ -488,10 +515,9 @@ export default function InsightsPage() {
       {isVisualLoading ? (
         /* Shimmer Loading Skeleton matching the exact page layout */
         <div className="space-y-6 animate-pulse">
-          {/* Top row: Insights & Radar */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* AI Insight Card Skeleton */}
-            <div className="lg:col-span-2 p-8 rounded-3xl bg-[#12122A]/70 border border-white/[0.03] flex flex-col justify-between h-56 space-y-4">
+          {/* Top row: Hero AI Insight Skeleton (Full Width) */}
+          <div className="p-8 rounded-3xl bg-[#12122A]/70 border border-white/[0.03] flex flex-col justify-between min-h-[200px] space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 shimmer-pulse" />
                 <div className="space-y-2">
@@ -499,23 +525,25 @@ export default function InsightsPage() {
                   <div className="h-3.5 w-24 bg-white/5 rounded shimmer-pulse" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="h-3 w-full bg-white/5 rounded shimmer-pulse" />
-                <div className="h-3 w-5/6 bg-white/5 rounded shimmer-pulse" />
-              </div>
+              <div className="h-6 w-36 bg-white/5 rounded-full shimmer-pulse shrink-0" />
             </div>
+            <div className="space-y-2">
+              <div className="h-3 w-full bg-white/5 rounded shimmer-pulse" />
+              <div className="h-3 w-5/6 bg-white/5 rounded shimmer-pulse" />
+            </div>
+          </div>
+
+          {/* Bottom row: Radar, Pie, and Bar Skeletons in a 3-column grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Burnout Radar Skeleton */}
-            <div className="p-8 rounded-3xl bg-[#12122A]/70 border border-white/[0.03] flex flex-col justify-between h-56 space-y-4">
+            <div className="p-8 rounded-3xl bg-[#12122A]/70 border border-white/[0.03] flex flex-col justify-between h-96 space-y-4">
               <div className="flex justify-between items-center">
                 <div className="h-4 w-32 bg-white/5 rounded shimmer-pulse" />
                 <div className="h-4.5 w-16 bg-white/5 rounded shimmer-pulse" />
               </div>
+              <div className="w-28 h-28 rounded-full border-4 border-white/5 mx-auto shimmer-pulse" />
               <div className="h-16 w-full bg-white/5 rounded-2xl shimmer-pulse" />
             </div>
-          </div>
-
-          {/* Bottom row: Pie & Bar Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Pie Chart Card Skeleton */}
             <div className="p-6 rounded-3xl bg-[#12122A] border border-white/[0.03] h-96 flex flex-col justify-between">
               <div className="space-y-2">
@@ -544,167 +572,231 @@ export default function InsightsPage() {
             animate="show"
             className="space-y-6"
           >
-            {/* 2. Insight & Anomaly Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* Left 2 columns: AI Insight Card */}
-              <motion.div
-                variants={itemVariants}
-                className="lg:col-span-2 relative overflow-hidden p-8 rounded-3xl bg-[#12122A]/70 border-l-4 border-accent-teal glass-card shadow-glow shadow-accent-teal/5 group transition-all duration-300 flex flex-col justify-between"
-              >
-                {/* Decorative background grid glows */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-accent-teal/10 to-transparent blur-3xl rounded-full opacity-70 pointer-events-none" />
-                
-                {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
-                  /* Locked State for insufficient insights */
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
-                      <span className="px-2 py-0.5 rounded-md bg-accent-teal/5 border border-accent-teal/20 text-accent-teal text-[8px] font-bold uppercase tracking-wider">
-                        Awaiting Calibration
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                      <div className="space-y-3">
-                        <p className="text-xs text-muted leading-relaxed">
-                          Our deep neural model requires at least <strong>3 daily mood logs</strong> to calculate stability thresholds and render personalized recommendations.
-                        </p>
-                        <a
-                          href="/dashboard"
-                          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-teal text-background font-bold text-[10px] uppercase tracking-wider active:scale-95 transition-all shadow-glow hover:opacity-90"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Log Mood Vibe ({insights.totalEntries}/3)
-                        </a>
+            {/* Inline styles for pulsing teal border */}
+            <style dangerouslySetInnerHTML={{ __html: `
+              @keyframes border-pulse-teal {
+                0%, 100% {
+                  border-color: rgba(0, 210, 200, 0.4);
+                  box-shadow: 0 0 15px rgba(0, 210, 200, 0.1), inset 0 0 8px rgba(0, 210, 200, 0.05);
+                }
+                50% {
+                  border-color: rgba(0, 210, 200, 1);
+                  box-shadow: 0 0 30px rgba(0, 210, 200, 0.45), inset 0 0 15px rgba(0, 210, 200, 0.2);
+                }
+              }
+              .pulsing-teal-border {
+                border: 2px solid rgba(0, 210, 200, 0.4);
+                animation: border-pulse-teal 3.5s ease-in-out infinite;
+              }
+            `}} />
+
+            {/* AI Insight Hero Card (Top of Body) */}
+            <motion.div
+              variants={itemVariants}
+              className="w-full relative overflow-hidden p-8 rounded-3xl bg-[#12122A]/70 glass-card pulsing-teal-border shadow-glow shadow-accent-teal/5 group transition-all duration-300 flex flex-col justify-between"
+            >
+              {/* Decorative background grid glows */}
+              <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-accent-teal/15 to-transparent blur-3xl rounded-full opacity-70 pointer-events-none" />
+
+              {(() => {
+                const isWelcomeDefault = !insights.insight || insights.insight.includes("Welcome to MindTrack!") || (insights.totalEntries !== undefined && insights.totalEntries < 3);
+
+                if (isWelcomeDefault) {
+                  return (
+                    /* Styled Empty State for Welcome/Insufficient data */
+                    <div className="space-y-6 relative z-10">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal shrink-0">
+                            <Sparkles className="w-6 h-6 animate-pulse" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
+                            <p className="text-[10px] text-muted">Personalized neural reflections & clarity patterns</p>
+                          </div>
+                        </div>
+                        
+                        {/* Powered by Gemini chip */}
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#1C1C3A]/80 border border-white/10 text-[10px] font-semibold text-gray-200 shadow-sm shrink-0 self-start md:self-auto">
+                          <div className="flex gap-1 mr-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#4285F4]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#EA4335]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#FBBC05]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#34A853]" />
+                          </div>
+                          Powered by Gemini 2.5 Flash
+                        </span>
                       </div>
 
-                      {/* Steps checklist */}
-                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-2.5">
-                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-accent-teal">Insight Checklist</h4>
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${insights.totalEntries >= 1 ? "bg-accent-teal/10 border-accent-teal text-accent-teal" : "border-white/20"}`}>
-                              {insights.totalEntries >= 1 && "✓"}
-                            </div>
-                            <span className={insights.totalEntries >= 1 ? "line-through text-muted" : ""}>First check-in</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        <div className="space-y-4">
+                          <h4 className="text-md font-semibold text-white">Welcome to MindTrack!</h4>
+                          <p className="text-xs text-muted leading-relaxed">
+                            Our deep neural model requires at least <strong>3 daily mood logs</strong> to calculate stability thresholds, render personalized recommendations, and detect circadian alignment.
+                          </p>
+                          <div className="pt-2">
+                            <a
+                              href="/dashboard"
+                              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider active:scale-95 transition-all shadow-glow hover:opacity-90"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              Log Mood Vibe ({insights.totalEntries || 0}/3)
+                            </a>
                           </div>
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${insights.totalEntries >= 2 ? "bg-accent-teal/10 border-accent-teal text-accent-teal" : "border-white/20"}`}>
-                              {insights.totalEntries >= 2 && "✓"}
+                        </div>
+
+                        {/* Steps checklist */}
+                        <div className="p-5 rounded-2xl bg-[#0A0A14]/60 border border-white/[0.04] space-y-3.5">
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-accent-teal">Insight Calibration Checklist</h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex items-center gap-2.5 text-gray-300">
+                              <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 text-xs transition-colors ${(insights.totalEntries ?? 0) >= 1 ? "bg-accent-teal/10 border-accent-teal text-accent-teal font-bold" : "border-white/20"}`}>
+                                {(insights.totalEntries ?? 0) >= 1 ? "✓" : "1"}
+                              </div>
+                              <span className={(insights.totalEntries ?? 0) >= 1 ? "line-through text-muted" : "font-medium"}>First Check-In</span>
                             </div>
-                            <span className={insights.totalEntries >= 2 ? "line-through text-muted" : ""}>Second reflection note</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${insights.totalEntries >= 3 ? "bg-accent-teal/10 border-accent-teal text-accent-teal" : "border-white/20"}`}>
-                              {insights.totalEntries >= 3 && "✓"}
+                            <div className="flex items-center gap-2.5 text-gray-300">
+                              <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 text-xs transition-colors ${(insights.totalEntries ?? 0) >= 2 ? "bg-accent-teal/10 border-accent-teal text-accent-teal font-bold" : "border-white/20"}`}>
+                                {(insights.totalEntries ?? 0) >= 2 ? "✓" : "2"}
+                              </div>
+                              <span className={(insights.totalEntries ?? 0) >= 2 ? "line-through text-muted" : "font-medium"}>Second Reflection Note</span>
                             </div>
-                            <span className={insights.totalEntries >= 3 ? "line-through text-muted" : ""}>Unlock weekly pattern analysis</span>
+                            <div className="flex items-center gap-2.5 text-gray-300">
+                              <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 text-xs transition-colors ${(insights.totalEntries ?? 0) >= 3 ? "bg-accent-teal/10 border-accent-teal text-accent-teal font-bold" : "border-white/20"}`}>
+                                {(insights.totalEntries ?? 0) >= 3 ? "✓" : "3"}
+                              </div>
+                              <span className={(insights.totalEntries ?? 0) >= 3 ? "line-through text-muted" : "font-medium"}>Unlock Weekly Pattern Analysis</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ) : insights.insight === "AI_UNAVAILABLE" ? (
-                  /* AI Offline but Mood Data Exists (totalEntries >= 3): Show Deterministic Mood Stats */
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
-                        <span className="px-2 py-0.5 rounded-md bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-[8px] font-bold uppercase tracking-wider">
-                          AI Offline — Local Telemetry Active
-                        </span>
+                  );
+                }
+
+                if (insights.insight === "AI_UNAVAILABLE") {
+                  return (
+                    /* AI Offline but Mood Data Exists (totalEntries >= 3): Show Deterministic Mood Stats */
+                    <div className="space-y-6 relative z-10">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
+                          <span className="px-2 py-0.5 rounded-md bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-[8px] font-bold uppercase tracking-wider">
+                            AI Offline — Local Telemetry Active
+                          </span>
+                        </div>
+                        <button
+                          onClick={fetchInsights}
+                          className="px-3 py-1.5 rounded-xl bg-[#1C1C3A] border border-[#2D2D54] hover:bg-[#2D2D54] text-[9px] font-bold uppercase tracking-wider transition-all duration-200 self-start md:self-auto"
+                        >
+                          Reconnect AI
+                        </button>
                       </div>
-                      <button
-                        onClick={fetchInsights}
-                        className="px-2.5 py-1 rounded-xl bg-[#1C1C3A] border border-[#2D2D54] hover:bg-[#2D2D54] text-[9px] font-bold uppercase tracking-wider transition-all duration-200"
-                      >
-                        Reconnect AI
-                      </button>
+
+                      {/* Deterministic Stats Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Stat 1: Total Logs */}
+                        <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Total Logs</span>
+                          <p className="text-2xl font-bold text-white font-display">
+                            {insights.totalEntries}
+                          </p>
+                          <p className="text-[9px] text-muted">Entries tracked this month</p>
+                        </div>
+
+                        {/* Stat 2: Weighted Average */}
+                        <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Avg Mood Score</span>
+                          <p className="text-2xl font-bold text-accent-teal font-display">
+                            {(() => {
+                              const totalValueSum = insights.moodDistribution.reduce((sum, item) => sum + item.value, 0);
+                              const weightedScoreSum = insights.moodDistribution.reduce((sum, item) => sum + (item.score * item.value), 0);
+                              return totalValueSum > 0 ? (weightedScoreSum / totalValueSum).toFixed(1) : "N/A";
+                            })()} <span className="text-xs text-muted font-normal font-sans">/ 5.0</span>
+                          </p>
+                          <p className="text-[9px] text-muted">Deterministic math score</p>
+                        </div>
+
+                        {/* Stat 3: Dominant Mood */}
+                        <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Dominant Mood</span>
+                          <p className="text-lg font-bold text-white font-display truncate pt-1">
+                            {(() => {
+                              const maxItem = insights.moodDistribution.reduce((max, item) => item.value > max.value ? item : max, insights.moodDistribution[0]);
+                              return maxItem ? maxItem.name : "N/A";
+                            })()}
+                          </p>
+                          <p className="text-[9px] text-muted">Highest distribution share</p>
+                        </div>
+
+                        {/* Stat 4: Peak Circadian Hour */}
+                        <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Peak Energy Hour</span>
+                          <p className="text-md font-bold text-accent-coral font-display pt-2 truncate">
+                            {(() => {
+                              const validTime = insights.timeOfDay.filter(t => t.avgScore !== null);
+                              const bestHour = validTime.length > 0
+                                ? validTime.reduce((max, item) => (item.avgScore! > max.avgScore!) ? item : max, validTime[0])
+                                : null;
+                              return bestHour ? `${bestHour.hourLabel}` : "N/A";
+                            })()}
+                          </p>
+                          <p className="text-[9px] text-muted">
+                            Avg: {(() => {
+                              const validTime = insights.timeOfDay.filter(t => t.avgScore !== null);
+                              const bestHour = validTime.length > 0
+                                ? validTime.reduce((max, item) => (item.avgScore! > max.avgScore!) ? item : max, validTime[0])
+                                : null;
+                              return bestHour ? `${bestHour.avgScore}/5` : "N/A";
+                            })()}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+                  );
+                }
 
-                    {/* Deterministic Stats Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {/* Stat 1: Total Logs */}
-                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Total Logs</span>
-                        <p className="text-2xl font-bold text-white font-display">
-                          {insights.totalEntries}
-                        </p>
-                        <p className="text-[9px] text-muted">Entries tracked this month</p>
-                      </div>
+                const isTyping = displayedInsight.length < (insights.insight?.length || 0);
 
-                      {/* Stat 2: Weighted Average */}
-                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Avg Mood Score</span>
-                        <p className="text-2xl font-bold text-accent-teal font-display">
-                          {(() => {
-                            const totalValueSum = insights.moodDistribution.reduce((sum, item) => sum + item.value, 0);
-                            const weightedScoreSum = insights.moodDistribution.reduce((sum, item) => sum + (item.score * item.value), 0);
-                            return totalValueSum > 0 ? (weightedScoreSum / totalValueSum).toFixed(1) : "N/A";
-                          })()} <span className="text-xs text-muted font-normal font-sans">/ 5.0</span>
-                        </p>
-                        <p className="text-[9px] text-muted">Deterministic math score</p>
+                return (
+                  /* Normal Insight content with typewriter animation */
+                  <div className="flex flex-col space-y-6 relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal shrink-0">
+                          <Sparkles className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
+                          <p className="text-[10px] text-muted">Neural Model v1.4</p>
+                        </div>
                       </div>
-
-                      {/* Stat 3: Dominant Mood */}
-                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Dominant Mood</span>
-                        <p className="text-lg font-bold text-white font-display truncate pt-1">
-                          {(() => {
-                            const maxItem = insights.moodDistribution.reduce((max, item) => item.value > max.value ? item : max, insights.moodDistribution[0]);
-                            return maxItem ? maxItem.name : "N/A";
-                          })()}
-                        </p>
-                        <p className="text-[9px] text-muted">Highest distribution share</p>
-                      </div>
-
-                      {/* Stat 4: Peak Circadian Hour */}
-                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Peak Energy Hour</span>
-                        <p className="text-md font-bold text-accent-coral font-display pt-2 truncate">
-                          {(() => {
-                            const validTime = insights.timeOfDay.filter(t => t.avgScore !== null);
-                            const bestHour = validTime.length > 0
-                              ? validTime.reduce((max, item) => (item.avgScore! > max.avgScore!) ? item : max, validTime[0])
-                              : null;
-                            return bestHour ? `${bestHour.hourLabel}` : "N/A";
-                          })()}
-                        </p>
-                        <p className="text-[9px] text-muted">
-                          Avg: {(() => {
-                            const validTime = insights.timeOfDay.filter(t => t.avgScore !== null);
-                            const bestHour = validTime.length > 0
-                              ? validTime.reduce((max, item) => (item.avgScore! > max.avgScore!) ? item : max, validTime[0])
-                              : null;
-                            return bestHour ? `${bestHour.avgScore}/5` : "N/A";
-                          })()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Normal Insight content */
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal shrink-0">
-                      <Sparkles className="w-6 h-6 animate-pulse" />
+                      
+                      {/* Powered by Gemini chip */}
+                      <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#1C1C3A]/80 border border-white/10 text-[10px] font-semibold text-gray-200 shadow-sm shrink-0 self-start md:self-auto">
+                        <div className="flex gap-1 mr-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#4285F4]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#EA4335]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#FBBC05]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#34A853]" />
+                        </div>
+                        Powered by Gemini 2.5 Flash
+                      </span>
                     </div>
                     
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
-                        <span className="px-2 py-0.5 rounded-md bg-accent-teal/10 border border-accent-teal/20 text-accent-teal text-[8px] font-bold uppercase tracking-wider">
-                          Neural Model v1.4
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-200 leading-relaxed font-sans max-w-4xl font-medium">
-                        {insights.insight || "No AI weekly insight available."}
-                      </p>
-                    </div>
+                    <p className="text-md text-gray-100 leading-relaxed font-sans max-w-5xl font-medium min-h-[48px]">
+                      {displayedInsight}
+                      {isTyping && <span className="inline-block w-1.5 h-4 ml-1 bg-accent-teal animate-pulse" />}
+                    </p>
                   </div>
-                )}
-              </motion.div>
+                );
+              })()}
+            </motion.div>
 
-              {/* Right 1 column: Anomaly Radar Card */}
+            {/* Bottom row: Burnout Radar & Charts in a responsive 3-column grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Column 1: Anomaly Radar Card */}
               <motion.div
                 variants={itemVariants}
                 className="relative overflow-hidden p-8 rounded-3xl bg-[#12122A]/70 border border-[#1C1C3A] glass-card flex flex-col justify-between group transition-all duration-300"
@@ -803,7 +895,7 @@ export default function InsightsPage() {
                             href="/dashboard"
                             className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-accent-teal hover:opacity-90 active:scale-95 text-background font-bold text-[9px] uppercase tracking-wider transition-all shadow-glow"
                           >
-                            <Sparkles className="w-3 h-3" />
+                            <Sparkles className="w-3.5 h-3.5" />
                             Log Mood Entry
                           </a>
                         </div>
@@ -923,12 +1015,7 @@ export default function InsightsPage() {
                 </div>
               </motion.div>
 
-            </div>
-
-            {/* 3. Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              {/* Left Chart: Mood Distribution (Pie Chart) */}
+              {/* Column 2: Mood Distribution (Pie Chart) */}
               <motion.div
                 variants={itemVariants}
                 className="p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] flex flex-col justify-between"
@@ -1004,7 +1091,7 @@ export default function InsightsPage() {
                 </div>
               </motion.div>
 
-              {/* Right Chart: Time of Day (Bar Chart) */}
+              {/* Column 3: Mood Patterns by Hour (Bar Chart) */}
               <motion.div
                 variants={itemVariants}
                 className="p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] flex flex-col justify-between"

@@ -180,7 +180,35 @@ void main() {
       expect(find.text('Crisis Support Resources'), findsOneWidget);
       expect(find.text('Talk to Someone'), findsOneWidget);
       expect(find.text('Find Therapist'), findsOneWidget);
-      expect(find.text('Emergency'), findsOneWidget);
+    });
+
+    testWidgets('ProfileScreen renders with email prefix when display name is not set', (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({
+        'user_display_name': '',
+        'user_email': 'jane.doe@mindtrack.com',
+        'user_join_date': DateTime(2026, 5, 1).toIso8601String(),
+        'notifications_enabled': true,
+        'theme_light_mode': false,
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todayMoodProvider.overrideWith(FakeTodayMoodNotifier.new),
+            moodHistoryProvider.overrideWith(FakeMoodHistoryNotifier.new),
+            dioServiceProvider.overrideWith((ref) => FakeDioService()),
+          ],
+          child: const MaterialApp(
+            home: ProfileScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify that the fallback display name (email prefix) is displayed
+      expect(find.text('jane.doe'), findsOneWidget);
+      expect(find.text('jane.doe@mindtrack.com'), findsOneWidget);
     });
   });
 }

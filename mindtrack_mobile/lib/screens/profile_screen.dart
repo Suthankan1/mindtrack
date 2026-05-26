@@ -27,7 +27,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  String _displayName = 'Cosmic Practitioner';
+  String _displayName = '';
   String _email = '';
   String _joinDateStr = 'Joined May 2026';
   bool _notificationsEnabled = true;
@@ -249,7 +249,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final email = prefs.getString('user_email') ?? '';
       setState(() {
         _displayName =
-            prefs.getString('user_display_name') ?? 'Cosmic Practitioner';
+            prefs.getString('user_display_name') ?? '';
         _email = email;
         _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
 
@@ -640,7 +640,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _displayName,
+                                _displayName.trim().isNotEmpty
+                                    ? _displayName
+                                    : (_email.contains('@') ? _email.split('@').first : _email),
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isLightTheme

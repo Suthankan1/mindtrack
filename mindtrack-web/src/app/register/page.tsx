@@ -52,8 +52,8 @@ export default function RegisterPage() {
       setError("Please enter a valid email address.");
       return false;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return false;
     }
     if (password !== confirmPassword) {
@@ -235,7 +235,7 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                  placeholder="Min. 6 characters"
+                  placeholder="Min. 8 characters"
                   required
                   autoComplete="new-password"
                   className="auth-input w-full pl-11 pr-11 py-3 border border-white/20 focus:border-accent-teal rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-teal/30 transition-all duration-300 shadow-sm"

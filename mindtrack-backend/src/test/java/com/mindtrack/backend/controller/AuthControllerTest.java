@@ -110,7 +110,7 @@ public class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", is("Validation Failed")))
                 .andExpect(jsonPath("$.errors.email", is("Please provide a valid email address")))
-                .andExpect(jsonPath("$.errors.password", is("Password must be at least 6 characters")));
+                .andExpect(jsonPath("$.errors.password", is("Password must be at least 8 characters")));
     }
 
     @Test

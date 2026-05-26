@@ -97,36 +97,33 @@ public class UserControllerTest {
 
     @Test
     @WithMockUser(username = "testuser@example.com")
-    void changePassword_AllowsSixCharacterNewPassword() throws Exception {
-        ChangePasswordRequest request = ChangePasswordRequest.builder()
-                .currentPassword("oldPassword123")
-                .newPassword("new456")
-                .build();
-
-        mockMvc.perform(post("/api/user/change-password")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Password updated successfully.")));
-
-        User updatedUser = userRepository.findByEmail("testuser@example.com")
-                .orElseThrow(() -> new AssertionError("Expected user not found"));
-        assertTrue(passwordEncoder.matches("new456", updatedUser.getPasswordHash()));
-    }
-
-    @Test
-    @WithMockUser(username = "testuser@example.com")
     void changePassword_WeakNewPassword() throws Exception {
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("oldPassword123")
-                .newPassword("weak")
+                .newPassword("weak7")
                 .build();
 
         mockMvc.perform(post("/api/user/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", is("New password must be at least 6 characters.")));
+                .andExpect(jsonPath("$.error", is("Validation Failed")))
+                .andExpect(jsonPath("$.errors.newPassword", is("New password must be at least 8 characters")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void changePassword_SamePassword() throws Exception {
+        ChangePasswordRequest request = ChangePasswordRequest.builder()
+                .currentPassword("oldPassword123")
+                .newPassword("oldPassword123")
+                .build();
+
+        mockMvc.perform(post("/api/user/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", is("New password cannot be the same as the current password.")));
     }
 
     @Test

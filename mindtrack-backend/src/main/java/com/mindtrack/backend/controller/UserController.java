@@ -130,7 +130,7 @@ public class UserController {
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(
             Authentication authentication,
-            @RequestBody ChangePasswordRequest request) {
+            @Valid @RequestBody ChangePasswordRequest request) {
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
@@ -141,10 +141,10 @@ public class UserController {
                     .body(Map.of("message", "Current password is incorrect."));
         }
 
-        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+        if (request.getNewPassword().equals(request.getCurrentPassword())) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "New password must be at least 6 characters."));
+                    .body(Map.of("message", "New password cannot be the same as the current password."));
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));

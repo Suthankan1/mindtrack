@@ -15,6 +15,8 @@ export default function LoginPage() {
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showForgotDialog, setShowForgotDialog] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -138,7 +140,7 @@ export default function LoginPage() {
                 <label className="text-xs font-semibold text-gray-300">Password</label>
                 <button
                   type="button"
-                  onClick={() => setError('Password recovery is not available in this version. Please contact support.')}
+                  onClick={() => setShowForgotDialog(true)}
                   className="text-[10px] text-accent-teal hover:underline font-medium"
                 >
                   Forgot?
@@ -175,6 +177,41 @@ export default function LoginPage() {
           </form>
 
         </motion.div>
+
+        {showForgotDialog && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-[#12122A] border border-white/10 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+              <h3 className="font-display font-bold text-white text-lg">Reset Password</h3>
+              <p className="text-xs text-muted">Enter your email and we will send a reset link.</p>
+              <input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="auth-input w-full px-4 py-3 border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-teal/30"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotDialog(false)}
+                  className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotDialog(false);
+                    setError('Password reset is not available in this version.');
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-accent-teal text-background text-xs font-bold"
+                >
+                  Send Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer text */}
         <p className="text-center text-xs text-muted mt-8">

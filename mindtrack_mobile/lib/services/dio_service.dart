@@ -218,6 +218,25 @@ class DioService {
     });
   }
 
+  /// Deletes a mood entry by ID.
+  Future<void> deleteMoodEntry(String entryId) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.delete('/api/mood/entry/$entryId');
+      if (response.statusCode != 204 && response.statusCode != 200) {
+        throw Exception(
+          'DioService: Failed to delete mood entry. Status: ${response.statusCode}',
+        );
+      }
+    });
+  }
+
   /// Logs a new mood entry.
   Future<Map<String, dynamic>> logMood(
     int score, {

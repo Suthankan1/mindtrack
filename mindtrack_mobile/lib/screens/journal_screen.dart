@@ -542,10 +542,54 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                       itemCount: entries.length,
                       itemBuilder: (context, index) {
                         final entry = entries[index];
-                        return _ExpandableJournalEntryCard(
-                          entry: entry,
-                          formattedDate: _formatDateTime(entry.timestamp),
-                          scoreColor: _getScoreColor(entry.moodScore),
+                        return Dismissible(
+                          key: Key(entry.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 24),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorColor,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          confirmDismiss: (direction) async {
+                            try {
+                              final dio = ref.read(dioServiceProvider);
+                              await dio.deleteMoodEntry(entry.id);
+                              ref.read(moodHistoryProvider.notifier).refresh();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Entry deleted'),
+                                    backgroundColor: AppColors.primaryColor,
+                                  ),
+                                );
+                              }
+                              return true;
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to delete entry: ${e.toString().replaceAll('Exception: ', '')}'),
+                                    backgroundColor: AppColors.errorColor,
+                                  ),
+                                );
+                              }
+                              return false;
+                            }
+                          },
+                          child: _ExpandableJournalEntryCard(
+                            entry: entry,
+                            formattedDate: _formatDateTime(entry.timestamp),
+                            scoreColor: _getScoreColor(entry.moodScore),
+                          ),
                         );
                       },
                     );

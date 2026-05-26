@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -188,6 +189,36 @@ public class MoodController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Deletes a mood entry by ID.
+     *
+     * <p>Verifies ownership before deleting.
+     *
+     * @param id             the UUID of the mood entry to delete
+     * @param authentication the Spring Security authentication context
+     * @return 204 No Content on success, 403 Forbidden if the user doesn't own the entry
+     */
+    @DeleteMapping("/entry/{id}")
+    public ResponseEntity<Void> deleteMoodEntry(
+            @PathVariable("id") UUID id,
+            Authentication authentication) {
+
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        MoodEntry entry = moodEntryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mood entry not found"));
+
+        if (!entry.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to delete this entry");
+        }
+
+        moodEntryRepository.deleteById(id);
+
+        return ResponseEntity.noContent().build();
     }
 
     private boolean isCrisisRisk(User user) {

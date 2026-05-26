@@ -28,6 +28,7 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -202,6 +203,48 @@ public class MoodControllerTest {
         mockMvc.perform(get("/api/mood/history").param("days", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(5)));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void deleteMoodEntry_Success() throws Exception {
+        MoodEntry entry = MoodEntry.builder()
+                .user(testUser)
+                .moodScore(3)
+                .note("Deleting this")
+                .timestamp(LocalDateTime.now())
+                .build();
+        entry = moodEntryRepository.save(entry);
+
+        mockMvc.perform(delete("/api/mood/entry/" + entry.getId()))
+                .andExpect(status().isNoContent());
+
+        assertFalse(moodEntryRepository.findById(entry.getId()).isPresent());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void deleteMoodEntry_Forbidden() throws Exception {
+        // Create another user
+        User otherUser = User.builder()
+                .email("otheruser@example.com")
+                .passwordHash("passwordHash")
+                .anonymousMode(false)
+                .build();
+        otherUser = userRepository.save(otherUser);
+
+        MoodEntry entry = MoodEntry.builder()
+                .user(otherUser)
+                .moodScore(3)
+                .note("Other user's entry")
+                .timestamp(LocalDateTime.now())
+                .build();
+        entry = moodEntryRepository.save(entry);
+
+        mockMvc.perform(delete("/api/mood/entry/" + entry.getId()))
+                .andExpect(status().isForbidden());
+
+        assertTrue(moodEntryRepository.findById(entry.getId()).isPresent());
     }
 
     @Test

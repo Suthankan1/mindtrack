@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -53,5 +54,5 @@ public class Therapist {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "therapist_tags", joinColumns = @JoinColumn(name = "therapist_id"))
     @Column(name = "tag")
-    private java.util.List<String> tags;
+    private List<String> tags;
 }

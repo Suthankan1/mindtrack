@@ -199,13 +199,14 @@ public class AiInsightController {
             @Valid @RequestBody JournalPromptRequest request,
             Authentication authentication) {
 
+        User user = null;
         if (authentication != null) {
             String email = authentication.getName();
-            userRepository.findByEmail(email)
+            user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         }
 
-        JournalPromptResponse response = aiInsightService.getJournalPrompt(request);
+        JournalPromptResponse response = aiInsightService.getJournalPrompt(request, user);
         return ResponseEntity.ok(response);
     }
 

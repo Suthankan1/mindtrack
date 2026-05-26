@@ -545,10 +545,41 @@ public class AiInsightService {
      * Generates a personalized journal reflection prompt using Gemini based on mood and tags.
      * Falls back to a high-fidelity local prompt library if the Gemini API fails or is offline.
      */
-    public JournalPromptResponse getJournalPrompt(JournalPromptRequest request) {
+    public JournalPromptResponse getJournalPrompt(JournalPromptRequest request, User user) {
+        UserPreference pref = null;
+        if (user != null) {
+            pref = userPreferenceRepository.findByUser(user)
+                    .orElseGet(() -> UserPreference.builder()
+                            .themeMode("dark")
+                            .reminderEnabled(true)
+                            .reminderTime("20:00")
+                            .defaultCopingTechnique("Breathing")
+                            .privacyMode("standard")
+                            .aiJournalAnalysisEnabled(false)
+                            .aiChatHistoryEnabled(false)
+                            .shareNotesWithAi(false)
+                            .build());
+        }
+
+        final UserPreference finalPref = pref != null ? pref : UserPreference.builder()
+                .themeMode("dark")
+                .reminderEnabled(true)
+                .reminderTime("20:00")
+                .defaultCopingTechnique("Breathing")
+                .privacyMode("standard")
+                .aiJournalAnalysisEnabled(false)
+                .aiChatHistoryEnabled(false)
+                .shareNotesWithAi(false)
+                .build();
+
         String moodDescriptor = getMoodDescriptor(request.getMoodScore());
         String tagsText = (request.getTags() == null || request.getTags().isEmpty()) ? "None" : String.join(", ", request.getTags());
-        String summariesText = (request.getRecentNoteSummaries() == null || request.getRecentNoteSummaries().isEmpty()) ? "None" : String.join("; ", request.getRecentNoteSummaries());
+        
+        List<String> summaries = request.getRecentNoteSummaries();
+        if (!finalPref.isShareNotesWithAi() || !finalPref.isAiJournalAnalysisEnabled()) {
+            summaries = Collections.emptyList();
+        }
+        String summariesText = (summaries == null || summaries.isEmpty()) ? "None" : String.join("; ", summaries);
 
         String prompt = String.format("""
         You are a warm, highly compassionate mental health companion inside the MindTrack app.

@@ -199,7 +199,9 @@ public class AiInsightControllerTest {
                 .aiAvailable(true)
                 .build();
 
-        org.mockito.Mockito.when(aiInsightService.getJournalPrompt(org.mockito.ArgumentMatchers.any(JournalPromptRequest.class)))
+        org.mockito.Mockito.when(aiInsightService.getJournalPrompt(
+                        org.mockito.ArgumentMatchers.any(JournalPromptRequest.class),
+                        org.mockito.ArgumentMatchers.any(User.class)))
                 .thenReturn(response);
 
         mockMvc.perform(post("/api/ai/journal/prompt")

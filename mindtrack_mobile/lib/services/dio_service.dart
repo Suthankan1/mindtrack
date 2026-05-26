@@ -360,6 +360,37 @@ class DioService {
     });
   }
 
+  /// Generates an instant AI mood reflection based on score, tags, note, and optional recent average.
+  Future<Map<String, dynamic>> getMoodReflection({
+    required int moodScore,
+    required List<String> tags,
+    String? note,
+    double? recentAverage,
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.post(
+        '/api/ai/mood/reflection',
+        data: {
+          'moodScore': moodScore,
+          'tags': tags,
+          if (note != null) 'note': note,
+          if (recentAverage != null) 'recentAverage': recentAverage,
+        },
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to get mood reflection: status ${response.statusCode}');
+    });
+  }
+
   /// Generates a personalized AI journal reflection prompt based on mood score and tags.
   Future<Map<String, dynamic>> getJournalPrompt({
     required int moodScore,

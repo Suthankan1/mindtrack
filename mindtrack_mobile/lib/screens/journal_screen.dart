@@ -5,6 +5,7 @@ import '../providers/mood_provider.dart';
 import '../services/dio_service.dart';
 import '../widgets/constellation_canvas.dart';
 import '../widgets/custom_score_slider.dart';
+import '../widgets/cosmic_calm_sheet.dart';
 
 /// The Journal tab — displays the animated [ConstellationCanvas] of mood stars
 /// and a scrollable list of [_ExpandableJournalEntryCard] entries.
@@ -1378,6 +1379,36 @@ class _MoodLoggingBottomSheetState
   bool _isGeneratingPrompt = false;
   Map<String, dynamic>? _promptResult;
 
+  String _getDeterministicReflection(int score) {
+    return switch (score) {
+      1 => "It sounds like you're carrying a heavy burden right now. Please be gentle with yourself.",
+      2 => "Your energy is feeling a bit low today, and that is completely okay.",
+      4 => "It's wonderful to feel a sense of stable peace in your day.",
+      5 => "Your spirit is shining bright today! Enjoy this wonderful feeling.",
+      _ => "You're feeling centered and balanced today.",
+    };
+  }
+
+  String _getDeterministicNextStep(int score) {
+    return switch (score) {
+      1 => "Try a quick grounding exercise or reach out to a trusted loved one.",
+      2 => "Give yourself permission to rest or engage in a gentle activity.",
+      4 => "Take a moment to appreciate this stable energy and keep doing what supports you.",
+      5 => "Share your joy or anchor this moment in a quick journal entry.",
+      _ => "Continue observing your day with gentle mindfulness.",
+    };
+  }
+
+  String _getDeterministicTechnique(int score) {
+    return switch (score) {
+      1 => "grounding",
+      2 => "breathing_deep",
+      4 => "walk",
+      5 => "journaling",
+      _ => "journaling",
+    };
+  }
+
   final List<String> _availableTags = [
     'Work',
     'Sleep',
@@ -1509,7 +1540,7 @@ class _MoodLoggingBottomSheetState
       final scoreVal = _score.round();
 
       // Submit request to local and remote via Riverpod
-      await ref
+      final responseMap = await ref
           .read(moodActionsProvider)
           .logMood(
             scoreVal,
@@ -1517,34 +1548,49 @@ class _MoodLoggingBottomSheetState
             tags: _selectedTags,
           );
 
+      // Fetch instant AI reflection from backend
+      Map<String, dynamic> reflectionData;
+      try {
+        final dio = ref.read(dioServiceProvider);
+        reflectionData = await dio.getMoodReflection(
+          moodScore: scoreVal,
+          tags: _selectedTags,
+          note: note.isEmpty ? 'Logged via mobile app' : note,
+        );
+      } catch (reflectionErr) {
+        debugPrint('JournalScreen: Failed to get AI reflection: $reflectionErr');
+        // Elegant deterministic fallback on client-side
+        reflectionData = {
+          'oneSentenceReflection': _getDeterministicReflection(scoreVal),
+          'suggestedNextStep': _getDeterministicNextStep(scoreVal),
+          'recommendedTechnique': _getDeterministicTechnique(scoreVal),
+          'showCrisisResources': scoreVal <= 1,
+        };
+      }
+
       widget.onSaved();
+      
       if (mounted) {
+        // Pop the current logging sheet first
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.surfaceColor,
-            elevation: 4,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: AppColors.primaryColor, width: 1.5),
-            ),
-            content: Row(
-              children: [
-                const Icon(Icons.star_rounded, color: AppColors.primaryColor),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Mood log committed to the cosmos!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+        // If crisis is returned or detected, ensure the sheet displays it
+        final hasCrisisAlert = responseMap['crisisAlert'] == true;
+        final crisisMessage = responseMap['crisisMessage'] as String?;
+        if (hasCrisisAlert) {
+          reflectionData['showCrisisResources'] = true;
+          if (crisisMessage != null) {
+            reflectionData['oneSentenceReflection'] = crisisMessage;
+          }
+        }
+
+        // Show the Cosmic Calm bottom sheet
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.7),
+          builder: (context) => CosmicCalmSheet(reflection: reflectionData),
         );
       }
     } catch (e) {

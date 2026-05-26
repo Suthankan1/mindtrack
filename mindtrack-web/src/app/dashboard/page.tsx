@@ -42,6 +42,14 @@ interface MoodEntryResponse {
   tags: string[];
 }
 
+interface MoodReflectionResponse {
+  oneSentenceReflection: string;
+  suggestedNextStep: string;
+  recommendedTechnique: string;
+  showCrisisResources: boolean;
+  aiAvailable: boolean;
+}
+
 interface UserStatsResponse {
   totalEntries: number;
   currentStreak: number;
@@ -102,6 +110,42 @@ export default function DashboardPage() {
   const [aiPrompt, setAiPrompt] = useState<JournalPrompt | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
+
+  // AI Reflection States
+  const [aiReflection, setAiReflection] = useState<MoodReflectionResponse | null>(null);
+  const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
+
+  const getDeterministicReflectionFallback = (score: number): MoodReflectionResponse => {
+    const reflections: Record<number, string> = {
+      1: "It sounds like you're carrying a heavy burden right now. Please be gentle with yourself.",
+      2: "Your energy is feeling a bit low today, and that is completely okay.",
+      4: "It's wonderful to feel a sense of stable peace in your day.",
+      5: "Your spirit is shining bright today! Enjoy this wonderful feeling.",
+      3: "You're feeling centered and balanced today."
+    };
+    const steps: Record<number, string> = {
+      1: "Try a quick grounding exercise or reach out to a trusted loved one.",
+      2: "Give yourself permission to rest or engage in a gentle activity.",
+      4: "Take a moment to appreciate this stable energy and keep doing what supports you.",
+      5: "Share your joy or anchor this moment in a quick journal entry.",
+      3: "Continue observing your day with gentle mindfulness."
+    };
+    const techniques: Record<number, string> = {
+      1: "grounding",
+      2: "breathing_deep",
+      4: "walk",
+      5: "journaling",
+      3: "journaling"
+    };
+
+    return {
+      oneSentenceReflection: reflections[score] || reflections[3],
+      suggestedNextStep: steps[score] || steps[3],
+      recommendedTechnique: techniques[score] || techniques[3],
+      showCrisisResources: score <= 1,
+      aiAvailable: false
+    };
+  };
 
   const handleGeneratePrompt = async () => {
     if (!session?.user?.accessToken) return;
@@ -208,14 +252,19 @@ export default function DashboardPage() {
     
     setIsSubmitting(true);
     setLogSuccess(false);
+    setAiReflection(null);
+
+    const loggedMood = newMood;
+    const loggedTags = [...selectedTags];
+    const loggedNote = newNote || "Logged moment of reflection.";
 
     try {
       await axios.post(
         "/api/mood/log",
         {
-          moodScore: newMood,
-          note: newNote || "Logged moment of reflection.",
-          tags: selectedTags,
+          moodScore: loggedMood,
+          note: loggedNote,
+          tags: loggedTags,
         },
         {
           headers: {
@@ -230,6 +279,31 @@ export default function DashboardPage() {
       setLogSuccess(true);
       showToast("Mood log saved successfully!", "success");
       setTimeout(() => setLogSuccess(false), 3000);
+
+      // Fetch AI Reflection immediately after logging mood check-in
+      setIsGeneratingReflection(true);
+      try {
+        const reflectionRes = await axios.post(
+          "/api/ai/mood/reflection",
+          {
+            moodScore: loggedMood,
+            tags: loggedTags,
+            note: loggedNote,
+            recentAverage: stats?.avgMoodScore || undefined,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${session.user.accessToken}`,
+            },
+          }
+        );
+        setAiReflection(reflectionRes.data);
+      } catch (reflectionErr) {
+        console.error("Failed to generate AI reflection, triggering local fallback:", reflectionErr);
+        setAiReflection(getDeterministicReflectionFallback(loggedMood));
+      } finally {
+        setIsGeneratingReflection(false);
+      }
       
       // Instantly refresh all analytical charts & values
       await fetchHistory();
@@ -573,201 +647,349 @@ export default function DashboardPage() {
           
           {/* Column 1: Interactive Mood Logger Form (Staggered Animation Component 2) */}
           <motion.div variants={itemVariants} className="space-y-6 lg:col-span-1">
-            <div id="mood-form-container" className="p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] flex flex-col justify-between h-full transition-all duration-500">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <PlusCircle className="w-5 h-5 text-accent-teal" />
-                  <h3 className="text-md font-bold text-white font-display">Record Current Vibe</h3>
-                </div>
-                <p className="text-xs text-muted">
-                  Log your present clarity quotient, select tags and write an organic reflection note.
-                </p>
-
-                {logSuccess && (
-                  <div className="p-3 rounded-xl bg-accent-teal/10 border border-accent-teal/20 text-accent-teal text-[11px] text-center font-medium animate-pulse">
-                    🌱 Mind snapshot secured in cloud repository!
-                  </div>
-                )}
-
-                <form onSubmit={handleAddMood} className="space-y-5 pt-1">
-                  
-                  {/* Score selector 1 to 5 */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-300 font-semibold">Mood Score</label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[1, 2, 3, 4, 5].map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          disabled={isVisualLoading || isSubmitting}
-                          onClick={() => setNewMood(val)}
-                          className={`py-3 rounded-xl border flex flex-col items-center gap-1 transition-all duration-300 ${
-                            newMood === val
-                              ? "bg-accent-teal/10 border-accent-teal text-accent-teal scale-105"
-                              : "bg-[#0A0A14]/60 border-white/[0.04] text-muted hover:border-white/10 hover:text-white"
-                          }`}
-                        >
-                          <span className="text-base">{getMoodEmoji(val)}</span>
-                          <span className="text-[9px] font-bold">{val}</span>
-                        </button>
-                      ))}
+            {aiReflection ? (
+              <div className="p-6 rounded-3xl bg-[#12122A] border border-accent-teal/30 shadow-[0_4px_24px_rgba(0,210,200,0.08)] flex flex-col justify-between h-full transition-all duration-500 relative overflow-hidden">
+                {/* Cyber-neon top glow */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent-teal to-transparent" />
+                
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-accent-teal animate-pulse" />
+                      <h3 className="text-md font-display font-bold text-white uppercase tracking-wider">
+                        Cosmic Reflection
+                      </h3>
                     </div>
-                    <div className="text-center mt-1.5">
-                      <span className="text-[10px] font-bold text-accent-teal uppercase tracking-widest">
-                        {getMoodLabel(newMood)}
-                      </span>
+                    <button
+                      onClick={() => setAiReflection(null)}
+                      className="p-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-muted hover:text-white transition-all"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Reflection Text */}
+                  <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-3">
+                    <p className="text-sm font-semibold text-white leading-relaxed text-left">
+                      {aiReflection.oneSentenceReflection}
+                    </p>
+                    <div className="h-[1px] bg-white/[0.05]" />
+                    <div className="flex items-start gap-2 text-xs">
+                      <TrendingUp className="w-3.5 h-3.5 text-accent-teal shrink-0 mt-0.5" />
+                      <p className="text-muted leading-relaxed text-left">
+                        {aiReflection.suggestedNextStep}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Optional Tags */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-muted" />
-                      Associated Tags
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {availableTags.map((tag) => {
-                        const isSelected = selectedTags.includes(tag);
-                        return (
-                          <button
-                            key={tag}
-                            type="button"
-                            disabled={isVisualLoading || isSubmitting}
-                            onClick={() => handleToggleTag(tag)}
-                            className={`px-2.5 py-1 rounded-lg text-[9px] font-medium border transition-all ${
-                              isSelected
-                                ? "bg-accent-teal/10 border-accent-teal text-accent-teal"
-                                : "bg-[#0A0A14]/30 border-white/[0.03] text-muted hover:border-white/10 hover:text-white"
-                            }`}
-                          >
-                            {tag}
-                          </button>
-                        );
-                      })}
+                  {/* Recommended Coping Technique */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0F172A] to-[#1E1B4B] border border-accent-teal/20 space-y-3">
+                    <div className="flex items-center gap-1.5 text-[9px] font-bold tracking-widest text-accent-teal uppercase">
+                      <Activity className="w-3 h-3" />
+                      Recommended Coping Technique
                     </div>
-                  </div>
+                    
+                    {/* Render specific techniques instructions beautifully */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">
+                          {aiReflection.recommendedTechnique.includes("breathing") ? "🌬️" :
+                           aiReflection.recommendedTechnique === "grounding" ? "🧘" :
+                           aiReflection.recommendedTechnique === "journaling" ? "✍️" : "🚶"}
+                        </span>
+                        <span className="text-xs font-bold text-white">
+                          {aiReflection.recommendedTechnique === "breathing_478" ? "4-7-8 Breathing" :
+                           aiReflection.recommendedTechnique === "breathing_box" ? "Box Breathing (4-4-4-4)" :
+                           aiReflection.recommendedTechnique === "breathing_deep" ? "Deep Breathing (5-5)" :
+                           aiReflection.recommendedTechnique === "grounding" ? "5-4-3-2-1 Sensory Grounding" :
+                           aiReflection.recommendedTechnique === "journaling" ? "Guided journaling" : "Mindful Nature Walk"}
+                        </span>
+                      </div>
+                      
+                      {/* Short inline guide steps since web has no breathe page */}
+                      <div className="pl-2 border-l border-white/10 space-y-1 text-[10px] text-gray-400 text-left">
+                        {aiReflection.recommendedTechnique === "breathing_478" && (
+                          <>
+                            <p>1. Inhale quietly through the nose for 4 seconds.</p>
+                            <p>2. Hold your breath calmly for 7 seconds.</p>
+                            <p>3. Exhale completely with a whoosh for 8 seconds.</p>
+                          </>
+                        )}
+                        {aiReflection.recommendedTechnique === "breathing_box" && (
+                          <>
+                            <p>1. Inhale for 4 seconds, feeling your lungs fill.</p>
+                            <p>2. Hold with full lungs for 4 seconds.</p>
+                            <p>3. Exhale completely for 4 seconds.</p>
+                            <p>4. Hold with empty lungs for 4 seconds.</p>
+                          </>
+                        )}
+                        {aiReflection.recommendedTechnique === "breathing_deep" && (
+                          <>
+                            <p>1. Inhale slowly and deeply for 5 seconds.</p>
+                            <p>2. Exhale gently and smoothly for 5 seconds.</p>
+                            <p>3. Repeat for 2 minutes to center your energy.</p>
+                          </>
+                        )}
+                        {aiReflection.recommendedTechnique === "grounding" && (
+                          <>
+                            <p>Notice: 5 things you see, 4 things you can feel,</p>
+                            <p>3 things you hear, 2 things you can smell,</p>
+                            <p>and 1 positive thing you can taste.</p>
+                          </>
+                        )}
+                        {aiReflection.recommendedTechnique === "journaling" && (
+                          <>
+                            <p>1. Head to your journal logs page.</p>
+                            <p>2. Click AI prompt to write down your thoughts.</p>
+                            <p>3. Spend 3 minutes exploring your emotions.</p>
+                          </>
+                        )}
+                        {aiReflection.recommendedTechnique === "walk" && (
+                          <>
+                            <p>1. Step away from your screens and go outside.</p>
+                            <p>2. Pay close attention to the wind, trees, and sky.</p>
+                            <p>3. Take a 5-minute walk focusing only on your steps.</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-                  {/* AI reflection prompt generator */}
-                  <div className="space-y-2 border-t border-white/[0.04] pt-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-accent-teal" />
-                        AI Reflection Prompt
-                      </label>
+                    {aiReflection.recommendedTechnique === "journaling" && (
                       <button
-                        type="button"
-                        onClick={handleGeneratePrompt}
-                        disabled={isVisualLoading || isGeneratingPrompt || isSubmitting}
-                        className="text-[10px] font-bold text-accent-teal uppercase tracking-wider bg-accent-teal/5 border border-accent-teal/20 hover:border-accent-teal/40 px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50 hover:bg-accent-teal/10"
+                        onClick={() => router.push("/dashboard/journal")}
+                        className="w-full py-2 mt-1 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-[10px] uppercase tracking-wider transition-all"
                       >
-                        {isGeneratingPrompt ? "Generating..." : "Generate Prompt"}
+                        Go to Journal
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Crisis resources panel */}
+                  {aiReflection.showCrisisResources && (
+                    <div className="p-4 rounded-2xl bg-accent-coral/10 border border-accent-coral/20 space-y-2">
+                      <div className="flex items-center gap-2 text-accent-coral font-bold text-xs">
+                        <AlertOctagon className="w-4 h-4 shrink-0 animate-pulse" />
+                        We care about your safety
+                      </div>
+                      <p className="text-[10px] text-gray-300 leading-relaxed text-left">
+                        If you are experiencing severe distress, please connect with a therapist or call a local crisis helpline immediately. Support is always here for you.
+                      </p>
+                      <button
+                        onClick={() => router.push("/dashboard/therapists")}
+                        className="w-full py-2.5 mt-1 rounded-xl bg-accent-coral text-white hover:opacity-90 font-bold text-[10px] uppercase tracking-wider transition-all"
+                      >
+                        Access Support Directory
                       </button>
                     </div>
+                  )}
+                </div>
 
-                    {isGeneratingPrompt && (
-                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-24 bg-white/5 rounded-lg" />
-                           <div className="h-4 w-12 bg-white/5 rounded-lg" />
-                        </div>
-                        <div className="h-3 w-full bg-white/5 rounded" />
-                        <div className="h-3 w-2/3 bg-white/5 rounded" />
-                      </div>
-                    )}
-
-                    {promptError && (
-                      <div className="p-4 rounded-2xl bg-[#1C0F14]/50 border border-accent-coral/20 space-y-3 transition-all">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 text-accent-coral shrink-0" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-accent-coral">
-                            AI Engine Offline
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-300 leading-relaxed font-medium">
-                          AI Companion is restfully recharging. Click generate again to reconnect.
-                        </p>
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            onClick={handleGeneratePrompt}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-coral/10 hover:bg-accent-coral/20 border border-accent-coral/30 text-[9px] font-bold text-white uppercase tracking-wider transition-all"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            Retry Reconnection
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {aiPrompt && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-accent-teal/20 hover:border-accent-teal/40 transition-all cursor-pointer space-y-2 group shadow-[0_4px_16px_rgba(0,210,200,0.02)]"
-                        onClick={() => {
-                          if (!isVisualLoading) {
-                            setNewNote(prev => prev ? aiPrompt.promptQuestion + "\n\n" + prev : aiPrompt.promptQuestion + "\n\n");
-                          }
-                        }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">
-                            {aiPrompt.promptTitle}
-                          </span>
-                          <div className="flex items-center gap-2 text-[8px] text-muted">
-                            <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5">
-                              ⏱️ {aiPrompt.estimatedMinutes} min
-                            </span>
-                            <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5 uppercase font-semibold">
-                              Tone: {aiPrompt.tone}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-white group-hover:text-accent-teal transition-all leading-relaxed font-medium">
-                          {aiPrompt.promptQuestion}
-                        </p>
-                        <div className="text-[9px] text-muted group-hover:text-accent-teal/70 transition-all flex items-center gap-1 font-semibold pt-1">
-                          <span>✨ Tap to apply prompt inside note box</span>
-                        </div>
-                        
-                        {aiPrompt.followUpQuestions && aiPrompt.followUpQuestions.length === 3 && (
-                          <div className="mt-2 pt-2 border-t border-white/[0.03] space-y-1.5">
-                            <p className="text-[9px] text-muted font-bold uppercase tracking-widest text-left">Follow-up considerations:</p>
-                            {aiPrompt.followUpQuestions.map((q, idx) => (
-                              <p key={idx} className="text-[10px] text-gray-400 pl-2 border-l border-white/10 leading-normal text-left">
-                                • {q}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {/* Journal Reflection Input */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-300 font-semibold">Reflection Note</label>
-                    <textarea
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      placeholder="Sleep quality, mindfulness check-in, recent triggers..."
-                      rows={3}
-                      disabled={isVisualLoading || isSubmitting}
-                      className="w-full p-3 bg-[#0A0A14]/70 border border-[#1C1C3A] focus:border-accent-teal/50 rounded-xl text-xs text-white placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/20 resize-none transition-all"
-                    />
-                  </div>
-
+                <div className="mt-6 pt-4 border-t border-white/[0.04] space-y-2">
                   <button
-                    type="submit"
-                    disabled={isVisualLoading || isSubmitting}
-                    className="w-full py-3 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                    onClick={() => setAiReflection(null)}
+                    className="w-full py-3 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] transition-all"
                   >
-                    {isSubmitting ? "Encrypting entry..." : "Commit Log"}
+                    Done & Log another
                   </button>
-
-                </form>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div id="mood-form-container" className="p-6 rounded-3xl bg-[#12122A] border border-[#1C1C3A] flex flex-col justify-between h-full transition-all duration-500">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <PlusCircle className="w-5 h-5 text-accent-teal" />
+                    <h3 className="text-md font-bold text-white font-display">Record Current Vibe</h3>
+                  </div>
+                  <p className="text-xs text-muted">
+                    Log your present clarity quotient, select tags and write an organic reflection note.
+                  </p>
+
+                  {logSuccess && (
+                    <div className="p-3 rounded-xl bg-accent-teal/10 border border-accent-teal/20 text-accent-teal text-[11px] text-center font-medium animate-pulse">
+                      🌱 Mind snapshot secured in cloud repository!
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAddMood} className="space-y-5 pt-1">
+                    
+                    {/* Score selector 1 to 5 */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-300 font-semibold">Mood Score</label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[1, 2, 3, 4, 5].map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            disabled={isVisualLoading || isSubmitting || isGeneratingReflection}
+                            onClick={() => setNewMood(val)}
+                            className={`py-3 rounded-xl border flex flex-col items-center gap-1 transition-all duration-300 ${
+                              newMood === val
+                                ? "bg-accent-teal/10 border-accent-teal text-accent-teal scale-105"
+                                : "bg-[#0A0A14]/60 border-white/[0.04] text-muted hover:border-white/10 hover:text-white"
+                            }`}
+                          >
+                            <span className="text-base">{getMoodEmoji(val)}</span>
+                            <span className="text-[9px] font-bold">{val}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-center mt-1.5">
+                        <span className="text-[10px] font-bold text-accent-teal uppercase tracking-widest">
+                          {getMoodLabel(newMood)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Optional Tags */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-muted" />
+                        Associated Tags
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableTags.map((tag) => {
+                          const isSelected = selectedTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              disabled={isVisualLoading || isSubmitting || isGeneratingReflection}
+                              onClick={() => handleToggleTag(tag)}
+                              className={`px-2.5 py-1 rounded-lg text-[9px] font-medium border transition-all ${
+                                isSelected
+                                  ? "bg-accent-teal/10 border-accent-teal text-accent-teal"
+                                  : "bg-[#0A0A14]/30 border-white/[0.03] text-muted hover:border-white/10 hover:text-white"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* AI reflection prompt generator */}
+                    <div className="space-y-2 border-t border-white/[0.04] pt-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-accent-teal" />
+                          AI Reflection Prompt
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleGeneratePrompt}
+                          disabled={isVisualLoading || isGeneratingPrompt || isSubmitting || isGeneratingReflection}
+                          className="text-[10px] font-bold text-accent-teal uppercase tracking-wider bg-accent-teal/5 border border-accent-teal/20 hover:border-accent-teal/40 px-2.5 py-1.5 rounded-xl transition-all disabled:opacity-50 hover:bg-accent-teal/10"
+                        >
+                          {isGeneratingPrompt ? "Generating..." : "Generate Prompt"}
+                        </button>
+                      </div>
+
+                      {isGeneratingPrompt && (
+                        <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.02] space-y-2.5 animate-pulse">
+                          <div className="flex items-center gap-2">
+                            <div className="h-4 w-24 bg-white/5 rounded-lg" />
+                             <div className="h-4 w-12 bg-white/5 rounded-lg" />
+                          </div>
+                          <div className="h-3 w-full bg-white/5 rounded" />
+                          <div className="h-3 w-2/3 bg-white/5 rounded" />
+                        </div>
+                      )}
+
+                      {promptError && (
+                        <div className="p-4 rounded-2xl bg-[#1C0F14]/50 border border-accent-coral/20 space-y-3 transition-all">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 text-accent-coral shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-accent-coral">
+                              AI Engine Offline
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-300 leading-relaxed font-medium">
+                            AI Companion is restfully recharging. Click generate again to reconnect.
+                          </p>
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={handleGeneratePrompt}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-coral/10 hover:bg-accent-coral/20 border border-accent-coral/30 text-[9px] font-bold text-white uppercase tracking-wider transition-all"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              Retry Reconnection
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {aiPrompt && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-4 rounded-2xl bg-[#0A0A14]/50 border border-accent-teal/20 hover:border-accent-teal/40 transition-all cursor-pointer space-y-2 group shadow-[0_4px_16px_rgba(0,210,200,0.02)]"
+                          onClick={() => {
+                            if (!isVisualLoading) {
+                              setNewNote(prev => prev ? aiPrompt.promptQuestion + "\n\n" + prev : aiPrompt.promptQuestion + "\n\n");
+                            }
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-accent-teal">
+                              {aiPrompt.promptTitle}
+                            </span>
+                            <div className="flex items-center gap-2 text-[8px] text-muted">
+                              <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5">
+                                ⏱️ {aiPrompt.estimatedMinutes} min
+                              </span>
+                              <span className="bg-white/[0.03] px-1.5 py-0.5 rounded border border-white/5 uppercase font-semibold">
+                                Tone: {aiPrompt.tone}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-white group-hover:text-accent-teal transition-all leading-relaxed font-medium">
+                            {aiPrompt.promptQuestion}
+                          </p>
+                          <div className="text-[9px] text-muted group-hover:text-accent-teal/70 transition-all flex items-center gap-1 font-semibold pt-1">
+                            <span>✨ Tap to apply prompt inside note box</span>
+                          </div>
+                          
+                          {aiPrompt.followUpQuestions && aiPrompt.followUpQuestions.length === 3 && (
+                            <div className="mt-2 pt-2 border-t border-white/[0.03] space-y-1.5">
+                              <p className="text-[9px] text-muted font-bold uppercase tracking-widest text-left">Follow-up considerations:</p>
+                              {aiPrompt.followUpQuestions.map((q, idx) => (
+                                <p key={idx} className="text-[10px] text-gray-400 pl-2 border-l border-white/10 leading-normal text-left">
+                                  • {q}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+
+                    {/* Journal Reflection Input */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-300 font-semibold">Reflection Note</label>
+                      <textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Sleep quality, mindfulness check-in, recent triggers..."
+                        rows={3}
+                        disabled={isVisualLoading || isSubmitting || isGeneratingReflection}
+                        className="w-full p-3 bg-[#0A0A14]/70 border border-[#1C1C3A] focus:border-accent-teal/50 rounded-xl text-xs text-white placeholder-muted focus:outline-none focus:ring-1 focus:ring-accent-teal/20 resize-none transition-all"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isVisualLoading || isSubmitting || isGeneratingReflection}
+                      className="w-full py-3 rounded-xl bg-accent-teal text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Encrypting entry..." : isGeneratingReflection ? "Processing Reflection..." : "Commit Log"}
+                    </button>
+
+                  </form>
+                </div>
+              </div>
+            )}
           </motion.div>
 
           {/* Column 2: WaveChart & Heatmap Section (Staggered Animation Component 3) */}

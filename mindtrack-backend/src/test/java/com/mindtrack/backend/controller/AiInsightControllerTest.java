@@ -8,6 +8,8 @@ import com.mindtrack.backend.dto.MoodContextDto;
 import com.mindtrack.backend.dto.MoodAnomalyResponse;
 import com.mindtrack.backend.dto.JournalPromptRequest;
 import com.mindtrack.backend.dto.JournalPromptResponse;
+import com.mindtrack.backend.dto.MoodReflectionRequest;
+import com.mindtrack.backend.dto.MoodReflectionResponse;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.service.AiInsightService;
@@ -219,6 +221,55 @@ public class AiInsightControllerTest {
                 .build();
 
         mockMvc.perform(post("/api/ai/journal/prompt")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Validation Failed")))
+                .andExpect(jsonPath("$.errors.moodScore", is("Mood score must be between 1 and 5")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getMoodReflection_Success_ReturnsResponse() throws Exception {
+        MoodReflectionRequest request = MoodReflectionRequest.builder()
+                .moodScore(4)
+                .tags(List.of("Social", "Exercise"))
+                .note("Had a productive run and met friends.")
+                .recentAverage(3.8)
+                .build();
+
+        MoodReflectionResponse response = MoodReflectionResponse.builder()
+                .oneSentenceReflection("It is wonderful that you had a beautiful, active day filled with social connection.")
+                .suggestedNextStep("Continue focusing on what supports your stability and well-being.")
+                .recommendedTechnique("walk")
+                .showCrisisResources(false)
+                .aiAvailable(true)
+                .build();
+
+        org.mockito.Mockito.when(aiInsightService.getMoodReflection(
+                org.mockito.ArgumentMatchers.any(MoodReflectionRequest.class),
+                org.mockito.ArgumentMatchers.any(User.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/ai/mood/reflection")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.oneSentenceReflection", is("It is wonderful that you had a beautiful, active day filled with social connection.")))
+                .andExpect(jsonPath("$.suggestedNextStep", is("Continue focusing on what supports your stability and well-being.")))
+                .andExpect(jsonPath("$.recommendedTechnique", is("walk")))
+                .andExpect(jsonPath("$.showCrisisResources", is(false)))
+                .andExpect(jsonPath("$.aiAvailable", is(true)));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getMoodReflection_InvalidMoodScore_ReturnsBadRequest() throws Exception {
+        MoodReflectionRequest request = MoodReflectionRequest.builder()
+                .moodScore(6) // Invalid score
+                .build();
+
+        mockMvc.perform(post("/api/ai/mood/reflection")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())

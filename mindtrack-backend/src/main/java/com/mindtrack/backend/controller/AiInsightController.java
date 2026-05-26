@@ -207,4 +207,26 @@ public class AiInsightController {
         JournalPromptResponse response = aiInsightService.getJournalPrompt(request);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * POST /api/ai/mood/reflection
+     *
+     * Generates a personalized instant AI reflection after mood logging using Gemini.
+     *
+     * @param request        the reflection request payload
+     * @param authentication the authenticated user's Spring Security context
+     * @return the generated mood reflection response
+     */
+    @PostMapping("/mood/reflection")
+    public ResponseEntity<MoodReflectionResponse> getMoodReflection(
+            @Valid @RequestBody MoodReflectionRequest request,
+            Authentication authentication) {
+
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        MoodReflectionResponse response = aiInsightService.getMoodReflection(request, user);
+        return ResponseEntity.ok(response);
+    }
 }

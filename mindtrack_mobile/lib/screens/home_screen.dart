@@ -13,6 +13,7 @@ import '../widgets/mood_face_icon.dart';
 import '../widgets/streak_card.dart';
 import '../widgets/wave_spark.dart';
 import '../widgets/anomaly_radar_card.dart';
+import '../widgets/cosmic_calm_sheet.dart';
 
 /// The primary Home tab displaying the user's mood ring, quick-log buttons,
 /// streak card, and a 7-day mini wave chart.
@@ -88,6 +89,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  String _getDeterministicReflection(int score) {
+    return switch (score) {
+      1 => "It sounds like you're carrying a heavy burden right now. Please be gentle with yourself.",
+      2 => "Your energy is feeling a bit low today, and that is completely okay.",
+      4 => "It's wonderful to feel a sense of stable peace in your day.",
+      5 => "Your spirit is shining bright today! Enjoy this wonderful feeling.",
+      _ => "You're feeling centered and balanced today.",
+    };
+  }
+
+  String _getDeterministicNextStep(int score) {
+    return switch (score) {
+      1 => "Try a quick grounding exercise or reach out to a trusted loved one.",
+      2 => "Give yourself permission to rest or engage in a gentle activity.",
+      4 => "Take a moment to appreciate this stable energy and keep doing what supports you.",
+      5 => "Share your joy or anchor this moment in a quick journal entry.",
+      _ => "Continue observing your day with gentle mindfulness.",
+    };
+  }
+
+  String _getDeterministicTechnique(int score) {
+    return switch (score) {
+      1 => "grounding",
+      2 => "breathing_deep",
+      4 => "walk",
+      5 => "journaling",
+      _ => "journaling",
+    };
+  }
+
   /// Handles a mood log tap: debounces concurrent taps, fires haptic feedback,
   /// calls the Riverpod mood action, and shows a success or error snackbar.
   Future<void> _handleMoodLog(int score) async {
@@ -107,39 +138,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final hasCrisisAlert = responseMap['crisisAlert'] == true;
       final crisisMessage = responseMap['crisisMessage'] as String?;
 
+      // 3. Fetch instant AI reflection from backend
+      Map<String, dynamic> reflectionData;
+      try {
+        final dio = ref.read(dioServiceProvider);
+        reflectionData = await dio.getMoodReflection(
+          moodScore: score,
+          tags: const [],
+          note: 'Logged via quick-check on home screen',
+        );
+      } catch (reflectionErr) {
+        debugPrint('HomeScreen: Failed to get AI reflection: $reflectionErr');
+        // Elegant deterministic fallback on client-side
+        reflectionData = {
+          'oneSentenceReflection': _getDeterministicReflection(score),
+          'suggestedNextStep': _getDeterministicNextStep(score),
+          'recommendedTechnique': _getDeterministicTechnique(score),
+          'showCrisisResources': score <= 1,
+        };
+      }
+
       if (mounted) {
-        if (hasCrisisAlert && crisisMessage != null) {
-          _showCrisisBottomSheet(context, crisisMessage);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: AppColors.primaryColor,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Daily calm secure in ledger.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.surfaceColor,
-              duration: const Duration(seconds: 2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.borderOverlay),
-              ),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        // If crisis is returned or detected, ensure the sheet displays it
+        if (hasCrisisAlert) {
+          reflectionData['showCrisisResources'] = true;
+          if (crisisMessage != null) {
+            reflectionData['oneSentenceReflection'] = crisisMessage;
+          }
         }
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.7),
+          builder: (context) => CosmicCalmSheet(reflection: reflectionData),
+        );
       }
     } catch (e) {
       final message = e.toString().replaceFirst('Exception: ', '');

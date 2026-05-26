@@ -5,6 +5,7 @@ import com.mindtrack.backend.dto.ChatResponse;
 import com.mindtrack.backend.dto.CopingSuggestResponse;
 import com.mindtrack.backend.dto.SentimentAnalysisResponse;
 import com.mindtrack.backend.dto.JournalPromptResponse;
+import com.mindtrack.backend.dto.MoodReflectionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -107,6 +108,13 @@ public class JsonExtractionService {
                 r.getTone() == null || r.getTone().trim().isEmpty() ||
                 r.getFollowUpQuestions() == null || r.getFollowUpQuestions().size() != 3) {
                 throw new IllegalArgumentException("Missing required fields in JournalPromptResponse");
+            }
+        } else if (object instanceof MoodReflectionResponse) {
+            MoodReflectionResponse r = (MoodReflectionResponse) object;
+            if (r.getOneSentenceReflection() == null || r.getOneSentenceReflection().trim().isEmpty() ||
+                r.getSuggestedNextStep() == null || r.getSuggestedNextStep().trim().isEmpty() ||
+                r.getRecommendedTechnique() == null || r.getRecommendedTechnique().trim().isEmpty()) {
+                throw new IllegalArgumentException("Missing required fields in MoodReflectionResponse");
             }
         }
     }

@@ -605,4 +605,113 @@ public class AiInsightService {
         }
         return fallback;
     }
+
+    /**
+     * Generates a personalized instant AI reflection after mood logging using Gemini.
+     * Falls back to a deterministic, high-fidelity message library if Gemini fails.
+     */
+    public MoodReflectionResponse getMoodReflection(MoodReflectionRequest request, User user) {
+        int score = request.getMoodScore();
+        List<String> tags = request.getTags();
+        if (tags == null) {
+            tags = Collections.emptyList();
+        }
+        String note = request.getNote();
+        if (note == null) {
+            note = "";
+        }
+
+        // 1. Calculate recent average if null
+        double recentAverage = request.getRecentAverage() != null ? request.getRecentAverage() : 3.0;
+        if (request.getRecentAverage() == null) {
+            LocalDateTime start = LocalDateTime.now().minusDays(7);
+            List<MoodEntry> recentEntries = moodEntryRepository.findByUserAndTimestampAfterOrderByTimestampDesc(user, start);
+            if (!recentEntries.isEmpty()) {
+                recentAverage = recentEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(3.0);
+            }
+        }
+
+        // 2. Scan note/tags for high-risk words using MentalHealthSafetyService
+        boolean hasHighRiskText = mentalHealthSafetyService.isHighRisk(note);
+        boolean showCrisisResources = score <= 1 || hasHighRiskText;
+
+        // 3. Assemble prompt for Gemini
+        String tagsText = tags.isEmpty() ? "None" : String.join(", ", tags);
+        String recentAverageText = String.format("%.1f", recentAverage);
+
+        String prompt = String.format("""
+        You are an empathetic, compassionate mental health companion inside the MindTrack app.
+        A user has just logged their mood check-in. Provide a brief, supportive, and validated instant reflection.
+
+        User Mood Score: %d / 5 (1=critical stress/crisis, 5=excellent/radiant)
+        Active Tags (associated activities/contexts): %s
+        Optional Reflection Note: "%s"
+        Recent 7-day Average Mood: %s
+
+        Choose the SINGLE best recommended coping technique for right now from this list:
+        - breathing_478 (best for acute anxiety, panic, or critical stress)
+        - breathing_box (best for stress, focus, and centering)
+        - breathing_deep (best for general physical tension and calming down)
+        - grounding (best for overwhelm, racing thoughts, or dissociation)
+        - journaling (best for processing thoughts, neutral or complex feelings)
+        - walk (best for low energy, stagnation, or positive reflection outdoors)
+
+        Respond ONLY with a valid JSON object in this exact format (no markdown, no other text):
+        {
+          "oneSentenceReflection": "a single, short, empathetic, validating sentence acknowledging their state without diagnostic labels",
+          "suggestedNextStep": "one concise, gentle, actionable suggestion (e.g. taking a slow breath, stepping outside, or resting)",
+          "recommendedTechnique": "one of the technique IDs from the list",
+          "showCrisisResources": %b
+        }
+        """, score, tagsText, note, recentAverageText, showCrisisResources);
+
+        try {
+            String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.3);
+            MoodReflectionResponse parsed = jsonExtractionService.extractAndParse(rawResponse, MoodReflectionResponse.class);
+            parsed.setAiAvailable(true);
+            // Ensure showCrisisResources is true if calculated as high risk
+            if (showCrisisResources) {
+                parsed.setShowCrisisResources(true);
+            }
+            return parsed;
+        } catch (Exception e) {
+            log.error("Failed to generate and parse Gemini mood reflection: {}", e.getMessage());
+            return getFallbackReflection(score, showCrisisResources);
+        }
+    }
+
+    private MoodReflectionResponse getFallbackReflection(int score, boolean showCrisisResources) {
+        MoodReflectionResponse fallback = new MoodReflectionResponse();
+        fallback.setAiAvailable(false);
+        fallback.setShowCrisisResources(showCrisisResources);
+
+        switch (score) {
+            case 1 -> {
+                fallback.setOneSentenceReflection("It sounds like you're carrying a heavy burden right now. Please be gentle with yourself.");
+                fallback.setSuggestedNextStep("Try a quick grounding exercise or reach out to a trusted loved one.");
+                fallback.setRecommendedTechnique("grounding");
+            }
+            case 2 -> {
+                fallback.setOneSentenceReflection("Your energy is feeling a bit low today, and that is completely okay.");
+                fallback.setSuggestedNextStep("Give yourself permission to rest or engage in a gentle activity.");
+                fallback.setRecommendedTechnique("breathing_deep");
+            }
+            case 4 -> {
+                fallback.setOneSentenceReflection("It's wonderful to feel a sense of stable peace in your day.");
+                fallback.setSuggestedNextStep("Take a moment to appreciate this stable energy and keep doing what supports you.");
+                fallback.setRecommendedTechnique("walk");
+            }
+            case 5 -> {
+                fallback.setOneSentenceReflection("Your spirit is shining bright today! Enjoy this wonderful feeling.");
+                fallback.setSuggestedNextStep("Share your joy or anchor this moment in a quick journal entry.");
+                fallback.setRecommendedTechnique("journaling");
+            }
+            default -> { // Case 3 (neutral)
+                fallback.setOneSentenceReflection("You're feeling centered and balanced today.");
+                fallback.setSuggestedNextStep("Continue observing your day with gentle mindfulness.");
+                fallback.setRecommendedTechnique("journaling");
+            }
+        }
+        return fallback;
+    }
 }

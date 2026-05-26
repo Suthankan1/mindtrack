@@ -5,6 +5,10 @@ import com.mindtrack.backend.dto.ChangePasswordRequest;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.repository.UserPreferenceRepository;
+import com.mindtrack.backend.repository.MoodEntryRepository;
+import com.mindtrack.backend.repository.CopingSessionRepository;
+import com.mindtrack.backend.repository.StreakRepository;
+import com.mindtrack.backend.repository.StressPatternRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +22,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -42,6 +48,18 @@ public class UserControllerTest {
     private UserPreferenceRepository userPreferenceRepository;
 
     @Autowired
+    private MoodEntryRepository moodEntryRepository;
+
+    @Autowired
+    private CopingSessionRepository copingSessionRepository;
+
+    @Autowired
+    private StreakRepository streakRepository;
+
+    @Autowired
+    private StressPatternRepository stressPatternRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -52,6 +70,10 @@ public class UserControllerTest {
     @BeforeEach
     void setUp() {
         userPreferenceRepository.deleteAll();
+        stressPatternRepository.deleteAll();
+        streakRepository.deleteAll();
+        moodEntryRepository.deleteAll();
+        copingSessionRepository.deleteAll();
         userRepository.deleteAll();
 
         testUser = User.builder()
@@ -297,5 +319,62 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.reminderTime", is("20:00")))
                 .andExpect(jsonPath("$.defaultCopingTechnique", is("Breathing")))
                 .andExpect(jsonPath("$.privacyMode", is("standard")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void clearUserData_Success() throws Exception {
+        // Seed some data
+        moodEntryRepository.save(com.mindtrack.backend.model.MoodEntry.builder()
+                .user(testUser)
+                .moodScore(4)
+                .note("Logging standard data")
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
+
+        copingSessionRepository.save(com.mindtrack.backend.model.CopingSession.builder()
+                .user(testUser)
+                .type("Breathing")
+                .durationSeconds(120)
+                .completedAt(java.time.LocalDateTime.now())
+                .build());
+
+        streakRepository.save(com.mindtrack.backend.model.Streak.builder()
+                .user(testUser)
+                .currentStreak(3)
+                .longestStreak(5)
+                .lastCheckInDate(java.time.LocalDate.now())
+                .build());
+
+        stressPatternRepository.save(com.mindtrack.backend.model.StressPattern.builder()
+                .user(testUser)
+                .weeklyAverage(4.0)
+                .weekStartDate(java.time.LocalDate.now())
+                .weekEndDate(java.time.LocalDate.now().plusDays(7))
+                .calculatedAt(java.time.LocalDateTime.now())
+                .build());
+
+        // Verify pre-conditions
+        assertEquals(1, moodEntryRepository.countByUser(testUser));
+        assertEquals(1, copingSessionRepository.countByUser(testUser));
+        assertTrue(streakRepository.findByUser(testUser).isPresent());
+        assertEquals(1, stressPatternRepository.findByUserOrderByWeekStartDateDesc(testUser).size());
+
+        // Execute deletion
+        mockMvc.perform(delete("/api/user/clear-data"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", is("All personal logs and activity data have been successfully cleared.")));
+
+        // Verify post-conditions
+        assertEquals(0, moodEntryRepository.countByUser(testUser));
+        assertEquals(0, copingSessionRepository.countByUser(testUser));
+        assertTrue(streakRepository.findByUser(testUser).isEmpty());
+        assertEquals(0, stressPatternRepository.findByUserOrderByWeekStartDateDesc(testUser).size());
+    }
+
+    @Test
+    void clearUserData_Unauthenticated() throws Exception {
+        mockMvc.perform(delete("/api/user/clear-data"))
+                .andExpect(status().isForbidden());
     }
 }

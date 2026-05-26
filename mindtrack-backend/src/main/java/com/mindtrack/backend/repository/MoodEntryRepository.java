@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +19,9 @@ public interface MoodEntryRepository extends JpaRepository<MoodEntry, UUID> {
     List<MoodEntry> findByUserAndTimestampAfterOrderByTimestampDesc(User user, LocalDateTime start);
 
     long countByUser(User user);
+
+    @Transactional
+    void deleteByUser(User user);
 
     @Query("SELECT AVG(m.moodScore) FROM MoodEntry m WHERE m.user = :user")
     Double findAvgMoodScoreByUser(@Param("user") User user);

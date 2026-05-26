@@ -5,6 +5,8 @@ import com.mindtrack.backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -13,4 +15,7 @@ public interface CopingSessionRepository extends JpaRepository<CopingSession, UU
     List<CopingSession> findByUserOrderByCompletedAtDesc(User user);
     long countByUser(User user);
     long countByUserAndCompletedAtAfter(User user, java.time.LocalDateTime since);
+
+    @Transactional
+    void deleteByUser(User user);
 }

@@ -78,6 +78,7 @@ export default function SettingsPage() {
 
   // Danger Zone - Clear Data Dialog State
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
 
   // Mount logic to handle localstorage & fetch settings from server
   useEffect(() => {
@@ -343,10 +344,27 @@ export default function SettingsPage() {
     }
   };
 
-  // Action - Danger Zone clear data placeholder
-  const handleConfirmClearData = () => {
-    setIsClearDialogOpen(false);
-    showToast("Feature coming soon", "info");
+  // Action - Danger Zone clear data action
+  const handleConfirmClearData = async () => {
+    setIsClearingData(true);
+    try {
+      await axios.delete("/api/user/clear-data", {
+        headers: {
+          Authorization: `Bearer ${session?.user?.accessToken || ""}`,
+        },
+      });
+      setIsClearDialogOpen(false);
+      showToast("All personal logs and activity data successfully wiped.", "success");
+    } catch (err: unknown) {
+      console.error("Clear data failure:", err);
+      let errMsg = "Failed to clear personal records. Please try again.";
+      if (axios.isAxiosError(err) && err.response) {
+        errMsg = err.response.data.message || err.response.data.error || err.message;
+      }
+      showToast(errMsg, "error");
+    } finally {
+      setIsClearingData(false);
+    }
   };
 
   // Framer Motion Animation Settings
@@ -1009,8 +1027,11 @@ export default function SettingsPage() {
                     <AlertOctagon className="w-5 h-5 animate-pulse text-accent-coral" />
                     Destructive Action Request
                   </Dialog.Title>
-                  <Dialog.Close asChild>
-                    <button className="p-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-muted hover:text-white transition-all">
+                  <Dialog.Close asChild disabled={isClearingData}>
+                    <button 
+                      disabled={isClearingData}
+                      className="p-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-muted hover:text-white transition-all disabled:opacity-40"
+                    >
                       <X className="w-4 h-4" />
                     </button>
                   </Dialog.Close>
@@ -1026,20 +1047,22 @@ export default function SettingsPage() {
                 </Dialog.Description>
 
                 <div className="flex gap-3 pt-2">
-                  <Dialog.Close asChild>
+                  <Dialog.Close asChild disabled={isClearingData}>
                     <button
                       type="button"
-                      className="flex-1 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 font-semibold text-xs text-gray-300 transition-all active:scale-[0.98]"
+                      disabled={isClearingData}
+                      className="flex-1 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 font-semibold text-xs text-gray-300 transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       Cancel
-                        </button>
+                    </button>
                   </Dialog.Close>
 
                   <button
                     onClick={handleConfirmClearData}
-                    className="flex-1 py-3 rounded-xl bg-accent-coral text-white font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] transition-all shadow-[0_0_12px_rgba(255,107,107,0.2)]"
+                    disabled={isClearingData}
+                    className="flex-1 py-3 rounded-xl bg-accent-coral text-white font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-[0.98] transition-all shadow-[0_0_12px_rgba(255,107,107,0.2)] disabled:opacity-50"
                   >
-                    Confirm Destructive Wipe
+                    {isClearingData ? "Wiping Records..." : "Confirm Destructive Wipe"}
                   </button>
                 </div>
               </Dialog.Content>

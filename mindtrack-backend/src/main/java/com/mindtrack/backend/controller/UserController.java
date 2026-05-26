@@ -13,6 +13,8 @@ import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.repository.UserPreferenceRepository;
 import com.mindtrack.backend.repository.CopingSessionRepository;
+import com.mindtrack.backend.repository.StreakRepository;
+import com.mindtrack.backend.repository.StressPatternRepository;
 import com.mindtrack.backend.service.StreakService;
 import com.mindtrack.backend.service.AiInsightService;
 import jakarta.validation.Valid;
@@ -20,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -49,6 +52,8 @@ public class UserController {
     private final UserPreferenceRepository userPreferenceRepository;
     private final CopingSessionRepository copingSessionRepository;
     private final AiInsightService aiInsightService;
+    private final StreakRepository streakRepository;
+    private final StressPatternRepository stressPatternRepository;
 
     /**
      * Constructs the {@code UserController} with all required dependencies.
@@ -60,6 +65,8 @@ public class UserController {
      * @param userPreferenceRepository  repository for user preferences persistence
      * @param copingSessionRepository   repository for coping sessions tracking
      * @param aiInsightService          service for AI insights and anomaly checks
+     * @param streakRepository          repository for streak data persistence
+     * @param stressPatternRepository   repository for stress pattern tracking
      */
     public UserController(
             UserRepository userRepository,
@@ -68,7 +75,9 @@ public class UserController {
             PasswordEncoder passwordEncoder,
             UserPreferenceRepository userPreferenceRepository,
             CopingSessionRepository copingSessionRepository,
-            AiInsightService aiInsightService) {
+            AiInsightService aiInsightService,
+            StreakRepository streakRepository,
+            StressPatternRepository stressPatternRepository) {
         this.userRepository = userRepository;
         this.moodEntryRepository = moodEntryRepository;
         this.streakService = streakService;
@@ -76,6 +85,8 @@ public class UserController {
         this.userPreferenceRepository = userPreferenceRepository;
         this.copingSessionRepository = copingSessionRepository;
         this.aiInsightService = aiInsightService;
+        this.streakRepository = streakRepository;
+        this.stressPatternRepository = stressPatternRepository;
     }
 
     /**
@@ -305,6 +316,27 @@ public class UserController {
 
         UserPreference saved = userPreferenceRepository.save(preference);
         return ResponseEntity.ok(convertToDto(saved));
+    }
+
+    /**
+     * Wipes all mood logs, coping sessions, streaks, and stress patterns for the authenticated user.
+     *
+     * @param authentication the authenticated user details from the security context
+     * @return a 200 OK success response on successful data deletion
+     */
+    @DeleteMapping("/clear-data")
+    @Transactional
+    public ResponseEntity<?> clearUserData(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        moodEntryRepository.deleteByUser(user);
+        copingSessionRepository.deleteByUser(user);
+        streakRepository.deleteByUser(user);
+        stressPatternRepository.deleteByUser(user);
+
+        return ResponseEntity.ok(Map.of("message", "All personal logs and activity data have been successfully cleared."));
     }
 
     private UserPreferenceDto convertToDto(UserPreference preference) {

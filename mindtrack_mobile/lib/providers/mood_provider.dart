@@ -524,3 +524,37 @@ class SyncNotifier extends Notifier<bool> {
 }
 
 final syncProvider = NotifierProvider<SyncNotifier, bool>(SyncNotifier.new);
+
+/// Client-side model representing weekly mood insights & stats
+class WeeklyInsight {
+  final String insight;
+  final double weeklyAverage;
+  final String peakDay;
+  final int entryCount;
+  final bool aiAvailable;
+
+  WeeklyInsight({
+    required this.insight,
+    required this.weeklyAverage,
+    required this.peakDay,
+    required this.entryCount,
+    required this.aiAvailable,
+  });
+
+  factory WeeklyInsight.fromJson(Map<String, dynamic> json) {
+    return WeeklyInsight(
+      insight: json['insight'] as String? ?? '',
+      weeklyAverage: (json['weeklyAverage'] as num?)?.toDouble() ?? 0.0,
+      peakDay: json['peakDay'] as String? ?? 'N/A',
+      entryCount: json['entryCount'] as int? ?? 0,
+      aiAvailable: json['aiAvailable'] as bool? ?? false,
+    );
+  }
+}
+
+/// Riverpod provider for weekly mood insights & statistics
+final weeklyInsightProvider = FutureProvider.autoDispose<WeeklyInsight>((ref) async {
+  final dio = ref.watch(dioServiceProvider);
+  final data = await dio.getWeeklyInsight();
+  return WeeklyInsight.fromJson(data);
+});

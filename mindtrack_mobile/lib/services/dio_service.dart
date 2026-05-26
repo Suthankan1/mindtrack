@@ -559,6 +559,24 @@ class DioService {
     });
   }
 
+  /// Fetches weekly mood insights & statistics
+  Future<Map<String, dynamic>> getWeeklyInsight() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.get('/api/ai/insight/weekly');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to load weekly insight: status ${response.statusCode}');
+    });
+  }
+
   /// Fetches the wellness passport details.
   Future<Map<String, dynamic>> getWellnessPassport() async {
     if (_token == null) {

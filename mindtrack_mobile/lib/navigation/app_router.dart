@@ -10,6 +10,7 @@ import '../screens/onboarding_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/therapists_screen.dart';
+import '../screens/weekly_summary_screen.dart';
 import '../theme/app_theme.dart';
 import 'bottom_nav_bar.dart';
 
@@ -67,6 +68,11 @@ class AppRouter {
         path: '/register',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/weekly-summary',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const WeeklySummaryScreen(),
       ),
 
       // App Shell Branch Navigation

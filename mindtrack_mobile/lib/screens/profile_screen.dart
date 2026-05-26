@@ -802,6 +802,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             onPressed: _isExporting ? null : _exportMoodHistory,
                           ),
                         ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildActionButton(
+                            label: 'Weekly Report',
+                            icon: Icons.analytics_outlined,
+                            onPressed: () => context.push('/weekly-summary'),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),

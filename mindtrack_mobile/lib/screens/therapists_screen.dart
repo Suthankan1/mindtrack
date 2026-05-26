@@ -22,7 +22,17 @@ class _TherapistsScreenState extends ConsumerState<TherapistsScreen> {
   String _selectedSpecialty = 'All';
   String _selectedLocation = 'All';
 
-  final List<String> _specialties = ['All', 'CBT', 'Anxiety', 'Mindfulness', 'ADHD', 'Somatic'];
+  final List<String> _specialties = [
+    'All',
+    'CBT',
+    'Anxiety',
+    'Depression',
+    'Mindfulness',
+    'ADHD',
+    'Somatic',
+    'Trauma',
+    'Neurodiversity',
+  ];
   final List<String> _locations = ['All', 'New York', 'Colombo', 'Mumbai', 'Remote'];
 
   @override

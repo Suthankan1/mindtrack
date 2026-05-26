@@ -126,7 +126,7 @@ export default function TherapistsPage() {
     }, 2000);
   };
 
-  const activeSpecialties = ["All", "CBT", "Anxiety", "Depression", "Mindfulness", "ADHD", "Somatic", "Trauma"];
+  const activeSpecialties = ["All", "CBT", "Anxiety", "Depression", "Mindfulness", "ADHD", "Somatic", "Trauma", "Neurodiversity"];
   const activeLocations = ["All", "New York", "Colombo", "Mumbai", "Remote"];
 
   // Framer Motion staggered variants

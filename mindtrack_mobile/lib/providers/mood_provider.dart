@@ -484,7 +484,7 @@ class SyncNotifier extends Notifier<bool> {
           );
           await ref.read(offlineQueueProvider.notifier).dequeue(entry.id);
           debugPrint('SyncNotifier: Synced entry ${entry.id} successfully.');
-        } on RateLimitException catch (e) {
+        } on RateLimitException {
           _rateLimitBackoffUntil = DateTime.now().add(const Duration(minutes: 10));
           debugPrint('SyncNotifier: Rate limit (429) encountered when syncing entry ${entry.id}. '
               'Backing off sync for 10 minutes (until $_rateLimitBackoffUntil).');

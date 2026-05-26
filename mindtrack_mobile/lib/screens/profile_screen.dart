@@ -691,7 +691,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       trailing: Switch(
                         value: _notificationsEnabled,
                         onChanged: _toggleNotifications,
-                        activeColor: const Color(0xFF00D2C8),
+                        activeThumbColor: const Color(0xFF00D2C8),
                       ),
                     ),
 
@@ -703,7 +703,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       trailing: Switch(
                         value: _aiJournalAnalysisEnabled,
                         onChanged: _toggleAiJournalAnalysis,
-                        activeColor: const Color(0xFF00D2C8),
+                        activeThumbColor: const Color(0xFF00D2C8),
                       ),
                     ),
 
@@ -714,7 +714,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       trailing: Switch(
                         value: _aiChatHistoryEnabled,
                         onChanged: _toggleAiChatHistory,
-                        activeColor: const Color(0xFF00D2C8),
+                        activeThumbColor: const Color(0xFF00D2C8),
                       ),
                     ),
 
@@ -725,7 +725,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       trailing: Switch(
                         value: _shareNotesWithAi,
                         onChanged: _toggleShareNotesWithAi,
-                        activeColor: const Color(0xFF00D2C8),
+                        activeThumbColor: const Color(0xFF00D2C8),
                       ),
                     ),
 
@@ -742,7 +742,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         onChanged: (val) {
                           ref.read(themeProvider.notifier).toggleTheme();
                         },
-                        activeColor: const Color(0xFF00D2C8),
+                        activeThumbColor: const Color(0xFF00D2C8),
                       ),
                     ),
 

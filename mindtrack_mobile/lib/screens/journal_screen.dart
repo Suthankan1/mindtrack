@@ -1904,7 +1904,7 @@ class _MoodLoggingBottomSheetState
                               ),
                               const SizedBox(height: 6),
                               ...(_promptResult!['followUpQuestions'] as List)
-                                  .map((q) {
+                                   .map((q) {
                                     return Padding(
                                       padding: const EdgeInsets.only(
                                         bottom: 4.0,
@@ -1935,8 +1935,7 @@ class _MoodLoggingBottomSheetState
                                         ],
                                       ),
                                     );
-                                  })
-                                  .toList(),
+                                  }),
                             ],
                           ),
                         ),

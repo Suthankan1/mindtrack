@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_theme.dart';
@@ -217,182 +216,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _showCrisisBottomSheet(BuildContext context, String crisisMessage) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      builder: (context) {
-        final theme = Theme.of(context);
-        final isLightTheme = theme.brightness == Brightness.light;
-
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.9,
-          decoration: BoxDecoration(
-            color: isLightTheme ? const Color(0xFFF4F6FC) : AppColors.backgroundColor,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
-            border: Border.all(
-              color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
-              width: 1.5,
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Pull bar / drag handle
-                Center(
-                  child: Container(
-                    width: 48,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: (isLightTheme ? const Color(0xFF8B8BBA) : AppColors.textMuted).withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Empathy Graphic / Heart
-                Center(
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.errorColor.withValues(alpha: 0.15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.errorColor.withValues(alpha: 0.1),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.favorite_rounded,
-                        color: AppColors.errorColor,
-                        size: 40,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Warm Header
-                Center(
-                  child: Text(
-                    'We are here for you',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Empathetic AI Message Card
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: isLightTheme ? Colors.white : AppColors.surfaceColor,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isLightTheme ? 0.02 : 0.1),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        crisisMessage,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
-                          height: 1.6,
-                          fontSize: 16,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Teal "I'm okay" button
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    foregroundColor: isLightTheme ? Colors.white : AppColors.backgroundColor,
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "I'm okay",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Coral "Find Support" button
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.go('/profile');
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.errorColor,
-                    side: const BorderSide(color: AppColors.errorColor, width: 2),
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    "Find Support",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final todayMoodAsync = ref.watch(todayMoodProvider);
-    final historyAsync = ref.watch(moodHistoryProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -519,7 +346,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
-                  error: (_, __) => const MoodRing(moodScore: null),
+                  error: (_, _) => const MoodRing(moodScore: null),
                 ),
                 const SizedBox(height: 28),
 
@@ -564,7 +391,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     );
                   },
                   loading: () => const SizedBox(height: 80),
-                  error: (_, __) => Row(
+                  error: (_, _) => Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(5, (index) {
                       final scoreValue = index + 1;

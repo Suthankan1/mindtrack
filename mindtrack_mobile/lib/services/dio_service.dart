@@ -383,7 +383,9 @@ class DioService {
         data: {
           'moodScore': moodScore,
           'tags': tags,
+          // ignore: use_null_aware_elements
           if (note != null) 'note': note,
+          // ignore: use_null_aware_elements
           if (recentAverage != null) 'recentAverage': recentAverage,
         },
       );

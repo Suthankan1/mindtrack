@@ -17,6 +17,7 @@ class JournalScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<JournalScreen> createState() => _JournalScreenState();
 }
+
 class _JournalScreenState extends ConsumerState<JournalScreen> {
   @override
   void initState() {
@@ -119,10 +120,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.15),
+                                  color: Colors.orange.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: Colors.orange.withOpacity(0.4),
+                                    color: Colors.orange.withValues(alpha: 0.4),
                                     width: 1,
                                   ),
                                 ),
@@ -154,10 +155,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryColor.withOpacity(0.12),
+                                  color: AppColors.primaryColor.withValues(
+                                    alpha: 0.12,
+                                  ),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: AppColors.primaryColor.withOpacity(0.35),
+                                    color: AppColors.primaryColor.withValues(
+                                      alpha: 0.35,
+                                    ),
                                     width: 1,
                                   ),
                                 ),
@@ -236,7 +241,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               Text(
                 'COSMIC REFLECTION',
                 style: TextStyle(
-                  color: AppColors.primaryColor.withOpacity(0.7),
+                  color: AppColors.primaryColor.withValues(alpha: 0.7),
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
@@ -247,10 +252,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.borderOverlay.withOpacity(0.3),
+                  color: AppColors.borderOverlay.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.borderOverlay.withOpacity(0.5),
+                    color: AppColors.borderOverlay.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Text(
@@ -271,7 +276,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Text(
                   'ASSOCIATED CONSTELLATIONS',
                   style: TextStyle(
-                    color: AppColors.primaryColor.withOpacity(0.7),
+                    color: AppColors.primaryColor.withValues(alpha: 0.7),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
@@ -388,7 +393,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     height: 260,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceColor.withOpacity(0.5),
+                      color: AppColors.surfaceColor.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AppColors.borderOverlay),
                     ),
@@ -403,7 +408,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceColor.withOpacity(0.5),
+                      color: AppColors.surfaceColor.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AppColors.borderOverlay),
                     ),
@@ -488,12 +493,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                           children: [
                             Icon(
                               Icons.star_border_rounded,
-                              color: AppColors.textMuted.withOpacity(0.5),
+                              color: AppColors.textMuted.withValues(alpha: 0.5),
                               size: 48,
                             ),
                             const SizedBox(height: 12),
+                            const AnimatedConstellation(),
+                            const SizedBox(height: 20),
                             const Text(
-                              'Your sky is waiting to be filled.',
+                              'Your emotional universe awaits',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -615,7 +622,9 @@ class _ExpandableJournalEntryCardState
 
     try {
       final dio = ref.read(dioServiceProvider);
-      final result = await dio.getSentimentAnalysis(widget.entry.id.toString().toLowerCase());
+      final result = await dio.getSentimentAnalysis(
+        widget.entry.id.toString().toLowerCase(),
+      );
       setState(() {
         _sentimentResult = result;
         _isAnalyzing = false;
@@ -633,9 +642,11 @@ class _ExpandableJournalEntryCardState
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceColor.withOpacity(0.4),
+        color: AppColors.surfaceColor.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderOverlay.withOpacity(0.5)),
+        border: Border.all(
+          color: AppColors.borderOverlay.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -646,7 +657,7 @@ class _ExpandableJournalEntryCardState
                 width: 80,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: AppColors.borderOverlay.withOpacity(0.4),
+                  color: AppColors.borderOverlay.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -655,7 +666,7 @@ class _ExpandableJournalEntryCardState
                 width: 60,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: AppColors.borderOverlay.withOpacity(0.4),
+                  color: AppColors.borderOverlay.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -666,7 +677,7 @@ class _ExpandableJournalEntryCardState
             width: double.infinity,
             height: 14,
             decoration: BoxDecoration(
-              color: AppColors.borderOverlay.withOpacity(0.3),
+              color: AppColors.borderOverlay.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(7),
             ),
           ),
@@ -675,7 +686,7 @@ class _ExpandableJournalEntryCardState
             width: 200,
             height: 14,
             decoration: BoxDecoration(
-              color: AppColors.borderOverlay.withOpacity(0.3),
+              color: AppColors.borderOverlay.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(7),
             ),
           ),
@@ -685,7 +696,9 @@ class _ExpandableJournalEntryCardState
   }
 
   Widget _buildSentimentResultCard() {
-    final sentiment = (_sentimentResult!['sentiment'] ?? 'neutral').toString().toLowerCase();
+    final sentiment = (_sentimentResult!['sentiment'] ?? 'neutral')
+        .toString()
+        .toLowerCase();
     final tone = _sentimentResult!['emotionalTone'] ?? 'neutral';
     final supportMessage = _sentimentResult!['supportMessage'] ?? '';
     final themes = List<String>.from(_sentimentResult!['themes'] ?? []);
@@ -706,10 +719,10 @@ class _ExpandableJournalEntryCardState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: sentimentColor.withOpacity(0.12),
+                color: sentimentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: sentimentColor.withOpacity(0.35),
+                  color: sentimentColor.withValues(alpha: 0.35),
                   width: 1,
                 ),
               ),
@@ -720,8 +733,8 @@ class _ExpandableJournalEntryCardState
                     sentiment == 'positive'
                         ? Icons.mood_rounded
                         : sentiment == 'negative'
-                            ? Icons.mood_bad_rounded
-                            : Icons.sentiment_neutral_rounded,
+                        ? Icons.mood_bad_rounded
+                        : Icons.sentiment_neutral_rounded,
                     color: sentimentColor,
                     size: 14,
                   ),
@@ -746,7 +759,7 @@ class _ExpandableJournalEntryCardState
                 color: AppColors.borderOverlay,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppColors.borderOverlay.withOpacity(0.8),
+                  color: AppColors.borderOverlay.withValues(alpha: 0.8),
                   width: 1,
                 ),
               ),
@@ -774,7 +787,7 @@ class _ExpandableJournalEntryCardState
                   color: AppColors.surfaceColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppColors.borderOverlay.withOpacity(0.4),
+                    color: AppColors.borderOverlay.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Text(
@@ -795,17 +808,17 @@ class _ExpandableJournalEntryCardState
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: sentimentColor.withOpacity(0.05),
+              color: sentimentColor.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: sentimentColor.withOpacity(0.15),
+                color: sentimentColor.withValues(alpha: 0.15),
                 width: 1,
               ),
             ),
             child: Text(
               supportMessage,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 12.5,
                 height: 1.45,
                 fontStyle: FontStyle.italic,
@@ -829,14 +842,14 @@ class _ExpandableJournalEntryCardState
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: _isExpanded
-              ? AppColors.primaryColor.withOpacity(0.4)
+              ? AppColors.primaryColor.withValues(alpha: 0.4)
               : AppColors.borderOverlay,
           width: _isExpanded ? 1.5 : 1,
         ),
         boxShadow: _isExpanded
             ? [
                 BoxShadow(
-                  color: AppColors.primaryColor.withOpacity(0.06),
+                  color: AppColors.primaryColor.withValues(alpha: 0.06),
                   blurRadius: 10,
                   spreadRadius: 1,
                 ),
@@ -875,10 +888,10 @@ class _ExpandableJournalEntryCardState
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.15),
+                                color: Colors.orange.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: Colors.orange.withOpacity(0.4),
+                                  color: Colors.orange.withValues(alpha: 0.4),
                                   width: 1,
                                 ),
                               ),
@@ -910,10 +923,14 @@ class _ExpandableJournalEntryCardState
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withOpacity(0.12),
+                                color: AppColors.primaryColor.withValues(
+                                  alpha: 0.12,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppColors.primaryColor.withOpacity(0.35),
+                                  color: AppColors.primaryColor.withValues(
+                                    alpha: 0.35,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -992,7 +1009,7 @@ class _ExpandableJournalEntryCardState
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         height: 1.4,
                       ),
                     ),
@@ -1023,8 +1040,8 @@ class _ExpandableJournalEntryCardState
                                   color: AppColors.borderOverlay,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppColors.borderOverlay.withOpacity(
-                                      0.8,
+                                    color: AppColors.borderOverlay.withValues(
+                                      alpha: 0.8,
                                     ),
                                   ),
                                 ),
@@ -1043,18 +1060,24 @@ class _ExpandableJournalEntryCardState
                         // AI Sentiment Analysis Section
                         if (widget.entry.note.isNotEmpty) ...[
                           const SizedBox(height: 20),
-                          const Divider(color: AppColors.borderOverlay, height: 1),
+                          const Divider(
+                            color: AppColors.borderOverlay,
+                            height: 1,
+                          ),
                           const SizedBox(height: 16),
                           if (widget.entry.isPending) ...[
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.08),
+                                  color: Colors.orange.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Colors.orange.withOpacity(0.2),
+                                    color: Colors.orange.withValues(alpha: 0.2),
                                   ),
                                 ),
                                 child: Row(
@@ -1078,7 +1101,8 @@ class _ExpandableJournalEntryCardState
                                 ),
                               ),
                             ),
-                          ] else if (_sentimentResult == null && !_isAnalyzing) ...[
+                          ] else if (_sentimentResult == null &&
+                              !_isAnalyzing) ...[
                             Align(
                               alignment: Alignment.centerLeft,
                               child: TextButton.icon(
@@ -1097,12 +1121,18 @@ class _ExpandableJournalEntryCardState
                                   ),
                                 ),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  backgroundColor: AppColors.primaryColor.withOpacity(0.08),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  backgroundColor: AppColors.primaryColor
+                                      .withValues(alpha: 0.08),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     side: BorderSide(
-                                      color: AppColors.primaryColor.withOpacity(0.2),
+                                      color: AppColors.primaryColor.withValues(
+                                        alpha: 0.2,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1153,6 +1183,150 @@ class _ExpandableJournalEntryCardState
         ),
       ),
     );
+  }
+}
+
+class AnimatedConstellation extends StatefulWidget {
+  const AnimatedConstellation({super.key});
+
+  @override
+  State<AnimatedConstellation> createState() => _AnimatedConstellationState();
+}
+
+class _AnimatedConstellationState extends State<AnimatedConstellation>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _ConstellationPainter(progress: _controller.value),
+          size: const Size(180, 180),
+        );
+      },
+    );
+  }
+}
+
+class _ConstellationPainter extends CustomPainter {
+  _ConstellationPainter({required this.progress});
+
+  final double progress;
+
+  static const List<Offset> _points = [
+    Offset(28, 52),
+    Offset(66, 30),
+    Offset(114, 44),
+    Offset(144, 78),
+    Offset(100, 126),
+    Offset(56, 118),
+    Offset(38, 86),
+  ];
+
+  static const List<List<int>> _connections = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 4],
+    [4, 5],
+    [5, 6],
+    [6, 0],
+    [1, 4],
+    [0, 5],
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    final glowPaint = Paint()
+      ..color = AppColors.primaryColor.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 58, glowPaint);
+
+    final linePaint = Paint()
+      ..color = AppColors.primaryColor.withValues(alpha: 0.32)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (final pair in _connections) {
+      _drawDashedLine(
+        canvas,
+        _points[pair[0]],
+        _points[pair[1]],
+        linePaint,
+        progress,
+      );
+    }
+
+    for (var index = 0; index < _points.length; index++) {
+      final point = _points[index];
+      final pulse = (progress + index * 0.11) % 1.0;
+      final radius = 1.8 + (pulse < 0.5 ? pulse : 1.0 - pulse) * 2.6;
+
+      final outerPaint = Paint()
+        ..color = AppColors.primaryColor.withValues(alpha: 0.18)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(point, radius + 1.8, outerPaint);
+
+      final innerPaint = Paint()
+        ..color = index.isEven
+            ? Colors.white.withValues(alpha: 0.95)
+            : AppColors.primaryColor.withValues(alpha: 0.95)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(point, radius, innerPaint);
+    }
+  }
+
+  void _drawDashedLine(
+    Canvas canvas,
+    Offset from,
+    Offset to,
+    Paint paint,
+    double progress,
+  ) {
+    const dashLength = 5.0;
+    const gapLength = 4.0;
+    final vector = to - from;
+    final distance = vector.distance;
+    if (distance == 0) {
+      return;
+    }
+
+    final direction = vector / distance;
+    var currentDistance =
+        (progress * (dashLength + gapLength)) % (dashLength + gapLength);
+
+    while (currentDistance < distance) {
+      final start = from + direction * currentDistance;
+      final endDistance = (currentDistance + dashLength).clamp(0.0, distance);
+      final end = from + direction * endDistance;
+      canvas.drawLine(start, end, paint);
+      currentDistance += dashLength + gapLength;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConstellationPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 
@@ -1222,67 +1396,72 @@ class _MoodLoggingBottomSheetState
       case 1:
         return {
           'promptTitle': 'Calming the Storm',
-          'promptQuestion': 'What is currently demanding the most energy from you, and how can you take one step back to breathe?',
+          'promptQuestion':
+              'What is currently demanding the most energy from you, and how can you take one step back to breathe?',
           'followUpQuestions': [
             'Where do you feel this tension in your body?',
             'What is one thing you can say "no" to today?',
-            'Who is someone you can lean on for support?'
+            'Who is someone you can lean on for support?',
           ],
           'estimatedMinutes': 3,
           'tone': 'Empathetic and grounding',
-          'aiAvailable': false
+          'aiAvailable': false,
         };
       case 2:
         return {
           'promptTitle': 'Gentle Refueling',
-          'promptQuestion': 'When your energy is low, what is the smallest, most comforting thing you can do for yourself right now?',
+          'promptQuestion':
+              'When your energy is low, what is the smallest, most comforting thing you can do for yourself right now?',
           'followUpQuestions': [
             'How has your sleep or rest been lately?',
             'What is a gentle activity that usually restores you?',
-            'How can you show yourself kindness today?'
+            'How can you show yourself kindness today?',
           ],
           'estimatedMinutes': 3,
           'tone': 'Soft and supportive',
-          'aiAvailable': false
+          'aiAvailable': false,
         };
       case 4:
         return {
           'promptTitle': 'Anchoring the Good',
-          'promptQuestion': 'What brought a sense of peace, accomplishment, or quiet joy to your day, even if it was tiny?',
+          'promptQuestion':
+              'What brought a sense of peace, accomplishment, or quiet joy to your day, even if it was tiny?',
           'followUpQuestions': [
             'How can you carry this pleasant feeling into tomorrow?',
             'What activity contributed most to this stable mood?',
-            'What are you feeling grateful for right now?'
+            'What are you feeling grateful for right now?',
           ],
           'estimatedMinutes': 5,
           'tone': 'Warm and appreciative',
-          'aiAvailable': false
+          'aiAvailable': false,
         };
       case 5:
         return {
           'promptTitle': 'Celebrating Clarity',
-          'promptQuestion': 'Your energy feels radiant today. What is flowing well in your life right now that you want to celebrate?',
+          'promptQuestion':
+              'Your energy feels radiant today. What is flowing well in your life right now that you want to celebrate?',
           'followUpQuestions': [
             'How can you capture and remember this feeling of expansion?',
             'How can you share this positive energy with others?',
-            'What dreams or hopes feel closest to you today?'
+            'What dreams or hopes feel closest to you today?',
           ],
           'estimatedMinutes': 5,
           'tone': 'Uplifting and vibrant',
-          'aiAvailable': false
+          'aiAvailable': false,
         };
       default:
         return {
           'promptTitle': 'Checking In',
-          'promptQuestion': 'How would you describe the transition of your energy today from morning until this very moment?',
+          'promptQuestion':
+              'How would you describe the transition of your energy today from morning until this very moment?',
           'followUpQuestions': [
             'What felt stable or balanced today?',
             'Is there any subtle emotion waiting to be noticed?',
-            'What is one word that sums up your current state?'
+            'What is one word that sums up your current state?',
           ],
           'estimatedMinutes': 5,
           'tone': 'Mindful and observant',
-          'aiAvailable': false
+          'aiAvailable': false,
         };
     }
   }
@@ -1454,12 +1633,17 @@ class _MoodLoggingBottomSheetState
                       ),
                     ),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      backgroundColor: AppColors.primaryColor.withOpacity(0.08),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      backgroundColor: AppColors.primaryColor.withValues(
+                        alpha: 0.08,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                         side: BorderSide(
-                          color: AppColors.primaryColor.withOpacity(0.2),
+                          color: AppColors.primaryColor.withValues(alpha: 0.2),
                         ),
                       ),
                     ),
@@ -1475,10 +1659,10 @@ class _MoodLoggingBottomSheetState
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceColor.withOpacity(0.4),
+                  color: AppColors.surfaceColor.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: AppColors.borderOverlay.withOpacity(0.4),
+                    color: AppColors.borderOverlay.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Column(
@@ -1488,7 +1672,7 @@ class _MoodLoggingBottomSheetState
                       width: 100,
                       height: 14,
                       decoration: BoxDecoration(
-                        color: AppColors.borderOverlay.withOpacity(0.4),
+                        color: AppColors.borderOverlay.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(7),
                       ),
                     ),
@@ -1497,7 +1681,7 @@ class _MoodLoggingBottomSheetState
                       width: double.infinity,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: AppColors.borderOverlay.withOpacity(0.3),
+                        color: AppColors.borderOverlay.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
@@ -1527,10 +1711,10 @@ class _MoodLoggingBottomSheetState
                   margin: const EdgeInsets.only(bottom: 14),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withOpacity(0.04),
+                    color: AppColors.primaryColor.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: AppColors.primaryColor.withOpacity(0.2),
+                      color: AppColors.primaryColor.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -1541,7 +1725,9 @@ class _MoodLoggingBottomSheetState
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            (_promptResult!['promptTitle'] ?? '').toString().toUpperCase(),
+                            (_promptResult!['promptTitle'] ?? '')
+                                .toString()
+                                .toUpperCase(),
                             style: const TextStyle(
                               color: AppColors.primaryColor,
                               fontSize: 10.5,
@@ -1552,7 +1738,10 @@ class _MoodLoggingBottomSheetState
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.borderOverlay,
                                   borderRadius: BorderRadius.circular(6),
@@ -1568,13 +1757,18 @@ class _MoodLoggingBottomSheetState
                               ),
                               const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.borderOverlay,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  (_promptResult!['tone'] ?? 'Gentle').toString().toUpperCase(),
+                                  (_promptResult!['tone'] ?? 'Gentle')
+                                      .toString()
+                                      .toUpperCase(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 8.5,
@@ -1606,7 +1800,8 @@ class _MoodLoggingBottomSheetState
                         ),
                       ),
                       if (_promptResult!['followUpQuestions'] != null &&
-                          (_promptResult!['followUpQuestions'] as List).isNotEmpty) ...[
+                          (_promptResult!['followUpQuestions'] as List)
+                              .isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Container(
                           width: double.infinity,
@@ -1632,33 +1827,40 @@ class _MoodLoggingBottomSheetState
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              ...(_promptResult!['followUpQuestions'] as List).map((q) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 4.0),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        '• ',
-                                        style: TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 11,
-                                        ),
+                              ...(_promptResult!['followUpQuestions'] as List)
+                                  .map((q) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 4.0,
                                       ),
-                                      Expanded(
-                                        child: Text(
-                                          q.toString(),
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
-                                            fontSize: 11,
-                                            height: 1.35,
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            '• ',
+                                            style: TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 11,
+                                            ),
                                           ),
-                                        ),
+                                          Expanded(
+                                            child: Text(
+                                              q.toString(),
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.7,
+                                                ),
+                                                fontSize: 11,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
+                                    );
+                                  })
+                                  .toList(),
                             ],
                           ),
                         ),
@@ -1681,7 +1883,7 @@ class _MoodLoggingBottomSheetState
                   fontSize: 14,
                 ),
                 filled: true,
-                fillColor: AppColors.borderOverlay.withOpacity(0.3),
+                fillColor: AppColors.borderOverlay.withValues(alpha: 0.3),
                 contentPadding: const EdgeInsets.all(16),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -1734,7 +1936,9 @@ class _MoodLoggingBottomSheetState
                         : FontWeight.normal,
                     fontSize: 12,
                   ),
-                  backgroundColor: AppColors.borderOverlay.withOpacity(0.4),
+                  backgroundColor: AppColors.borderOverlay.withValues(
+                    alpha: 0.4,
+                  ),
                   side: BorderSide(
                     color: isSelected
                         ? AppColors.primaryColor
@@ -1758,8 +1962,8 @@ class _MoodLoggingBottomSheetState
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,
                   foregroundColor: AppColors.backgroundColor,
-                  disabledBackgroundColor: AppColors.primaryColor.withOpacity(
-                    0.5,
+                  disabledBackgroundColor: AppColors.primaryColor.withValues(
+                    alpha: 0.5,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),

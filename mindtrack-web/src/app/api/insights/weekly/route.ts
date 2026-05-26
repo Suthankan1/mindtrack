@@ -126,7 +126,7 @@ export async function GET() {
       return {
         hourLabel: b.hourLabel,
         hour: b.minHour + 1,
-        avgScore: b.count > 0 ? parseFloat((b.sum / b.count).toFixed(1)) : 3.5,
+        avgScore: b.count > 0 ? parseFloat((b.sum / b.count).toFixed(1)) : null,
       };
     });
 

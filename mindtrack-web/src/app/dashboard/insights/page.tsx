@@ -41,7 +41,7 @@ interface MoodDistributionItem {
 interface TimeOfDayItem {
   hourLabel: string;
   hour: number;
-  avgScore: number;
+  avgScore: number | null;
 }
 
 interface WeeklyInsightsResponse {
@@ -127,7 +127,9 @@ const createWeeklyReportPdf = (insights: WeeklyInsightsResponse, userEmail?: str
     { text: "Mood Patterns by Hour", size: 14, gap: 20 },
     ...(insights.timeOfDay.length
       ? insights.timeOfDay.map((item) => ({
-          text: `${item.hourLabel}: average mood ${item.avgScore}/5`,
+          text: item.avgScore !== null
+            ? `${item.hourLabel}: average mood ${item.avgScore}/5`
+            : `${item.hourLabel}: No logs recorded`,
           size: 11,
           gap: 15,
         }))
@@ -330,6 +332,7 @@ export default function InsightsPage() {
   const CustomBarTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload as TimeOfDayItem;
+      if (data.avgScore === null) return null;
       return (
         <div className="bg-[#12122A] border border-[#1C1C3A] p-3 rounded-xl shadow-xl text-xs space-y-1">
           <p className="font-bold text-white flex items-center gap-1.5">
@@ -343,6 +346,28 @@ export default function InsightsPage() {
       );
     }
     return null;
+  };
+
+  // Recharts Custom Tick for BarChart XAxis
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const CustomXAxisTick = ({ x, y, payload }: any) => {
+    const item = insights?.timeOfDay.find(t => t.hourLabel === payload.value);
+    const isNull = item ? item.avgScore === null : false;
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          dy={12}
+          textAnchor="middle"
+          fill={isNull ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.5)"}
+          fontSize={9}
+          fontWeight={isNull ? "normal" : "600"}
+        >
+          {payload.value}
+        </text>
+      </g>
+    );
   };
 
   // Framer Motion staggered transition variants
@@ -638,13 +663,19 @@ export default function InsightsPage() {
                         <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Peak Energy Hour</span>
                         <p className="text-md font-bold text-accent-coral font-display pt-2 truncate">
                           {(() => {
-                            const bestHour = insights.timeOfDay.reduce((max, item) => item.avgScore > max.avgScore ? item : max, insights.timeOfDay[0]);
+                            const validTime = insights.timeOfDay.filter(t => t.avgScore !== null);
+                            const bestHour = validTime.length > 0
+                              ? validTime.reduce((max, item) => (item.avgScore! > max.avgScore!) ? item : max, validTime[0])
+                              : null;
                             return bestHour ? `${bestHour.hourLabel}` : "N/A";
                           })()}
                         </p>
                         <p className="text-[9px] text-muted">
                           Avg: {(() => {
-                            const bestHour = insights.timeOfDay.reduce((max, item) => item.avgScore > max.avgScore ? item : max, insights.timeOfDay[0]);
+                            const validTime = insights.timeOfDay.filter(t => t.avgScore !== null);
+                            const bestHour = validTime.length > 0
+                              ? validTime.reduce((max, item) => (item.avgScore! > max.avgScore!) ? item : max, validTime[0])
+                              : null;
                             return bestHour ? `${bestHour.avgScore}/5` : "N/A";
                           })()}
                         </p>
@@ -992,72 +1023,89 @@ export default function InsightsPage() {
                 </div>
 
                 <div className="w-full min-w-0 h-[280px] min-h-[280px] relative">
-                  {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2.5 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30 p-6 text-center">
-                      <Lock className="w-8 h-8 opacity-45 text-accent-coral animate-pulse" />
-                      <span className="text-xs font-semibold text-gray-200">Awaiting Calibration</span>
-                      <span className="text-[10px] text-muted max-w-[220px]">Log at least 3 moods to unlock insight charts</span>
-                    </div>
-                  ) : insights.timeOfDay.length > 0 && chartsReady ? (
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <BarChart data={insights.timeOfDay} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#00D2C8" stopOpacity={0.9} />
-                            <stop offset="100%" stopColor="#00D2C8" stopOpacity={0.2} />
-                          </linearGradient>
-                        </defs>
-                        
-                        <XAxis
-                          dataKey="hourLabel"
-                          stroke="rgba(255,255,255,0.2)"
-                          fontSize={9}
-                          tickLine={false}
-                          axisLine={false}
-                          dy={8}
-                        />
-                        <YAxis
-                          domain={[1, 5]}
-                          ticks={[1, 2, 3, 4, 5]}
-                          stroke="rgba(255,255,255,0.2)"
-                          fontSize={9}
-                          tickLine={false}
-                          axisLine={false}
-                          dx={-8}
-                        />
-                        <RechartsTooltip content={<CustomBarTooltip />} />
-                        <Bar
-                          dataKey="avgScore"
-                          fill="url(#barGradient)"
-                          radius={[6, 6, 0, 0]}
-                          maxBarSize={30}
-                        >
-                          {insights.timeOfDay.map((entry, index) => {
-                            // If mood is exceptionally high, let's highlight it with a slight accent glow
-                            const isHigh = entry.avgScore >= 4.0;
-                            const isLow = entry.avgScore < 3.2;
-                            let barColor = "url(#barGradient)";
-                            if (isHigh) barColor = "url(#barGradient)";
-                            else if (isLow) barColor = "rgba(255, 107, 107, 0.7)"; // low energy gets a subtle coral red tint
+                  {(() => {
+                    const hasTimePatterns = insights.timeOfDay.some(item => item.avgScore !== null);
+                    if (insights.totalEntries !== undefined && insights.totalEntries < 3) {
+                      return (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2.5 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30 p-6 text-center">
+                          <Lock className="w-8 h-8 opacity-45 text-accent-coral animate-pulse" />
+                          <span className="text-xs font-semibold text-gray-200">Awaiting Calibration</span>
+                          <span className="text-[10px] text-muted max-w-[220px]">Log at least 3 moods to unlock insight charts</span>
+                        </div>
+                      );
+                    }
+                    if (insights.timeOfDay.length > 0 && hasTimePatterns && chartsReady) {
+                      return (
+                        <div className="flex flex-col h-full justify-between">
+                          <div className="h-[235px] w-full">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                              <BarChart data={insights.timeOfDay} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#00D2C8" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#00D2C8" stopOpacity={0.2} />
+                                  </linearGradient>
+                                </defs>
+                                
+                                <XAxis
+                                  dataKey="hourLabel"
+                                  tick={<CustomXAxisTick />}
+                                  tickLine={false}
+                                  axisLine={false}
+                                />
+                                <YAxis
+                                  domain={[1, 5]}
+                                  ticks={[1, 2, 3, 4, 5]}
+                                  stroke="rgba(255,255,255,0.2)"
+                                  fontSize={9}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  dx={-8}
+                                />
+                                <RechartsTooltip content={<CustomBarTooltip />} />
+                                <Bar
+                                  dataKey="avgScore"
+                                  fill="url(#barGradient)"
+                                  radius={[6, 6, 0, 0]}
+                                  maxBarSize={30}
+                                >
+                                  {insights.timeOfDay.map((entry, index) => {
+                                    const isHigh = entry.avgScore !== null && entry.avgScore >= 4.0;
+                                    const isLow = entry.avgScore !== null && entry.avgScore < 3.2;
+                                    let barColor = "url(#barGradient)";
+                                    if (isHigh) barColor = "url(#barGradient)";
+                                    else if (isLow) barColor = "rgba(255, 107, 107, 0.7)";
 
-                            return (
-                              <Cell
-                                key={`bar-cell-${index}`}
-                                fill={barColor}
-                                className="cursor-pointer hover:opacity-90 transition-opacity"
-                              />
-                            );
-                          })}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30">
-                      <Clock className="w-8 h-8 opacity-40 text-muted" />
-                      <span className="text-xs font-semibold text-gray-400">Circadian Telemetry Empty</span>
-                      <span className="text-[10px] opacity-60">Awaiting sufficient logs to group by hour.</span>
-                    </div>
-                  )}
+                                    return (
+                                      <Cell
+                                        key={`bar-cell-${index}`}
+                                        fill={barColor}
+                                        className="cursor-pointer hover:opacity-90 transition-opacity"
+                                      />
+                                    );
+                                  })}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="text-center pt-2 border-t border-white/[0.03] shrink-0">
+                            <p className="text-[10px] text-muted">
+                              Log more moods at different times to unlock time-of-day patterns.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30 p-6 text-center">
+                        <Clock className="w-8 h-8 opacity-40 text-muted" />
+                        <span className="text-xs font-semibold text-gray-400">Circadian Telemetry Empty</span>
+                        <span className="text-[10px] opacity-80 max-w-[240px]">
+                          Log more moods at different times to unlock time-of-day patterns.
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </motion.div>
 

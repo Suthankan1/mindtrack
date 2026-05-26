@@ -78,10 +78,7 @@ export async function GET() {
         timestamp: new Date().toISOString(),
       });
 
-      if (status === 401) insight = "Session expired — please sign in again.";
-      else if (status === 429) insight = "AI insights are rate-limited right now. Try again in a few minutes.";
-      else if (status === 503) insight = "The AI engine is temporarily offline. Your mood data is safe.";
-      else insight = "Unable to reach the mental health companion. Please verify the AI cognitive engine is online.";
+      insight = "AI_UNAVAILABLE";
     }
 
     // 1. Process Mood Distribution this month (last 30 days)

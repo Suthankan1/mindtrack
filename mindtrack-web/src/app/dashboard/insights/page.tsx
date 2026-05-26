@@ -65,24 +65,7 @@ type ToastState = {
   type: "success" | "error";
 } | null;
 
-const MOCK_PIE_DATA: MoodDistributionItem[] = [
-  { name: `Radiant 🌟`, value: 35, score: 5, color: "#00D2C8" },
-  { name: `Stable ✨`, value: 45, score: 4, color: "#10B981" },
-  { name: `Neutral 😐`, value: 10, score: 3, color: "#6B7280" },
-  { name: `Low Energy 😞`, value: 7, score: 2, color: "#F59E0B" },
-  { name: `High Stress 🔥`, value: 3, score: 1, color: "#FF6B6B" },
-];
 
-const MOCK_BAR_DATA: TimeOfDayItem[] = [
-  { hourLabel: "08:00 AM", hour: 8, avgScore: 4.2 },
-  { hourLabel: "10:00 AM", hour: 10, avgScore: 3.8 },
-  { hourLabel: "12:00 PM", hour: 12, avgScore: 3.5 },
-  { hourLabel: "02:00 PM", hour: 14, avgScore: 3.1 },
-  { hourLabel: "04:00 PM", hour: 16, avgScore: 3.6 },
-  { hourLabel: "06:00 PM", hour: 18, avgScore: 4.0 },
-  { hourLabel: "08:00 PM", hour: 20, avgScore: 4.5 },
-  { hourLabel: "10:00 PM", hour: 22, avgScore: 4.1 },
-];
 
 const sanitizePdfText = (value: string) =>
   value
@@ -493,27 +476,7 @@ export default function InsightsPage() {
                 {/* Decorative background grid glows */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-accent-teal/10 to-transparent blur-3xl rounded-full opacity-70 pointer-events-none" />
                 
-                {insights.insight === "AI_UNAVAILABLE" ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
-                      <span className="px-2 py-0.5 rounded-md bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-[8px] font-bold uppercase tracking-wider">
-                        Offline
-                      </span>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-accent-coral/5 border border-accent-coral/20 text-accent-coral text-xs flex items-center justify-between gap-4 glass-card">
-                      <p className="font-medium leading-relaxed">
-                        ⚠️ Cognitive AI engine is restfully offline. Local telemetry calculations remain active.
-                      </p>
-                      <button
-                        onClick={fetchInsights}
-                        className="px-3 py-1.5 rounded-xl bg-accent-coral/10 border border-accent-coral/20 hover:bg-accent-coral/20 text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 duration-200"
-                      >
-                        Reconnect AI
-                      </button>
-                    </div>
-                  </div>
-                ) : insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
+                {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
                   /* Locked State for insufficient insights */
                   <div className="space-y-6">
                     <div className="flex items-center gap-2">
@@ -559,6 +522,78 @@ export default function InsightsPage() {
                             <span className={insights.totalEntries >= 3 ? "line-through text-muted" : ""}>Unlock weekly pattern analysis</span>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : insights.insight === "AI_UNAVAILABLE" ? (
+                  /* AI Offline but Mood Data Exists (totalEntries >= 3): Show Deterministic Mood Stats */
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-white font-display">Cognitive Analysis Insight</h3>
+                        <span className="px-2 py-0.5 rounded-md bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-[8px] font-bold uppercase tracking-wider">
+                          AI Offline — Local Telemetry Active
+                        </span>
+                      </div>
+                      <button
+                        onClick={fetchInsights}
+                        className="px-2.5 py-1 rounded-xl bg-[#1C1C3A] border border-[#2D2D54] hover:bg-[#2D2D54] text-[9px] font-bold uppercase tracking-wider transition-all duration-200"
+                      >
+                        Reconnect AI
+                      </button>
+                    </div>
+
+                    {/* Deterministic Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Stat 1: Total Logs */}
+                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Total Logs</span>
+                        <p className="text-2xl font-bold text-white font-display">
+                          {insights.totalEntries}
+                        </p>
+                        <p className="text-[9px] text-muted">Entries tracked this month</p>
+                      </div>
+
+                      {/* Stat 2: Weighted Average */}
+                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Avg Mood Score</span>
+                        <p className="text-2xl font-bold text-accent-teal font-display">
+                          {(() => {
+                            const totalValueSum = insights.moodDistribution.reduce((sum, item) => sum + item.value, 0);
+                            const weightedScoreSum = insights.moodDistribution.reduce((sum, item) => sum + (item.score * item.value), 0);
+                            return totalValueSum > 0 ? (weightedScoreSum / totalValueSum).toFixed(1) : "N/A";
+                          })()} <span className="text-xs text-muted font-normal font-sans">/ 5.0</span>
+                        </p>
+                        <p className="text-[9px] text-muted">Deterministic math score</p>
+                      </div>
+
+                      {/* Stat 3: Dominant Mood */}
+                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Dominant Mood</span>
+                        <p className="text-lg font-bold text-white font-display truncate pt-1">
+                          {(() => {
+                            const maxItem = insights.moodDistribution.reduce((max, item) => item.value > max.value ? item : max, insights.moodDistribution[0]);
+                            return maxItem ? maxItem.name : "N/A";
+                          })()}
+                        </p>
+                        <p className="text-[9px] text-muted">Highest distribution share</p>
+                      </div>
+
+                      {/* Stat 4: Peak Circadian Hour */}
+                      <div className="p-4 rounded-2xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted">Peak Energy Hour</span>
+                        <p className="text-md font-bold text-accent-coral font-display pt-2 truncate">
+                          {(() => {
+                            const bestHour = insights.timeOfDay.reduce((max, item) => item.avgScore > max.avgScore ? item : max, insights.timeOfDay[0]);
+                            return bestHour ? `${bestHour.hourLabel}` : "N/A";
+                          })()}
+                        </p>
+                        <p className="text-[9px] text-muted">
+                          Avg: {(() => {
+                            const bestHour = insights.timeOfDay.reduce((max, item) => item.avgScore > max.avgScore ? item : max, insights.timeOfDay[0]);
+                            return bestHour ? `${bestHour.avgScore}/5` : "N/A";
+                          })()}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -828,41 +863,11 @@ export default function InsightsPage() {
 
                 <div className="relative w-full min-w-0 h-[280px] min-h-[280px] flex items-center justify-center">
                   {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
-                    <>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-20 backdrop-blur-[3px] bg-background/55 rounded-2xl border border-white/[0.02]">
-                        <div className="w-9 h-9 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mb-2.5 animate-pulse">
-                          <Lock className="w-4 h-4" />
-                        </div>
-                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Awaiting Calibration</h4>
-                        <p className="text-[10px] text-muted max-w-[200px] mt-1 leading-relaxed">
-                          Log at least 3 entries to unlock distribution metrics.
-                        </p>
-                      </div>
-                      <div className="w-full h-full opacity-20 pointer-events-none select-none blur-[1px] relative">
-                        {chartsReady && (
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <PieChart>
-                            <Pie
-                              data={MOCK_PIE_DATA}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={70}
-                              outerRadius={95}
-                              paddingAngle={5}
-                              dataKey="value"
-                            >
-                              {MOCK_PIE_DATA.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} stroke="#12122A" strokeWidth={2} />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                        )}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center mt-[-10px]">
-                          <Brain className="w-6 h-6 text-accent-teal/40" />
-                        </div>
-                      </div>
-                    </>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2.5 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30 p-6 text-center">
+                      <Lock className="w-8 h-8 opacity-45 text-accent-teal animate-pulse" />
+                      <span className="text-xs font-semibold text-gray-200">Awaiting Calibration</span>
+                      <span className="text-[10px] text-muted max-w-[220px]">Log at least 3 moods to unlock insight charts</span>
+                    </div>
                   ) : insights.moodDistribution.length > 0 && chartsReady ? (
                     <>
                       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
@@ -934,28 +939,11 @@ export default function InsightsPage() {
 
                 <div className="w-full min-w-0 h-[280px] min-h-[280px] relative">
                   {insights.totalEntries !== undefined && insights.totalEntries < 3 ? (
-                    <>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-20 backdrop-blur-[3px] bg-background/55 rounded-2xl border border-white/[0.02]">
-                        <div className="w-9 h-9 rounded-full bg-accent-teal/10 border border-accent-teal/20 flex items-center justify-center text-accent-teal mb-2.5 animate-pulse">
-                          <Lock className="w-4 h-4" />
-                        </div>
-                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Awaiting Calibration</h4>
-                        <p className="text-[10px] text-muted max-w-[200px] mt-1 leading-relaxed">
-                          Log at least 3 entries to unlock circadian patterns.
-                        </p>
-                      </div>
-                      <div className="w-full h-full opacity-20 pointer-events-none select-none blur-[1px]">
-                        {chartsReady && (
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <BarChart data={MOCK_BAR_DATA} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
-                            <XAxis dataKey="hourLabel" stroke="rgba(255,255,255,0.1)" fontSize={9} tickLine={false} axisLine={false} dy={8} />
-                            <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} stroke="rgba(255,255,255,0.1)" fontSize={9} tickLine={false} axisLine={false} dx={-8} />
-                            <Bar dataKey="avgScore" fill="rgba(0, 210, 200, 0.2)" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                        )}
-                      </div>
-                    </>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-muted gap-2.5 border border-white/[0.02] rounded-2xl bg-[#0A0A14]/30 p-6 text-center">
+                      <Lock className="w-8 h-8 opacity-45 text-accent-coral animate-pulse" />
+                      <span className="text-xs font-semibold text-gray-200">Awaiting Calibration</span>
+                      <span className="text-[10px] text-muted max-w-[220px]">Log at least 3 moods to unlock insight charts</span>
+                    </div>
                   ) : insights.timeOfDay.length > 0 && chartsReady ? (
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <BarChart data={insights.timeOfDay} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>

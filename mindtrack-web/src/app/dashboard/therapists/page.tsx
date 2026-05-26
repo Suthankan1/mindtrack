@@ -115,6 +115,7 @@ export default function TherapistsPage() {
     e.preventDefault();
     if (!messageText.trim() || !selectedTherapist) return;
 
+    setIsSending(true);
     const subject = encodeURIComponent("MindTrack Consultation Request");
     const body = encodeURIComponent(
       messageText + (attachPdf ? "\n\n[Mood history report attached via MindTrack export]" : "")
@@ -122,6 +123,7 @@ export default function TherapistsPage() {
     const mailtoUrl = `mailto:${selectedTherapist.contactEmail}?subject=${subject}&body=${body}`;
 
     window.open(mailtoUrl, "_blank");
+    setIsSending(false);
     setSendSuccess(true);
     setTimeout(() => {
       setSelectedTherapist(null);

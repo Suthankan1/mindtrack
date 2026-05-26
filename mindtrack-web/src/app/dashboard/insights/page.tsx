@@ -279,6 +279,13 @@ export default function InsightsPage() {
     }
   };
 
+  const getDaysUntilSunday = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sunday
+    const daysUntil = dayOfWeek === 0 ? 7 : 7 - dayOfWeek;
+    return daysUntil;
+  };
+
   // Recharts Custom Tooltip for PieChart
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const CustomPieTooltip = ({ active, payload }: any) => {
@@ -1026,7 +1033,7 @@ export default function InsightsPage() {
                 </p>
                 <h4 className="text-sm font-semibold text-white">How to leverage circadian correlation insights</h4>
                 <p className="text-xs text-muted leading-relaxed">
-                  Your mood reports map entries chronologically to spot circadian rhythms and consistency levels. 
+                  Your mood reports map {insights?.totalEntries || 0} entries chronologically to spot circadian rhythms and consistency levels. 
                   Identify clusters where scores fluctuate. Tag matches (e.g. mindfulness, work, sleep) help isolate trigger points, 
                   allowing you to fine-tune your calendar for optimal mental energy.
                 </p>
@@ -1034,7 +1041,9 @@ export default function InsightsPage() {
 
               <div className="flex items-center gap-2 text-xs text-muted border border-white/[0.03] bg-[#0A0A14]/30 p-4 rounded-2xl shrink-0">
                 <Calendar className="w-4 h-4 text-accent-teal" />
-                <span>Next analysis compile scheduled in <strong>3 days</strong></span>
+                <span>
+                  Next AI analysis scheduled <strong>{getDaysUntilSunday() === 1 ? "tomorrow" : `in ${getDaysUntilSunday()} days`}</strong> (every Sunday)
+                </span>
               </div>
             </motion.div>
           </motion.div>

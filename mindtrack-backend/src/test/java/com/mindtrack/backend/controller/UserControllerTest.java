@@ -176,7 +176,7 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.reminderTime", is("20:00")))
                 .andExpect(jsonPath("$.defaultCopingTechnique", is("Breathing")))
                 .andExpect(jsonPath("$.privacyMode", is("standard")))
-                .andExpect(jsonPath("$.aiJournalAnalysisEnabled", is(false)))
+                .andExpect(jsonPath("$.aiJournalAnalysisEnabled", is(true)))
                 .andExpect(jsonPath("$.aiChatHistoryEnabled", is(false)))
                 .andExpect(jsonPath("$.shareNotesWithAi", is(false)));
     }

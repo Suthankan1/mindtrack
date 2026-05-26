@@ -111,14 +111,18 @@ public class AiInsightService {
         List<String> patterns = new ArrayList<>();
 
         // 1. Sudden drop from personal baseline
-        // Compare recent 2 entries avg vs older entries avg
-        List<MoodEntry> recent = entries.subList(0, 2);
-        List<MoodEntry> older = entries.subList(2, entries.size());
+        // entries are DESC (newest first): compare newest quarter against oldest half
+        int recentCount = Math.min(3, entries.size() / 4 + 1);
+        int olderStart = entries.size() / 2;
+        List<MoodEntry> recent = entries.subList(0, recentCount);
+        List<MoodEntry> older = entries.size() > olderStart
+            ? entries.subList(olderStart, entries.size())
+            : entries.subList(recentCount, entries.size());
 
         double recentAvg = recent.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
         double olderAvg = older.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(0.0);
 
-        if (recentAvg <= olderAvg - 1.2) {
+        if (recentAvg <= olderAvg - 1.0) {
             patterns.add("Sudden mood drop from personal baseline");
         }
 

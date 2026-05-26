@@ -506,6 +506,25 @@ class DioService {
     });
   }
 
+  /// Fetches the wellness passport details.
+  Future<Map<String, dynamic>> getWellnessPassport() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.get('/api/user/wellness-passport');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to load wellness passport: status ${response.statusCode}');
+    });
+  }
+
+
   /// Fetches the therapist directory profiles from the Spring Boot backend.
   Future<List<dynamic>> getTherapists() async {
     if (_token == null) {

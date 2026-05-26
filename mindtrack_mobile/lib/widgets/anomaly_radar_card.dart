@@ -15,11 +15,9 @@ class AnomalyRadarCard extends ConsumerStatefulWidget {
   ConsumerState<AnomalyRadarCard> createState() => _AnomalyRadarCardState();
 }
 
-class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
-    with SingleTickerProviderStateMixin {
+class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard> {
   static const String _collapsedPrefKey = 'anomaly_radar_collapsed';
 
-  late AnimationController _rotationController;
   bool _showCrisisHelplines = false;
   bool _isCollapsed = false;
   String? _lastRiskLevel;
@@ -28,24 +26,10 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
   void initState() {
     super.initState();
     _loadCollapsedState();
-    // Continuously rotate the radar sweep line to look premium and active
-    _rotationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    );
-    final isTest = RegExp(
-      r'package:flutter_test',
-    ).hasMatch(StackTrace.current.toString());
-    if (!isTest) {
-      _rotationController.repeat();
-    } else {
-      _rotationController.value = 1.0;
-    }
   }
 
   @override
   void dispose() {
-    _rotationController.dispose();
     super.dispose();
   }
 
@@ -272,10 +256,10 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
 
         // Color configurations based on Risk Level
         final Color riskColor = anomaly.riskLevel == 'HIGH'
-            ? AppColors.errorColor
+            ? const Color(0xFFFF6B6B)
             : anomaly.riskLevel == 'MEDIUM'
-            ? Colors.orange
-            : AppColors.primaryColor;
+            ? const Color(0xFFFFB347)
+            : const Color(0xFF00D2C8);
 
         final Color riskBg = riskColor.withValues(alpha: 0.08);
 
@@ -383,64 +367,127 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Center the animated progress ring
+                  Center(
+                    child: SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: _AnimatedRiskRing(
+                        riskLevel: anomaly.riskLevel,
+                        ringColor: riskColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Diagnostics status title
+                  Center(
+                    child: Text(
+                      anomaly.riskLevel == 'HIGH'
+                          ? 'Action Required'
+                          : anomaly.riskLevel == 'MEDIUM'
+                          ? 'Baseline Deviation'
+                          : 'System Calibrated',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isLightTheme
+                            ? const Color(0xFF0A0A14)
+                            : Colors.white,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 8),
 
-                  // Animated Radar SVG/Canvas + Patterns layout
-                  Row(
-                    children: [
-                      // Animated Radar Sweep custom widget
-                      SizedBox(
-                        width: 90,
-                        height: 90,
-                        child: AnimatedBuilder(
-                          animation: _rotationController,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              painter: _RadarPainter(
-                                rotationAngle:
-                                    _rotationController.value * 2 * math.pi,
-                                radarColor: riskColor,
-                                anomalyCount: anomaly.detectedPatterns.length,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 18),
+                  // Supportive Insight Text
+                  Text(
+                    anomaly.supportiveInsight,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isLightTheme
+                          ? const Color(0xFF606080)
+                          : AppColors.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-                      // Diagnostics detail summary
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              anomaly.riskLevel == 'HIGH'
-                                  ? 'Action Required'
-                                  : anomaly.riskLevel == 'MEDIUM'
-                                  ? 'Baseline Deviation'
-                                  : 'System Calibrated',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: isLightTheme
-                                    ? const Color(0xFF0A0A14)
-                                    : Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              anomaly.supportiveInsight,
+                  // Detected Patterns Section
+                  Text(
+                    'DETECTED PATTERNS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isLightTheme
+                          ? const Color(0xFF606080)
+                          : AppColors.textMuted,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (anomaly.detectedPatterns.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 16,
+                            color: riskColor.withValues(alpha: 0.8),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No abnormal emotional deviations detected. Keep logging to maintain baseline.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: isLightTheme
                                     ? const Color(0xFF606080)
                                     : AppColors.textMuted,
-                                height: 1.4,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    )
+                  else
+                    ...anomaly.detectedPatterns.map((pattern) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: riskColor.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: riskColor.withValues(alpha: 0.15),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 16,
+                                  color: riskColor,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    pattern,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: isLightTheme
+                                          ? const Color(0xFF0A0A14)
+                                          : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )),
                   const SizedBox(height: 16),
 
                   // Coping suggestion block
@@ -669,103 +716,136 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
   }
 }
 
-class _RadarPainter extends CustomPainter {
-  final double rotationAngle;
-  final Color radarColor;
-  final int anomalyCount;
+class _AnimatedRiskRing extends StatefulWidget {
+  final String riskLevel;
+  final Color ringColor;
 
-  _RadarPainter({
-    required this.rotationAngle,
-    required this.radarColor,
-    required this.anomalyCount,
+  const _AnimatedRiskRing({
+    required this.riskLevel,
+    required this.ringColor,
+  });
+
+  @override
+  State<_AnimatedRiskRing> createState() => _AnimatedRiskRingState();
+}
+
+class _AnimatedRiskRingState extends State<_AnimatedRiskRing>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+
+    final isTest = RegExp(
+      r'package:flutter_test',
+    ).hasMatch(StackTrace.current.toString());
+    if (!isTest) {
+      _controller.forward();
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedRiskRing oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.riskLevel != widget.riskLevel) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double targetValue = widget.riskLevel == 'HIGH'
+        ? 0.90
+        : widget.riskLevel == 'MEDIUM'
+            ? 0.60
+            : 0.25;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _RingPainter(
+            progress: _animation.value * targetValue,
+            color: widget.ringColor,
+          ),
+          child: child,
+        );
+      },
+      child: Center(
+        child: Text(
+          '${widget.riskLevel} RISK',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: widget.ringColor,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _RingPainter({
+    required this.progress,
+    required this.color,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2;
+    const double strokeWidth = 8.0;
+    final radius = (size.width - strokeWidth) / 2;
 
-    // Paint configs
-    final bgPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.2)
-      ..style = PaintingStyle.fill;
-
-    final ringPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
+    // Track paint
+    final trackPaint = Paint()
+      ..color = color.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
 
-    final corePaint = Paint()
-      ..color = radarColor
-      ..style = PaintingStyle.fill;
+    // Progress paint
+    final progressPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
 
-    // Draw solid radial background
-    canvas.drawCircle(center, radius, bgPaint);
+    // Draw background track circle
+    canvas.drawCircle(center, radius, trackPaint);
 
-    // Draw concentric baseline orbits
-    canvas.drawCircle(center, radius, ringPaint);
-    canvas.drawCircle(center, radius * 0.6, ringPaint);
-    canvas.drawCircle(center, radius * 0.3, ringPaint);
+    // Draw progress arc starting from top (-pi / 2)
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    const startAngle = -math.pi / 2;
+    final sweepAngle = 2 * math.pi * progress;
 
-    // Draw central pulsing core
-    canvas.drawCircle(center, 4, corePaint);
-
-    // Draw rotating sweep sector using shader / sweep gradient simulation
-    final sweepPaint = Paint()
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final sweepGradient = SweepGradient(
-      center: Alignment.center,
-      startAngle: rotationAngle - math.pi / 4,
-      endAngle: rotationAngle,
-      colors: [radarColor, radarColor.withValues(alpha: 0.0)],
-      stops: const [0.0, 1.0],
-    );
-
-    sweepPaint.shader = sweepGradient.createShader(
-      Rect.fromCircle(center: center, radius: radius),
-    );
-
-    canvas.drawCircle(center, radius - 1, sweepPaint);
-    canvas.drawCircle(center, radius * 0.6, sweepPaint);
-
-    // Draw specific sweep line
-    final linePaint = Paint()
-      ..color = radarColor
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final endPointX = center.dx + radius * math.cos(rotationAngle);
-    final endPointY = center.dy + radius * math.sin(rotationAngle);
-    canvas.drawLine(center, Offset(endPointX, endPointY), linePaint);
-
-    // Draw anomaly dots placed on baseline orbits
-    final dotPaint = Paint()
-      ..color = radarColor
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < anomalyCount; i++) {
-      final angle = (i * 135 + 45) * (math.pi / 180);
-      final distRatio = i % 2 == 0 ? 0.75 : 0.45;
-      final dotRadius = radius * distRatio;
-      final dx = center.dx + dotRadius * math.cos(angle);
-      final dy = center.dy + dotRadius * math.sin(angle);
-
-      canvas.drawCircle(Offset(dx, dy), 4.5, dotPaint);
-
-      // Draw subtle halo
-      final haloPaint = Paint()
-        ..color = radarColor.withValues(alpha: 0.25)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(dx, dy), 8, haloPaint);
-    }
+    canvas.drawArc(rect, startAngle, sweepAngle, false, progressPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _RadarPainter oldDelegate) {
-    return oldDelegate.rotationAngle != rotationAngle ||
-        oldDelegate.radarColor != radarColor ||
-        oldDelegate.anomalyCount != anomalyCount;
+  bool shouldRepaint(covariant _RingPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

@@ -718,9 +718,10 @@ public class AiInsightService {
                         .shareNotesWithAi(false)
                         .build());
 
-        if (!pref.isAiJournalAnalysisEnabled() || !pref.isShareNotesWithAi()) {
-            note = "";
-        }
+        // Keep raw note for local safety scanning — never logged, never sent to AI without consent.
+        String rawNoteForLocalSafety = note;
+        // Only share note text with Gemini when the user has explicitly enabled both flags.
+        String noteForGemini = (pref.isAiJournalAnalysisEnabled() && pref.isShareNotesWithAi()) ? note : "";
 
         // 1. Calculate recent average if null
         double recentAverage = request.getRecentAverage() != null ? request.getRecentAverage() : 3.0;
@@ -732,8 +733,8 @@ public class AiInsightService {
             }
         }
 
-        // 2. Scan note/tags for high-risk words using MentalHealthSafetyService
-        boolean hasHighRiskText = mentalHealthSafetyService.isHighRisk(note);
+        // 2. Always scan the raw note locally for high-risk words — runs regardless of AI privacy settings.
+        boolean hasHighRiskText = mentalHealthSafetyService.isHighRisk(rawNoteForLocalSafety);
         boolean showCrisisResources = score <= 1 || hasHighRiskText;
 
         // 3. Assemble prompt for Gemini
@@ -764,7 +765,7 @@ public class AiInsightService {
           "recommendedTechnique": "one of the technique IDs from the list",
           "showCrisisResources": %b
         }
-        """, score, tagsText, note, recentAverageText, showCrisisResources);
+        """, score, tagsText, noteForGemini, recentAverageText, showCrisisResources);
 
         try {
             String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.3);

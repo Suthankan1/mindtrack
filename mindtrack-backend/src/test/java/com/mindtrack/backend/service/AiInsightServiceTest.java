@@ -3,6 +3,8 @@ package com.mindtrack.backend.service;
 import com.mindtrack.backend.ai.GeminiService;
 import com.mindtrack.backend.dto.JournalPromptRequest;
 import com.mindtrack.backend.dto.JournalPromptResponse;
+import com.mindtrack.backend.dto.MoodReflectionRequest;
+import com.mindtrack.backend.dto.MoodReflectionResponse;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.model.UserPreference;
 import com.mindtrack.backend.repository.MoodEntryRepository;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,11 +25,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for AiInsightService journal prompt privacy enforcement.
+ * Unit tests for AiInsightService journal prompt privacy and safety enforcement.
  *
  * <p>Verifies that {@code recentNoteSummaries} are stripped from the Gemini prompt
  * when the user has disabled {@code shareNotesWithAi} or {@code aiJournalAnalysisEnabled},
  * while structured mood metadata (moodScore, tags) are always preserved.
+ *
+ * <p>Also verifies that {@code getMoodReflection} always runs local safety detection
+ * on the raw note text, regardless of AI privacy settings.
  */
 class AiInsightServiceTest {
 
@@ -35,6 +41,9 @@ class AiInsightServiceTest {
     private AiInsightService aiInsightService;
     private User testUser;
 
+    private MentalHealthSafetyService mentalHealthSafetyService;
+    private JsonExtractionService jsonExtractionService;
+
     @BeforeEach
     void setUp() {
         geminiService = mock(GeminiService.class);
@@ -42,8 +51,8 @@ class AiInsightServiceTest {
         UserRepository userRepository = mock(UserRepository.class);
         MoodEntryRepository moodEntryRepository = mock(MoodEntryRepository.class);
         MoodPatternService moodPatternService = mock(MoodPatternService.class);
-        JsonExtractionService jsonExtractionService = mock(JsonExtractionService.class);
-        MentalHealthSafetyService mentalHealthSafetyService = mock(MentalHealthSafetyService.class);
+        jsonExtractionService = mock(JsonExtractionService.class);
+        mentalHealthSafetyService = mock(MentalHealthSafetyService.class);
 
         aiInsightService = new AiInsightService(
                 userRepository,
@@ -174,5 +183,131 @@ class AiInsightServiceTest {
         assertThat(sentPrompt).contains("4");          // moodScore
         assertThat(sentPrompt).contains("Exercise");   // tag
         assertThat(sentPrompt).contains("Social");     // tag
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Test 4: Privacy disabled + high-risk note → showCrisisResources=true
+    // Safety detection must run on the raw note regardless of privacy flags.
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    void getMoodReflection_privacyDisabled_highRiskNote_returnsCrisisResources() {
+        // Both AI flags off — privacy disabled
+        when(userPreferenceRepository.findByUser(testUser))
+                .thenReturn(Optional.of(buildPref(false, false)));
+
+        // Real safety service detects the high-risk phrase
+        when(mentalHealthSafetyService.isHighRisk("I want to kill myself")).thenReturn(true);
+
+        // Gemini returns a parseable reflection; showCrisisResources comes from our local check
+        when(geminiService.generateInsight(anyString(), anyString(), anyDouble()))
+                .thenReturn("{\"oneSentenceReflection\":\"r\",\"suggestedNextStep\":\"s\",\"recommendedTechnique\":\"grounding\",\"showCrisisResources\":false}");
+        when(jsonExtractionService.extractAndParse(anyString(), eq(MoodReflectionResponse.class)))
+                .thenReturn(MoodReflectionResponse.builder()
+                        .oneSentenceReflection("r")
+                        .suggestedNextStep("s")
+                        .recommendedTechnique("grounding")
+                        .showCrisisResources(false)  // AI returned false — we must override
+                        .aiAvailable(true)
+                        .build());
+
+        MoodReflectionRequest request = MoodReflectionRequest.builder()
+                .moodScore(3)
+                .note("I want to kill myself")
+                .tags(Collections.emptyList())
+                .recentAverage(3.0)
+                .build();
+
+        MoodReflectionResponse response = aiInsightService.getMoodReflection(request, testUser);
+
+        // Crisis resources must be shown regardless of the privacy setting
+        assertThat(response.isShowCrisisResources()).isTrue();
+
+        // Safety service must have been invoked with the ORIGINAL (raw) note text
+        verify(mentalHealthSafetyService).isHighRisk("I want to kill myself");
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Test 5: Privacy disabled → raw note text is NOT sent to Gemini
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    void getMoodReflection_privacyDisabled_noteNotSentToGemini() {
+        // shareNotesWithAi=false, aiJournalAnalysisEnabled=false
+        when(userPreferenceRepository.findByUser(testUser))
+                .thenReturn(Optional.of(buildPref(false, false)));
+
+        when(mentalHealthSafetyService.isHighRisk(anyString())).thenReturn(false);
+
+        when(geminiService.generateInsight(anyString(), anyString(), anyDouble()))
+                .thenReturn("{\"oneSentenceReflection\":\"r\",\"suggestedNextStep\":\"s\",\"recommendedTechnique\":\"journaling\",\"showCrisisResources\":false}");
+        when(jsonExtractionService.extractAndParse(anyString(), eq(MoodReflectionResponse.class)))
+                .thenReturn(MoodReflectionResponse.builder()
+                        .oneSentenceReflection("r")
+                        .suggestedNextStep("s")
+                        .recommendedTechnique("journaling")
+                        .showCrisisResources(false)
+                        .aiAvailable(true)
+                        .build());
+
+        MoodReflectionRequest request = MoodReflectionRequest.builder()
+                .moodScore(3)
+                .note("Had a very stressful day at work — confidential private thoughts")
+                .tags(List.of("Work"))
+                .recentAverage(3.0)
+                .build();
+
+        aiInsightService.getMoodReflection(request, testUser);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(geminiService).generateInsight(promptCaptor.capture(), anyString(), anyDouble());
+
+        String sentPrompt = promptCaptor.getValue();
+        // Raw note text must NOT appear in the prompt sent to Gemini
+        assertThat(sentPrompt).doesNotContain("confidential private thoughts");
+        // Structured mood data must still be present
+        assertThat(sentPrompt).contains("3");      // moodScore
+        assertThat(sentPrompt).contains("Work");   // tag
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Test 6: Privacy enabled → note text IS sent to Gemini normally
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    void getMoodReflection_privacyEnabled_noteSentToGemini() {
+        // Both flags enabled — full AI sharing
+        when(userPreferenceRepository.findByUser(testUser))
+                .thenReturn(Optional.of(buildPref(true, true)));
+
+        when(mentalHealthSafetyService.isHighRisk(anyString())).thenReturn(false);
+
+        when(geminiService.generateInsight(anyString(), anyString(), anyDouble()))
+                .thenReturn("{\"oneSentenceReflection\":\"r\",\"suggestedNextStep\":\"s\",\"recommendedTechnique\":\"walk\",\"showCrisisResources\":false}");
+        when(jsonExtractionService.extractAndParse(anyString(), eq(MoodReflectionResponse.class)))
+                .thenReturn(MoodReflectionResponse.builder()
+                        .oneSentenceReflection("r")
+                        .suggestedNextStep("s")
+                        .recommendedTechnique("walk")
+                        .showCrisisResources(false)
+                        .aiAvailable(true)
+                        .build());
+
+        MoodReflectionRequest request = MoodReflectionRequest.builder()
+                .moodScore(4)
+                .note("Had a lovely run with friends this morning")
+                .tags(List.of("Exercise"))
+                .recentAverage(4.0)
+                .build();
+
+        aiInsightService.getMoodReflection(request, testUser);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(geminiService).generateInsight(promptCaptor.capture(), anyString(), anyDouble());
+
+        String sentPrompt = promptCaptor.getValue();
+        // Full note text must appear in the Gemini prompt when privacy is enabled
+        assertThat(sentPrompt).contains("Had a lovely run with friends this morning");
+        assertThat(sentPrompt).contains("Exercise");
     }
 }

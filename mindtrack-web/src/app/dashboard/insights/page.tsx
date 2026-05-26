@@ -60,6 +60,15 @@ interface MoodAnomalyResponse {
   insufficientData: boolean;
 }
 
+interface WellnessPassportResponse {
+  averageMood: number;
+  streak: number;
+  topTags: string[];
+  copingSessionsCompleted: number;
+  aiWeeklyInsight: string;
+  anomalyRadarResult: MoodAnomalyResponse | null;
+}
+
 type ToastState = {
   message: string;
   type: "success" | "error";
@@ -174,6 +183,12 @@ export default function InsightsPage() {
   // Interaction States
   const [isDownloading, setIsDownloading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  
+  // Wellness Passport States
+  const [passportData, setPassportData] = useState<WellnessPassportResponse | null>(null);
+  const [isPassportLoading, setIsPassportLoading] = useState(false);
+  const [isPassportModalOpen, setIsPassportModalOpen] = useState(false);
+
   // Defers chart rendering until after the first paint so Recharts can
   // measure real DOM dimensions instead of -1×-1 from Framer Motion's
   // initial hidden/y:20 state.
@@ -259,6 +274,27 @@ export default function InsightsPage() {
     } finally {
       setIsDownloading(false);
       setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  const handleExportPassport = async () => {
+    if (!session?.user?.accessToken) return;
+    setIsPassportLoading(true);
+    setIsPassportModalOpen(true);
+    try {
+      const res = await axios.get("/api/user/wellness-passport", {
+        headers: {
+          Authorization: `Bearer ${session.user.accessToken}`,
+        },
+      });
+      setPassportData(res.data);
+    } catch (err) {
+      console.error("Error loading wellness passport:", err);
+      setToast({ message: "Failed to download wellness passport. Try again.", type: "error" });
+      setTimeout(() => setToast(null), 4000);
+      setIsPassportModalOpen(false);
+    } finally {
+      setIsPassportLoading(false);
     }
   };
 
@@ -391,6 +427,24 @@ export default function InsightsPage() {
               <>
                 <Download className="w-3.5 h-3.5" />
                 Download Weekly Report
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleExportPassport}
+            disabled={isVisualLoading || isPassportLoading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 active:scale-95 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-glow hover:shadow-indigo-500/20 disabled:opacity-50"
+          >
+            {isPassportLoading ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                Compiling...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5" />
+                Export Wellness Passport
               </>
             )}
           </button>
@@ -1037,6 +1091,234 @@ export default function InsightsPage() {
           </motion.div>
         )
       )}
+
+      {/* 5. Wellness Passport Export Modal */}
+      <AnimatePresence>
+        {isPassportModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md no-print"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl overflow-hidden rounded-3xl bg-[#12122A] border border-[#1C1C3A] shadow-2xl glass-card"
+            >
+              {/* Decorative glows */}
+              <div className="absolute -top-16 -right-16 w-48 h-48 bg-gradient-to-br from-indigo-500/20 to-transparent blur-3xl rounded-full pointer-events-none" />
+              <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-gradient-to-tr from-accent-teal/15 to-transparent blur-3xl rounded-full pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setIsPassportModalOpen(false)}
+                className="absolute top-6 right-6 p-2 rounded-xl bg-[#1C1C3A]/50 hover:bg-[#1C1C3A] text-muted hover:text-white transition-all"
+              >
+                <span className="text-xs font-bold font-display">✕</span>
+              </button>
+
+              <div className="p-8 space-y-6">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-indigo-400" />
+                    Weekly Wellness Passport
+                  </h3>
+                  <p className="text-xs text-muted">
+                    Your authenticated mental health telemetry & insights for the past 7 days.
+                  </p>
+                </div>
+
+                {isPassportLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <RefreshCw className="w-10 h-10 text-indigo-400 animate-spin" />
+                    <p className="text-xs text-muted uppercase tracking-widest animate-pulse font-bold">
+                      Securing telemetry logs & signing passport...
+                    </p>
+                  </div>
+                ) : passportData ? (
+                  <>
+                    {/* The Passport Card Container that will be printed */}
+                    <div 
+                      id="wellness-passport-print"
+                      className="print-passport-target relative p-6 rounded-2xl bg-[#12122A]/80 border-2 border-indigo-500/30 overflow-hidden space-y-6 shadow-xl"
+                    >
+                      {/* Holographic passport background */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent-teal/10 rounded-full blur-2xl pointer-events-none" />
+
+                      {/* Passport Header */}
+                      <div className="flex justify-between items-start border-b border-white/[0.06] pb-4">
+                        <div className="space-y-1">
+                          <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[8px] font-bold uppercase tracking-widest">
+                            Official Document
+                          </span>
+                          <h4 className="text-sm font-bold text-white tracking-wider font-display">
+                            MINDTRACK WELLNESS PASSPORT
+                          </h4>
+                          <p className="text-[10px] text-muted font-sans">
+                            Holder: <span className="text-gray-300 font-semibold">{session?.user?.email}</span>
+                          </p>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <span className="text-[9px] font-mono text-muted">DOC-ID: {new Date().getTime().toString().slice(-8)}</span>
+                          <p className="text-[9px] text-muted">
+                            Issued: <span className="text-gray-300">{new Date().toLocaleDateString()}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Main Telemetry Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Avg Mood */}
+                        <div className="p-4 rounded-xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted block">Mood Index</span>
+                          <span className="text-2xl font-bold text-accent-teal font-display block">
+                            {passportData.averageMood.toFixed(1)} <span className="text-xs text-muted font-normal font-sans">/ 5.0</span>
+                          </span>
+                          <span className="text-[8px] px-1.5 py-0.5 rounded bg-accent-teal/10 text-accent-teal border border-accent-teal/20 font-bold">
+                            {passportData.averageMood >= 4.0 ? "RADIANT" : passportData.averageMood >= 3.0 ? "STABLE" : "SENSITIVE"}
+                          </span>
+                        </div>
+
+                        {/* Streak */}
+                        <div className="p-4 rounded-xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted block">Streak</span>
+                          <span className="text-2xl font-bold text-indigo-400 font-display block">
+                            {passportData.streak} <span className="text-xs text-muted font-normal font-sans">days</span>
+                          </span>
+                          <span className="text-[8px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+                            ACTIVE
+                          </span>
+                        </div>
+
+                        {/* Coping */}
+                        <div className="p-4 rounded-xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted block">Coping</span>
+                          <span className="text-2xl font-bold text-purple-400 font-display block">
+                            {passportData.copingSessionsCompleted} <span className="text-xs text-muted font-normal font-sans">sessions</span>
+                          </span>
+                          <span className="text-[8px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold">
+                            COMPLETED
+                          </span>
+                        </div>
+
+                        {/* Anomaly Radar Risk */}
+                        <div className="p-4 rounded-xl bg-[#0A0A14]/40 border border-white/[0.03] space-y-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted block">Anomaly Radar</span>
+                          <span className="text-xl font-bold text-accent-coral font-display block pt-0.5 truncate">
+                            {passportData.anomalyRadarResult?.riskLevel || "LOW"}
+                          </span>
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold ${
+                            passportData.anomalyRadarResult?.riskLevel === "HIGH"
+                              ? "bg-accent-coral/10 text-accent-coral border border-accent-coral/20"
+                              : passportData.anomalyRadarResult?.riskLevel === "MEDIUM"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-accent-teal/10 text-accent-teal border border-accent-teal/20"
+                          }`}>
+                            DIAGNOSED
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Top Tags */}
+                      <div className="space-y-1.5">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted block">Emotional Associations</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {passportData.topTags && passportData.topTags.length > 0 ? (
+                            passportData.topTags.map((tag: string) => (
+                              <span key={tag} className="px-2.5 py-1 rounded-lg bg-[#1C1C3A] border border-[#2D2D54] text-[10px] text-gray-200 font-medium font-sans">
+                                #{tag}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted italic font-sans">No active wellness tags found.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AI weekly insight */}
+                      <div className="p-4 rounded-xl bg-[#0A0A14]/30 border border-white/[0.02] space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400">Weekly Clinical Reflection</span>
+                        </div>
+                        <p className="text-xs text-gray-200 leading-relaxed font-sans font-medium italic border-l-2 border-indigo-500/50 pl-3">
+                          &ldquo;{passportData.aiWeeklyInsight}&rdquo;
+                        </p>
+                      </div>
+
+                      {/* Verification Signature */}
+                      <div className="flex justify-between items-end border-t border-white/[0.04] pt-4 text-[9px] text-muted">
+                        <div className="space-y-1 font-sans">
+                          <p>Verifying Authority: <span className="text-gray-300">MindTrack Cognitive Model v1.4</span></p>
+                          <p>Security Clearance: <span className="text-accent-teal">End-to-End Encrypted</span></p>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <div className="h-6 w-20 border border-white/10 rounded flex items-center justify-center bg-[#0A0A14]/50 select-none pointer-events-none">
+                            <span className="text-[7px] font-mono tracking-widest text-indigo-400/60 uppercase">SIGNED</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modal Action Buttons */}
+                    <div className="flex items-center justify-end gap-3 border-t border-white/[0.06] pt-5 no-print">
+                      <button
+                        onClick={() => setIsPassportModalOpen(false)}
+                        className="px-4 py-2 rounded-xl hover:bg-[#1C1C3A] text-xs text-muted hover:text-white transition-all font-semibold"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(passportData, null, 2));
+                          const downloadAnchor = document.createElement('a');
+                          downloadAnchor.setAttribute("href", dataStr);
+                          downloadAnchor.setAttribute("download", `mindtrack-wellness-passport-${new Date().toISOString().split('T')[0]}.json`);
+                          document.body.appendChild(downloadAnchor);
+                          downloadAnchor.click();
+                          downloadAnchor.remove();
+                          
+                          setToast({ message: "Passport JSON telemetry exported successfully!", type: "success" });
+                          setTimeout(() => setToast(null), 4000);
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-surface hover:bg-[#1C1C3A] border border-[#1C1C3A] text-white text-xs font-bold transition-all uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download JSON
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          window.print();
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 active:scale-95 text-white text-xs font-bold transition-all shadow-glow hover:shadow-indigo-500/20 uppercase tracking-wider flex items-center gap-1.5"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Print / PDF Passport
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
+                    <AlertCircle className="w-10 h-10 text-accent-coral animate-pulse" />
+                    <p className="text-xs text-gray-200 font-bold">Failed to load passport telemetry.</p>
+                    <button
+                      onClick={handleExportPassport}
+                      className="px-3 py-1.5 rounded-lg bg-surface border border-white/5 text-[10px] uppercase font-bold text-accent-teal hover:bg-[#1C1C3A]"
+                    >
+                      Retry Download
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

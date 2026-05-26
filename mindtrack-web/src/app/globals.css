@@ -199,3 +199,65 @@
   animation: shimmer 1.5s infinite linear;
 }
 
+/* Print Overrides for Wellness Passport */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+  
+  /* Hide every single element by default during print */
+  body * {
+    visibility: hidden !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  /* Make the print passport card container and all its children visible */
+  .print-passport-target,
+  .print-passport-target * {
+    visibility: visible !important;
+  }
+  
+  /* Style the print passport target to be centered, beautifully clean, black and white */
+  .print-passport-target {
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    border: 2px solid #000000 !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    display: block !important;
+  }
+
+  /* Force background colors to print correctly (or avoid ink-wasting dark colors) */
+  .print-passport-target * {
+    color: #000000 !important;
+    background-color: transparent !important;
+    border-color: #e5e7eb !important;
+  }
+
+  .print-passport-target h1,
+  .print-passport-target h2,
+  .print-passport-target h3,
+  .print-passport-target h4 {
+    color: #000000 !important;
+    font-family: inherit !important;
+  }
+
+  /* Hide print actions/buttons */
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+

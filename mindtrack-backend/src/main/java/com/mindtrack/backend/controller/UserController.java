@@ -3,13 +3,18 @@ package com.mindtrack.backend.controller;
 import com.mindtrack.backend.dto.ChangePasswordRequest;
 import com.mindtrack.backend.dto.UserStatsResponse;
 import com.mindtrack.backend.dto.UserPreferenceDto;
+import com.mindtrack.backend.dto.WellnessPassportResponse;
+import com.mindtrack.backend.dto.MoodAnomalyResponse;
 import com.mindtrack.backend.model.Streak;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.model.UserPreference;
+import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.repository.MoodEntryRepository;
 import com.mindtrack.backend.repository.UserRepository;
 import com.mindtrack.backend.repository.UserPreferenceRepository;
+import com.mindtrack.backend.repository.CopingSessionRepository;
 import com.mindtrack.backend.service.StreakService;
+import com.mindtrack.backend.service.AiInsightService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +27,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * REST controller for user-level management and statistics in MindTrack.
@@ -40,6 +47,8 @@ public class UserController {
     private final StreakService streakService;
     private final PasswordEncoder passwordEncoder;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final CopingSessionRepository copingSessionRepository;
+    private final AiInsightService aiInsightService;
 
     /**
      * Constructs the {@code UserController} with all required dependencies.
@@ -49,18 +58,24 @@ public class UserController {
      * @param streakService             service to retrieve current and longest check-in streaks
      * @param passwordEncoder           encoder for BCrypt password verification
      * @param userPreferenceRepository  repository for user preferences persistence
+     * @param copingSessionRepository   repository for coping sessions tracking
+     * @param aiInsightService          service for AI insights and anomaly checks
      */
     public UserController(
             UserRepository userRepository,
             MoodEntryRepository moodEntryRepository,
             StreakService streakService,
             PasswordEncoder passwordEncoder,
-            UserPreferenceRepository userPreferenceRepository) {
+            UserPreferenceRepository userPreferenceRepository,
+            CopingSessionRepository copingSessionRepository,
+            AiInsightService aiInsightService) {
         this.userRepository = userRepository;
         this.moodEntryRepository = moodEntryRepository;
         this.streakService = streakService;
         this.passwordEncoder = passwordEncoder;
         this.userPreferenceRepository = userPreferenceRepository;
+        this.copingSessionRepository = copingSessionRepository;
+        this.aiInsightService = aiInsightService;
     }
 
     /**
@@ -116,6 +131,66 @@ public class UserController {
                 .build();
 
         return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Retrieves the Weekly Wellness Passport details for the last 7 days.
+     *
+     * @param authentication the authenticated user details from the security context
+     * @return the wellness passport response DTO
+     */
+    @GetMapping("/wellness-passport")
+    public ResponseEntity<WellnessPassportResponse> getWellnessPassport(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        // 7 days ago
+        LocalDateTime sevenDaysAgo = LocalDateTime.now(ZoneOffset.UTC).minusDays(7);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        // Average mood score (last 7 days)
+        Double rawWeeklyAvg = moodEntryRepository.findAvgMoodScoreByUserSince(user, sevenDaysAgo);
+        double averageMood = rawWeeklyAvg != null ? Math.round(rawWeeklyAvg * 100.0) / 100.0 : 0.0;
+
+        // Current daily check-in streak
+        int streak = streakService.getStreak(user).getCurrentStreak();
+
+        // Top tags (last 7 days)
+        List<MoodEntry> entries = moodEntryRepository.findByUserAndTimestampBetweenOrderByTimestampDesc(user, sevenDaysAgo, now);
+        Map<String, Integer> tagCount = new HashMap<>();
+        for (MoodEntry entry : entries) {
+            if (entry.getTags() != null) {
+                for (String tag : entry.getTags()) {
+                    tagCount.put(tag, tagCount.getOrDefault(tag, 0) + 1);
+                }
+            }
+        }
+        List<String> topTags = tagCount.entrySet().stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        // Coping sessions completed (last 7 days)
+        int copingSessionsCompleted = (int) copingSessionRepository.countByUserAndCompletedAtAfter(user, sevenDaysAgo);
+
+        // AI weekly insight
+        Map<String, Object> weeklyInsightMap = aiInsightService.getWeeklyInsight(user);
+        String aiWeeklyInsight = (String) weeklyInsightMap.getOrDefault("insight", "No AI weekly insight available.");
+
+        // Anomaly radar result
+        MoodAnomalyResponse anomalyRadarResult = aiInsightService.getMoodAnomaly(user);
+
+        WellnessPassportResponse passport = WellnessPassportResponse.builder()
+                .averageMood(averageMood)
+                .streak(streak)
+                .topTags(topTags)
+                .copingSessionsCompleted(copingSessionsCompleted)
+                .aiWeeklyInsight(aiWeeklyInsight)
+                .anomalyRadarResult(anomalyRadarResult)
+                .build();
+
+        return ResponseEntity.ok(passport);
     }
 
     /**

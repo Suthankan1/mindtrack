@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface CopingSessionRepository extends JpaRepository<CopingSession, UUID> {
     List<CopingSession> findByUserOrderByCompletedAtDesc(User user);
     long countByUser(User user);
+    long countByUserAndCompletedAtAfter(User user, java.time.LocalDateTime since);
 }

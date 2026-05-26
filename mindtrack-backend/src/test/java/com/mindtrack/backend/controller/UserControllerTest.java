@@ -21,11 +21,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import com.mindtrack.backend.service.AiInsightService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public class UserControllerTest {
+
+    @MockBean
+    private AiInsightService aiInsightService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -176,6 +181,40 @@ public class UserControllerTest {
     @Test
     void getPreferences_Unauthenticated() throws Exception {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/preferences"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void getWellnessPassport_Success() throws Exception {
+        // Mock weekly insight and anomaly responses
+        org.mockito.Mockito.when(aiInsightService.getWeeklyInsight(org.mockito.ArgumentMatchers.any(User.class)))
+                .thenReturn(java.util.Map.of("insight", "Mocked AI Weekly Insight"));
+
+        com.mindtrack.backend.dto.MoodAnomalyResponse anomalyResponse = com.mindtrack.backend.dto.MoodAnomalyResponse.builder()
+                .riskLevel("LOW")
+                .detectedPatterns(java.util.Collections.emptyList())
+                .suggestedAction("Take a deep breath.")
+                .supportiveInsight("Mocked anomaly insight")
+                .confidence(0.9)
+                .insufficientData(false)
+                .build();
+        org.mockito.Mockito.when(aiInsightService.getMoodAnomaly(org.mockito.ArgumentMatchers.any(User.class)))
+                .thenReturn(anomalyResponse);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/wellness-passport"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageMood").exists())
+                .andExpect(jsonPath("$.streak").exists())
+                .andExpect(jsonPath("$.topTags").isArray())
+                .andExpect(jsonPath("$.copingSessionsCompleted").exists())
+                .andExpect(jsonPath("$.aiWeeklyInsight", is("Mocked AI Weekly Insight")))
+                .andExpect(jsonPath("$.anomalyRadarResult.riskLevel", is("LOW")));
+    }
+
+    @Test
+    void getWellnessPassport_Unauthenticated() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/wellness-passport"))
                 .andExpect(status().isForbidden());
     }
 }

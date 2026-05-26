@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
 import '../services/dio_service.dart';
@@ -27,6 +32,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _notificationsEnabled = true;
 
   bool _isLoadingStats = true;
+  bool _isExporting = false;
   int _totalEntries = 0;
   int _currentStreak = 0;
   int _longestStreak = 0;
@@ -120,20 +126,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _exportMoodHistory() async {
+    if (_isExporting) return;
+
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final historyList = await dio.getMoodHistory(days: 365);
+
+      final jsonString = jsonEncode({
+        'app': 'MindTrack',
+        'exportedAt': DateTime.now().toIso8601String(),
+        'entries': historyList,
+      });
+
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final fileName =
+          'mindtrack_mood_history_${DateTime.now().millisecondsSinceEpoch}.json';
+      final file = File('${documentsDirectory.path}/$fileName');
+      await file.writeAsString(jsonString);
+
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'MindTrack mood history export');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        _buildCustomSnackBar(
+          message: 'Mood history exported! Check your share sheet.',
+          isSuccess: true,
+        ),
+      );
+    } catch (e) {
+      debugPrint('ProfileScreen: Error exporting mood history: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not export mood history. Error: $e'),
+          backgroundColor: AppColors.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
   /// Reads profile data (name, email, join date, notifications flag)
   /// from [SharedPreferences] and refreshes local state.
   Future<void> _loadProfileData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
-        _displayName = prefs.getString('user_display_name') ?? 'Cosmic Practitioner';
+        _displayName =
+            prefs.getString('user_display_name') ?? 'Cosmic Practitioner';
         _email = prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
         _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
 
         final rawJoinDate = prefs.getString('user_join_date');
         if (rawJoinDate != null) {
           final joinDateTime = DateTime.parse(rawJoinDate);
-          _joinDateStr = 'Joined ${_getMonthName(joinDateTime.month)} ${joinDateTime.year}';
+          _joinDateStr =
+              'Joined ${_getMonthName(joinDateTime.month)} ${joinDateTime.year}';
         } else {
           // Initialize if missing
           final now = DateTime.now();
@@ -154,16 +214,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   String _getMonthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     if (month >= 1 && month <= 12) {
       return months[month - 1];
     }
     return 'May';
   }
-
-
 
   Future<void> _toggleNotifications(bool val) async {
     try {
@@ -214,8 +282,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-
-
   /// Opens [urlString] in the platform's default browser / dialler.
   /// Shows an error snackbar if the URL cannot be launched.
   Future<void> _launchUrl(String urlString) async {
@@ -237,7 +303,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  SnackBar _buildCustomSnackBar({required String message, bool isSuccess = true}) {
+  SnackBar _buildCustomSnackBar({
+    required String message,
+    bool isSuccess = true,
+  }) {
     return SnackBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -245,15 +314,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       content: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSuccess ? const Color(0xFF00D2C8).withValues(alpha: 0.9) : const Color(0xFFFF6B6B).withValues(alpha: 0.9),
+          color: isSuccess
+              ? const Color(0xFF00D2C8).withValues(alpha: 0.9)
+              : const Color(0xFFFF6B6B).withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSuccess ? const Color(0xFF00D2C8) : const Color(0xFFFF6B6B),
+            color: isSuccess
+                ? const Color(0xFF00D2C8)
+                : const Color(0xFFFF6B6B),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: (isSuccess ? const Color(0xFF00D2C8) : const Color(0xFFFF6B6B)).withValues(alpha: 0.25),
+              color:
+                  (isSuccess
+                          ? const Color(0xFF00D2C8)
+                          : const Color(0xFFFF6B6B))
+                      .withValues(alpha: 0.25),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -262,7 +339,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Row(
           children: [
             Icon(
-              isSuccess ? Icons.check_circle_outline : Icons.notifications_off_outlined,
+              isSuccess
+                  ? Icons.check_circle_outline
+                  : Icons.notifications_off_outlined,
               color: Colors.white,
             ),
             const SizedBox(width: 12),
@@ -286,7 +365,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLightTheme = theme.brightness == Brightness.light;
-    
+
     // Watch reactive state from Riverpod
     ref.watch(themeProvider);
 
@@ -299,7 +378,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -308,7 +390,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       'My Sanctuary',
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                        color: isLightTheme
+                            ? const Color(0xFF0A0A14)
+                            : Colors.white,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -326,7 +410,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             color: _getAvatarColor(_email),
                             boxShadow: [
                               BoxShadow(
-                                color: _getAvatarColor(_email).withValues(alpha: 0.35),
+                                color: _getAvatarColor(
+                                  _email,
+                                ).withValues(alpha: 0.35),
                                 blurRadius: 16,
                                 offset: const Offset(0, 4),
                               ),
@@ -336,8 +422,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             child: Text(
                               _getEmailInitials(_email),
                               style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -351,31 +437,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 _displayName,
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                                  color: isLightTheme
+                                      ? const Color(0xFF0A0A14)
+                                      : Colors.white,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _email,
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                                  color: isLightTheme
+                                      ? const Color(0xFF606080)
+                                      : AppColors.textMuted,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: (isLightTheme ? const Color(0xFFE4E8F5) : AppColors.surfaceColor).withValues(alpha: 0.5),
+                                  color:
+                                      (isLightTheme
+                                              ? const Color(0xFFE4E8F5)
+                                              : AppColors.surfaceColor)
+                                          .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                                    color: isLightTheme
+                                        ? const Color(0xFFE0E4F2)
+                                        : AppColors.borderOverlay,
                                   ),
                                 ),
                                 child: Text(
                                   _joinDateStr,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    color: isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
+                                    color: isLightTheme
+                                        ? const Color(0xFF009C94)
+                                        : const Color(0xFF00D2C8),
                                   ),
                                 ),
                               ),
@@ -416,7 +517,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       theme: theme,
                                       isLightTheme: isLightTheme,
                                       icon: Icons.article_outlined,
-                                      color: isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
+                                      color: isLightTheme
+                                          ? const Color(0xFF009C94)
+                                          : const Color(0xFF00D2C8),
                                       value: '$_totalEntries',
                                       label: 'Total Logs',
                                     ),
@@ -470,10 +573,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       'Sanctuary Settings',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                        color: isLightTheme
+                            ? const Color(0xFF0A0A14)
+                            : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildActionButton(
+                            label: 'Export',
+                            icon: Icons.download_outlined,
+                            isLoading: _isExporting,
+                            onPressed: _isExporting ? null : _exportMoodHistory,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
                     // Notification toggle settings tile
                     _buildSettingItem(
@@ -488,8 +607,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     // Light/Dark Theme toggle settings tile
                     _buildSettingItem(
-                      icon: isLightTheme ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                      title: isLightTheme ? 'Light Mode Active' : 'Dark Mode Active',
+                      icon: isLightTheme
+                          ? Icons.light_mode_outlined
+                          : Icons.dark_mode_outlined,
+                      title: isLightTheme
+                          ? 'Light Mode Active'
+                          : 'Dark Mode Active',
                       trailing: Switch(
                         value: isLightTheme,
                         onChanged: (val) {
@@ -497,27 +620,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         },
                         activeColor: const Color(0xFF00D2C8),
                       ),
-                    ),
-
-                    // Export data placeholder tile
-                    _buildSettingItem(
-                      icon: Icons.ios_share_outlined,
-                      title: 'Export Sanctuary Data',
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: AppColors.textMuted,
-                      ),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'Sanctuary data export will download JSON backup in standard version.',
-                            ),
-                            backgroundColor: theme.brightness == Brightness.light ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
-                          ),
-                        );
-                      },
                     ),
 
                     // Sign Out Settings Tile
@@ -532,11 +634,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onTap: () async {
                         // Call DioService logout
                         await ref.read(dioServiceProvider).logout();
-                        
+
                         // Clear all providers
                         ref.invalidate(todayMoodProvider);
                         ref.invalidate(moodHistoryProvider);
-                        
+
                         // Navigate to /login via go_router
                         if (context.mounted) {
                           context.go('/login');
@@ -549,7 +651,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         'Debug Info',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                          color: isLightTheme
+                              ? const Color(0xFF0A0A14)
+                              : Colors.white,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -574,12 +678,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         color: theme.cardColor,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                          color: isLightTheme
+                              ? const Color(0xFFE0E4F2)
+                              : AppColors.borderOverlay,
                         ),
                         gradient: LinearGradient(
-                          colors: isLightTheme 
-                            ? [Colors.white, const Color(0xFFF1F8F6)]
-                            : [AppColors.surfaceColor, const Color(0xFF16252A)],
+                          colors: isLightTheme
+                              ? [Colors.white, const Color(0xFFF1F8F6)]
+                              : [
+                                  AppColors.surfaceColor,
+                                  const Color(0xFF16252A),
+                                ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -592,10 +701,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             height: 60,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFF4C9F38), // Standard UN SDG 3 green color
+                              color: const Color(
+                                0xFF4C9F38,
+                              ), // Standard UN SDG 3 green color
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF4C9F38).withValues(alpha: 0.35),
+                                  color: const Color(
+                                    0xFF4C9F38,
+                                  ).withValues(alpha: 0.35),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -637,14 +750,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   'UN Sustainable Goal 3',
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                                    color: isLightTheme
+                                        ? const Color(0xFF0A0A14)
+                                        : Colors.white,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Supporting Good Health & Well-being through conscious emotion tracking.',
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                                    color: isLightTheme
+                                        ? const Color(0xFF606080)
+                                        : AppColors.textMuted,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -662,7 +779,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Persistent bottom Crisis Support section (Always visible!)
             Container(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 20),
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: 20,
+              ),
               decoration: BoxDecoration(
                 color: theme.cardColor,
                 borderRadius: const BorderRadius.only(
@@ -671,13 +793,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 border: Border(
                   top: BorderSide(
-                    color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                    color: isLightTheme
+                        ? const Color(0xFFE0E4F2)
+                        : AppColors.borderOverlay,
                     width: 1.5,
                   ),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: isLightTheme ? 0.05 : 0.25),
+                    color: Colors.black.withValues(
+                      alpha: isLightTheme ? 0.05 : 0.25,
+                    ),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),
@@ -716,7 +842,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: _buildCrisisButton(
                           label: 'Talk to Someone',
                           icon: Icons.phone_in_talk_outlined,
-                          onPressed: () => _launchUrl('tel:988'), // Global Mental Health Lifeline
+                          onPressed: () => _launchUrl(
+                            'tel:988',
+                          ), // Global Mental Health Lifeline
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -759,10 +887,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           gradient: const LinearGradient(
-            colors: [
-              Color(0xFFFF8E8E),
-              Color(0xFFFF6B6B),
-            ],
+            colors: [Color(0xFFFF8E8E), Color(0xFFFF6B6B)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -809,6 +934,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool isLoading = false,
+  }) {
+    final theme = Theme.of(context);
+    final isLightTheme = theme.brightness == Brightness.light;
+
+    return SizedBox(
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isLightTheme
+              ? const Color(0xFF009C94)
+              : const Color(0xFF00D2C8),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 0,
+        ),
+        icon: isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Icon(icon, size: 18),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
   Widget _buildSettingItem({
     required IconData icon,
     required String title,
@@ -830,14 +994,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+              color: isLightTheme
+                  ? const Color(0xFFE0E4F2)
+                  : AppColors.borderOverlay,
             ),
           ),
           child: Row(
             children: [
               Icon(
                 icon,
-                color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                color: isLightTheme
+                    ? const Color(0xFF606080)
+                    : AppColors.textMuted,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -848,7 +1016,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                        color: isLightTheme
+                            ? const Color(0xFF0A0A14)
+                            : Colors.white,
                       ),
                     ),
                     if (subtitle != null) ...[
@@ -856,7 +1026,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Text(
                         subtitle,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                          color: isLightTheme
+                              ? const Color(0xFF606080)
+                              : AppColors.textMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -887,7 +1059,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+          color: isLightTheme
+              ? const Color(0xFFE0E4F2)
+              : AppColors.borderOverlay,
         ),
       ),
       child: Column(
@@ -897,18 +1071,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
+              Icon(icon, color: color, size: 24),
               if (isBest)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.amber.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: const Text(
                     'BEST',
@@ -937,7 +1112,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+              color: isLightTheme
+                  ? const Color(0xFF606080)
+                  : AppColors.textMuted,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -954,7 +1131,8 @@ class ShimmerStatsCard extends StatefulWidget {
   State<ShimmerStatsCard> createState() => _ShimmerStatsCardState();
 }
 
-class _ShimmerStatsCardState extends State<ShimmerStatsCard> with SingleTickerProviderStateMixin {
+class _ShimmerStatsCardState extends State<ShimmerStatsCard>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _animation;
 
@@ -965,9 +1143,10 @@ class _ShimmerStatsCardState extends State<ShimmerStatsCard> with SingleTickerPr
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.3, end: 0.7).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.3,
+      end: 0.7,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -980,7 +1159,7 @@ class _ShimmerStatsCardState extends State<ShimmerStatsCard> with SingleTickerPr
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLightTheme = theme.brightness == Brightness.light;
-    
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -989,10 +1168,14 @@ class _ShimmerStatsCardState extends State<ShimmerStatsCard> with SingleTickerPr
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isLightTheme ? const Color(0xFFF1F4FA) : AppColors.surfaceColor,
+              color: isLightTheme
+                  ? const Color(0xFFF1F4FA)
+                  : AppColors.surfaceColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                color: isLightTheme
+                    ? const Color(0xFFE0E4F2)
+                    : AppColors.borderOverlay,
               ),
             ),
             child: Column(

@@ -29,7 +29,7 @@ interface Therapist {
   availability: string;
   avatarGradient: string;
   tags: string[];
-  email: string;
+  contactEmail: string;
   verified?: boolean;
 }
 
@@ -68,7 +68,12 @@ export default function TherapistsPage() {
           Authorization: `Bearer ${session.user.accessToken}`,
         },
       });
-      setTherapists(res.data);
+      setTherapists(
+        res.data.map((therapist: Therapist & { email?: string }) => ({
+          ...therapist,
+          contactEmail: therapist.contactEmail ?? therapist.email ?? "",
+        }))
+      );
       setError(null);
     } catch (err: unknown) {
       console.error("Error loading therapists:", err);
@@ -108,21 +113,20 @@ export default function TherapistsPage() {
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim() || isSending) return;
+    if (!messageText.trim() || !selectedTherapist) return;
 
-    setIsSending(true);
+    const subject = encodeURIComponent("MindTrack Consultation Request");
+    const body = encodeURIComponent(
+      messageText + (attachPdf ? "\n\n[Mood history report attached via MindTrack export]" : "")
+    );
+    const mailtoUrl = `mailto:${selectedTherapist.contactEmail}?subject=${subject}&body=${body}`;
 
-    // Simulate cryptographic message tunneling
+    window.open(mailtoUrl, "_blank");
+    setSendSuccess(true);
     setTimeout(() => {
-      setIsSending(false);
-      setSendSuccess(true);
-      
-      // Close modal after success animation
-      setTimeout(() => {
-        setSelectedTherapist(null);
-        setSendSuccess(false);
-        setMessageText("");
-      }, 2500);
+      setSelectedTherapist(null);
+      setSendSuccess(false);
+      setMessageText("");
     }, 2000);
   };
 
@@ -458,7 +462,7 @@ export default function TherapistsPage() {
                   <div className="space-y-1">
                     <h3 className="text-lg font-bold font-display text-white">Cryptographic Connection Secured</h3>
                     <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">
-                      Your message has been encrypted and successfully sent to <span className="text-accent-teal font-semibold">{selectedTherapist.name}</span>. They will respond shortly.
+                      Your email client has been opened with the message pre-filled. Please send it to complete the connection.
                     </p>
                   </div>
                 </div>

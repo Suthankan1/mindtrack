@@ -452,7 +452,15 @@ class DioService {
     return _request(() async {
       final response = await _dio.get('/api/therapists');
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as List<dynamic>;
+        return (response.data as List<dynamic>).map((therapist) {
+          if (therapist is Map<String, dynamic>) {
+            return {
+              ...therapist,
+              'contactEmail': therapist['contactEmail'] ?? therapist['email'] ?? '',
+            };
+          }
+          return therapist;
+        }).toList();
       }
       return [];
     });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/dio_service.dart';
 import '../theme/app_theme.dart';
 
@@ -171,267 +172,6 @@ class _TherapistsScreenState extends ConsumerState<TherapistsScreen> {
       colors: [Color(0xFF00D2C8), Color(0xFF6366F1)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-    );
-  }
-
-  void _showContactBottomSheet(Map<String, dynamic> therapist) {
-    final name = therapist['name'] ?? 'Practitioner';
-    final gradient = _parseGradient(therapist['avatarGradient'] ?? '');
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surfaceColor,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 32,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sliding handle
-              Center(
-                child: Container(
-                  width: 48,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.borderOverlay,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // E2E lock heading
-              Row(
-                children: const [
-                  Icon(Icons.lock_outline, color: AppColors.primaryColor, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Secure Consultation Portal',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'End-to-End Encrypted Tunnel Active',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              
-              // Profile preview card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundColor.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.borderOverlay),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: gradient,
-                      ),
-                      child: Center(
-                        child: Text(
-                          name.split(' ').filter((n) => !n.contains('.')).map((n) => n[0]).join(''),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            therapist['specialty'] ?? '',
-                            style: const TextStyle(
-                              color: AppColors.primaryColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Message inputs & dummy send button
-              const Text(
-                'Consultation Note',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                maxLines: 4,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Introduce yourself and detail what you would like to discuss...',
-                  hintStyle: const TextStyle(color: AppColors.navBarUnselected, fontSize: 12),
-                  fillColor: AppColors.backgroundColor,
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.borderOverlay),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.borderOverlay),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.primaryColor),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Biometric bundle disclaimer
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.description_outlined, color: AppColors.primaryColor, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Bundle Encrypted Biometric History',
-                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Securely bundles your last 30 days of emotional logs and stability metrics for clinical evaluation.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 9, height: 1.3),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              
-              // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.borderOverlay),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: const Text('Cancel', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: Colors.transparent,
-                            elevation: 0,
-                            behavior: SnackBarBehavior.floating,
-                            content: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withValues(alpha: 0.95),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.primaryColor, width: 1.5),
-                              ),
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.check_circle_outline, color: Colors.white),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      'Cryptographic Tunnel Established & Sent!',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryColor,
-                        foregroundColor: AppColors.backgroundColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: const Text('Send Message', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -912,7 +652,17 @@ class _TherapistsScreenState extends ConsumerState<TherapistsScreen> {
                                       ],
                                     ),
                                     GestureDetector(
-                                      onTap: () => _showContactBottomSheet(therapist),
+                                      onTap: () async {
+                                        final email = therapist['contactEmail'] as String? ?? '';
+                                        if (email.isNotEmpty) {
+                                          final Uri emailUri = Uri(
+                                            scheme: 'mailto',
+                                            path: email,
+                                            queryParameters: {'subject': 'MindTrack Consultation Request'},
+                                          );
+                                          await launchUrl(emailUri);
+                                        }
+                                      },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                         decoration: BoxDecoration(

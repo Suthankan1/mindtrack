@@ -28,7 +28,28 @@ class FakeDioService extends DioService {
       'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
     };
   }
+
+  @override
+  Future<List<dynamic>> getMoodHistory({int days = 30}) async => [];
+
+  @override
+  Future<Map<String, dynamic>> getMoodAnomaly() async => {
+        'riskLevel': 'LOW',
+        'detectedPatterns': <String>[],
+        'suggestedAction': '',
+        'supportiveInsight': '',
+        'confidence': 0.0,
+        'insufficientData': true,
+      };
+
+  @override
+  Future<Map<String, dynamic>> getUserStats() async => {
+        'currentStreak': 0,
+        'longestStreak': 0,
+        'totalEntries': 0,
+      };
 }
+
 
 void main() {
   late FakeDioService fakeDioService;

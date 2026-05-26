@@ -234,7 +234,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.15),
+                        color: theme.primaryColor.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -286,7 +286,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
           child: Container(
             height: 120,
             decoration: BoxDecoration(
-              color: AppColors.surfaceColor.withOpacity(0.4),
+              color: AppColors.surfaceColor.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -296,7 +296,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
           child: Container(
             height: 120,
             decoration: BoxDecoration(
-              color: AppColors.surfaceColor.withOpacity(0.4),
+              color: AppColors.surfaceColor.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -422,7 +422,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
                         barWidth: 4.0,
                         isStrokeCapRound: true,
                         shadow: Shadow(
-                          color: theme.primaryColor.withOpacity(0.4),
+                          color: theme.primaryColor.withValues(alpha: 0.4),
                           blurRadius: 10,
                           offset: const Offset(0, 3),
                         ),
@@ -441,8 +441,8 @@ class WeeklySummaryScreen extends ConsumerWidget {
                           show: true,
                           gradient: LinearGradient(
                             colors: [
-                              theme.primaryColor.withOpacity(0.25),
-                              theme.primaryColor.withOpacity(0.0),
+                              theme.primaryColor.withValues(alpha: 0.25),
+                              theme.primaryColor.withValues(alpha: 0.0),
                             ],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
@@ -482,7 +482,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
         children: [
           Icon(
             isError ? Icons.error_outline : Icons.show_chart,
-            color: AppColors.textMuted.withOpacity(0.5),
+            color: AppColors.textMuted.withValues(alpha: 0.5),
             size: 28,
           ),
           const SizedBox(height: 8),
@@ -518,7 +518,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: theme.primaryColor.withOpacity(0.12),
+            color: theme.primaryColor.withValues(alpha: 0.12),
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 4),
@@ -609,7 +609,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: (isLightTheme ? const Color(0xFFE4E8F5) : AppColors.surfaceColor).withOpacity(0.5),
+        color: (isLightTheme ? const Color(0xFFE4E8F5) : AppColors.surfaceColor).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor),
       ),
@@ -640,7 +640,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
       width: double.infinity,
       height: 180,
       decoration: BoxDecoration(
-        color: AppColors.surfaceColor.withOpacity(0.4),
+        color: AppColors.surfaceColor.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Center(
@@ -659,7 +659,7 @@ class WeeklySummaryScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.errorColor.withOpacity(0.5)),
+        border: Border.all(color: AppColors.errorColor.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: [
@@ -739,9 +739,9 @@ class WeeklySummaryScreen extends ConsumerWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withOpacity(0.4), width: 1.5),
+                  border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

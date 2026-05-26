@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mindtrack_mobile/screens/weekly_summary_screen.dart';
 import 'package:mindtrack_mobile/providers/mood_provider.dart';
-import 'package:mindtrack_mobile/services/dio_service.dart';
 
 class FakeMoodHistoryNotifier extends MoodHistoryNotifier {
   @override

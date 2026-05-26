@@ -564,7 +564,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                               final dio = ref.read(dioServiceProvider);
                               await dio.deleteMoodEntry(entry.id);
                               ref.read(moodHistoryProvider.notifier).refresh();
-                              if (mounted) {
+                              if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Entry deleted'),
@@ -574,7 +574,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                               }
                               return true;
                             } catch (e) {
-                              if (mounted) {
+                              if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Failed to delete entry: ${e.toString().replaceAll('Exception: ', '')}'),

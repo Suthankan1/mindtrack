@@ -89,7 +89,7 @@ class _QuoteCardState extends State<QuoteCard>
                 builder: (context, child) {
                   return Container(
                     width: 4,
-                    color: const Color(0xFF00D2C8).withOpacity(_pulseAnimation.value),
+                    color: const Color(0xFF00D2C8).withValues(alpha: _pulseAnimation.value),
                   );
                 },
               ),
@@ -134,7 +134,7 @@ class _QuoteCardState extends State<QuoteCard>
                         Text(
                           '"${widget.quote}"',
                           style: theme.textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontStyle: FontStyle.italic,
                             height: 1.4,
                           ),

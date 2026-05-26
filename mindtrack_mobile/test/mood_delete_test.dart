@@ -1,10 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mindtrack_mobile/services/dio_service.dart';
-import 'package:mindtrack_mobile/providers/mood_provider.dart';
 import 'package:mindtrack_mobile/screens/journal_screen.dart';
 
 class CapturingDioServiceForDelete extends DioService {

@@ -364,9 +364,9 @@ class DioService {
   }
 
   /// Generates a personalized AI journal reflection prompt based on mood score and tags.
-  Future<Map<String, dynamic>> generateJournalPrompt({
+  Future<Map<String, dynamic>> getJournalPrompt({
     required int moodScore,
-    required List<String> tags,
+    List<String> tags = const [],
     List<String> recentNoteSummaries = const [],
   }) async {
     if (_token == null) {
@@ -388,8 +388,23 @@ class DioService {
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
-      throw Exception('Failed to generate journal prompt: status ${response.statusCode}');
+      throw Exception(
+        'Failed to generate journal prompt: status ${response.statusCode}',
+      );
     });
+  }
+
+  /// Generates a personalized AI journal reflection prompt based on mood score and tags.
+  Future<Map<String, dynamic>> generateJournalPrompt({
+    required int moodScore,
+    required List<String> tags,
+    List<String> recentNoteSummaries = const [],
+  }) async {
+    return getJournalPrompt(
+      moodScore: moodScore,
+      tags: tags,
+      recentNoteSummaries: recentNoteSummaries,
+    );
   }
 
 

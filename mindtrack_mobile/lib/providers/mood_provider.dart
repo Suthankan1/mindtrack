@@ -102,6 +102,26 @@ final todayMoodProvider = AsyncNotifierProvider<TodayMoodNotifier, int?>(
   TodayMoodNotifier.new,
 );
 
+/// Shared pending journal prompt used to hand off AI-generated reflection text
+/// from the breathing flow into the journal composer.
+class PendingJournalPromptNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void setPrompt(String? prompt) {
+    state = prompt;
+  }
+
+  void clear() {
+    state = null;
+  }
+}
+
+final pendingJournalPromptProvider =
+    NotifierProvider<PendingJournalPromptNotifier, String?>(
+      PendingJournalPromptNotifier.new,
+    );
+
 /// Managed state notifier for mood history logs
 class MoodHistoryNotifier extends AsyncNotifier<List<MoodEntry>> {
   @override

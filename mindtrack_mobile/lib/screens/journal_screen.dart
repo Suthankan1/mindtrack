@@ -19,12 +19,24 @@ class JournalScreen extends ConsumerStatefulWidget {
 }
 
 class _JournalScreenState extends ConsumerState<JournalScreen> {
+  String? _pendingJournalPrompt;
+
   @override
   void initState() {
     super.initState();
+    _consumePendingJournalPrompt();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncProvider.notifier).syncPending();
     });
+  }
+
+  String? _consumePendingJournalPrompt() {
+    final prompt = _pendingJournalPrompt ?? ref.read(pendingJournalPromptProvider);
+    if (prompt != null) {
+      _pendingJournalPrompt = prompt;
+      ref.read(pendingJournalPromptProvider.notifier).clear();
+    }
+    return _pendingJournalPrompt;
   }
 
   String _formatDateTime(DateTime dt) {
@@ -320,6 +332,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
 
   // Open the mood logger bottom sheet
   void _showMoodLoggingBottomSheet(BuildContext context) {
+    final initialPrompt = _consumePendingJournalPrompt();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -330,6 +344,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             // Trigger local refresh or immediate state synchronization
             ref.read(moodHistoryProvider.notifier).refresh();
           },
+          initialNote: initialPrompt,
         );
       },
     );
@@ -1341,8 +1356,12 @@ class _ConstellationPainter extends CustomPainter {
 // Mood Logging Modal Bottom Sheet
 class _MoodLoggingBottomSheet extends ConsumerStatefulWidget {
   final VoidCallback onSaved;
+  final String? initialNote;
 
-  const _MoodLoggingBottomSheet({required this.onSaved});
+  const _MoodLoggingBottomSheet({
+    required this.onSaved,
+    this.initialNote,
+  });
 
   @override
   ConsumerState<_MoodLoggingBottomSheet> createState() =>
@@ -1352,7 +1371,7 @@ class _MoodLoggingBottomSheet extends ConsumerStatefulWidget {
 class _MoodLoggingBottomSheetState
     extends ConsumerState<_MoodLoggingBottomSheet> {
   double _score = 3.0; // Default centered score
-  final TextEditingController _noteController = TextEditingController();
+  late final TextEditingController _noteController;
   final List<String> _selectedTags = [];
   bool _isSaving = false;
 
@@ -1465,6 +1484,16 @@ class _MoodLoggingBottomSheetState
           'aiAvailable': false,
         };
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController(
+      text: widget.initialNote == null || widget.initialNote!.trim().isEmpty
+          ? ''
+          : '${widget.initialNote!.trim()}\n\n',
+    );
   }
 
   @override

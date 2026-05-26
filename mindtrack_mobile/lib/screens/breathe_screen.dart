@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../widgets/breathing_orb.dart';
 import '../services/dio_service.dart';
@@ -187,7 +188,6 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
   // AI Recommendation State Variables
   bool _isLoadingRecommendation = false;
   Map<String, dynamic>? _aiRecommendation;
-  String? _recommendationError;
 
   @override
   void initState() {
@@ -304,6 +304,10 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
     // Auto-log to backend in background
     _logSessionToBackend();
 
+    // Build the journal prompt in the background so it is ready once the
+    // completion animation settles.
+    unawaited(_showPostBreathingJournalPrompt());
+
     // Reveal final completion overlay card after 1.5 seconds so they enjoy the starburst
     Future.delayed(const Duration(milliseconds: 1800), () {
       if (mounted) {
@@ -324,6 +328,153 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
         });
       }
     });
+  }
+
+  Future<void> _showPostBreathingJournalPrompt() async {
+    final todayScore = ref.read(todayMoodProvider).value ?? 3;
+    final dioService = ref.read(dioServiceProvider);
+
+    final promptFuture = dioService
+        .getJournalPrompt(
+        moodScore: todayScore,
+        tags: const ['Mindfulness'],
+      );
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    Map<String, dynamic> promptData;
+    try {
+      promptData = await promptFuture;
+    } catch (e) {
+      debugPrint('BreatheScreen: Failed to generate journal prompt: $e');
+      promptData = {
+        'promptTitle': 'Quiet Reflection',
+        'promptQuestion':
+            'What feels lighter after your breathing session, and what would you like to carry into the rest of your day?',
+      };
+    }
+
+    _showJournalPromptBottomSheet(promptData);
+  }
+
+  void _showJournalPromptBottomSheet(Map<String, dynamic> promptData) {
+    final promptTitle = (promptData['promptTitle'] ?? 'Reflection Moment')
+        .toString();
+    final promptQuestion = (promptData['promptQuestion'] ??
+            'What feels different after your breathing session, and what would you like to notice next?')
+        .toString();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: AppColors.borderOverlay, width: 1.5),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            16,
+            24,
+            24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: AppColors.borderOverlay,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  "You've calmed your mind ✨",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  promptTitle,
+                  style: const TextStyle(
+                    color: AppColors.primaryColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  promptQuestion,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.borderOverlay),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text('Maybe Later'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ref
+                              .read(pendingJournalPromptProvider.notifier)
+                              .setPrompt(promptQuestion);
+                          Navigator.of(sheetContext).pop();
+                          if (mounted) {
+                            context.go('/journal');
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text('Journal Now'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   // Request to log the coping session using Dio
@@ -454,7 +605,6 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
     if (!mounted) return;
     setState(() {
       _isLoadingRecommendation = true;
-      _recommendationError = null;
     });
 
     try {
@@ -518,7 +668,6 @@ class _BreatheScreenState extends ConsumerState<BreatheScreen>
       debugPrint('BreatheScreen: Failed to get AI coping suggestion: $e');
       if (mounted) {
         setState(() {
-          _recommendationError = e.toString();
           _isLoadingRecommendation = false;
         });
       }

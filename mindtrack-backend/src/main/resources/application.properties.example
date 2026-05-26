@@ -20,6 +20,7 @@ jwt.secret=YOUR_JWT_SECRET_HEX_32_BYTES_HERE
 jwt.expiration=604800000
 
 # ─── CORS Configuration ───────────────────────────────────────────────────────
+# CORS: comma-separated allowed origins (no wildcard when credentials=true)
 cors.allowed-origins=http://localhost:3000,http://localhost:3001
 
 # AI Configuration

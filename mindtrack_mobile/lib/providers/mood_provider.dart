@@ -224,6 +224,11 @@ class MoodActions {
       _ref.invalidate(streakProvider);
       _ref.invalidate(longestStreakProvider);
 
+      final historyCount = _ref.read(moodHistoryProvider).value?.length ?? 0;
+      if (historyCount % 5 == 0) {
+        _ref.invalidate(moodAnomalyProvider);
+      }
+
       return jsonResult;
     } catch (e) {
       if (_isNetworkError(e)) {
@@ -305,6 +310,7 @@ class MoodAnomalyNotifier extends AsyncNotifier<MoodAnomaly?> {
   @override
   FutureOr<MoodAnomaly?> build() async {
     final dio = ref.watch(dioServiceProvider);
+    ref.keepAlive();
     try {
       final data = await dio.getMoodAnomaly();
       return MoodAnomaly.fromJson(data);
@@ -327,7 +333,7 @@ class MoodAnomalyNotifier extends AsyncNotifier<MoodAnomaly?> {
 
 /// Riverpod provider for weekly mood anomaly and burnout diagnostics
 final moodAnomalyProvider =
-    AsyncNotifierProvider<MoodAnomalyNotifier, MoodAnomaly?>(
+    AsyncNotifierProvider.autoDispose<MoodAnomalyNotifier, MoodAnomaly?>(
       MoodAnomalyNotifier.new,
     );
 

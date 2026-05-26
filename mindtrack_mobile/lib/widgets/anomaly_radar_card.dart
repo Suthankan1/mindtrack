@@ -97,21 +97,41 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
                         color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'CALIBRATING',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor,
-                          letterSpacing: 0.5,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'CALIBRATING',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () => ref.invalidate(moodAnomalyProvider),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.refresh, size: 14),
+                          label: const Text(
+                            'Refresh Radar',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -209,27 +229,47 @@ class _AnomalyRadarCardState extends ConsumerState<AnomalyRadarCard>
                       color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: riskBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: riskColor.withValues(alpha: 0.25)),
-                    ),
-                    child: Text(
-                      anomaly.riskLevel == 'HIGH'
-                          ? 'HIGH BURN RISK'
-                          : anomaly.riskLevel == 'MEDIUM'
-                              ? 'MODERATE SHIFT'
-                              : 'STABLE BASELINE',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: riskColor,
-                        letterSpacing: 0.5,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: riskBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: riskColor.withValues(alpha: 0.25)),
+                          ),
+                          child: Text(
+                            anomaly.riskLevel == 'HIGH'
+                                ? 'HIGH BURN RISK'
+                                : anomaly.riskLevel == 'MEDIUM'
+                                    ? 'MODERATE SHIFT'
+                                    : 'STABLE BASELINE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: riskColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () => ref.invalidate(moodAnomalyProvider),
+                          style: TextButton.styleFrom(
+                            foregroundColor: riskColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.refresh, size: 14),
+                          label: const Text(
+                            'Refresh Radar',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                       ),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 16),

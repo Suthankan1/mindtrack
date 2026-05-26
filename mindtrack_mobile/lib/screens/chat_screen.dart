@@ -45,12 +45,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _loadChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final email =
-          prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
-      final historyStr = prefs.getString('chat_history_$email');
+      final raw = prefs.getString('mindchat_history');
 
-      if (historyStr != null) {
-        final List<dynamic> decoded = json.decode(historyStr);
+      if (raw != null) {
+        final List decoded = jsonDecode(raw) as List;
+        if (decoded.isNotEmpty) {
         final loadedMessages = decoded
             .map((m) => Map<String, dynamic>.from(m))
             .toList();
@@ -80,6 +79,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _scrollToBottom();
         }
         return;
+        }
       }
     } catch (e) {
       debugPrint('Error loading chat history: $e');
@@ -91,14 +91,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _saveChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final email =
-          prefs.getString('user_email') ?? 'practitioner@mindtrack.com';
-
       if (_messages.isNotEmpty && _messages.last['role'] == 'model') {
         _messages.last['suggestedFollowUps'] = _suggestedFollowUps;
       }
 
-      await prefs.setString('chat_history_$email', json.encode(_messages));
+      await prefs.setString('mindchat_history', jsonEncode(_messages));
     } catch (e) {
       debugPrint('Error saving chat history: $e');
     }
@@ -121,6 +118,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ];
     });
     _saveChatHistory();
+  }
+
+  Future<void> _confirmClearChat() async {
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Clear MindChat?'),
+          content: const Text(
+            'This will remove your saved conversation and start a new session.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldClear != true) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('mindchat_history');
+
+    if (!mounted) return;
+
+    setState(() {
+      _messages = [];
+      _suggestedFollowUps = [];
+      _hasCrisisActive = false;
+      _activeCrisisResources = [];
+      _isLoading = false;
+    });
+    _initializeChat();
   }
 
   double _calculateWeeklyAverage() {
@@ -549,6 +588,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final sessionStatus = _messages.length > 1
+        ? 'Session active • ${_messages.length} messages'
+        : 'New session';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -603,7 +645,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             ),
             Text(
-              '${_messages.length} messages',
+              sessionStatus,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: AppColors.textMuted,
               ),
@@ -613,14 +655,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             tooltip: 'Clear Chat',
-            icon: const Icon(Icons.delete_outline_rounded),
-            onPressed: () {
-              setState(() {
-                _messages = [];
-                _suggestedFollowUps = [];
-              });
-              _initializeChat();
-            },
+            icon: const Icon(Icons.delete_sweep_outlined),
+            onPressed: _confirmClearChat,
           ),
         ],
         bottom: PreferredSize(

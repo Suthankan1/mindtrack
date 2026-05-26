@@ -243,10 +243,11 @@ class ThemeNotifier extends Notifier<ThemeData> {
       if (token != null && token != 'fake_token') {
         final dio = ref.read(dioServiceProvider);
         final reminderEnabled = prefs.getBool('notifications_enabled') ?? true;
+        final reminderTimeStr = prefs.getString('reminder_time') ?? '20:00';
         await dio.updateUserPreferences({
           'themeMode': newTheme,
           'reminderEnabled': reminderEnabled,
-          'reminderTime': '20:00',
+          'reminderTime': reminderTimeStr,
           'defaultCopingTechnique': 'Breathing',
           'privacyMode': 'standard',
         });

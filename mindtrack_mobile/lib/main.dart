@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'navigation/app_router.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+import 'services/notification_service.dart';
+
+void main() async {
   // Ensure that Flutter widget bindings are initialized before starting any platform channels (like Shared Preferences or Local Notifications)
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
 
   runApp(
     // ProviderScope stores the state of all Riverpod providers

@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
 import '../services/dio_service.dart';
+import '../services/notification_service.dart';
 
 /// The Profile tab — displays the user's avatar, stats, settings, and
 /// persistent crisis support buttons.
@@ -30,6 +31,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _email = '';
   String _joinDateStr = 'Joined May 2026';
   bool _notificationsEnabled = true;
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
   bool _aiJournalAnalysisEnabled = false;
   bool _aiChatHistoryEnabled = false;
   bool _shareNotesWithAi = false;
@@ -90,25 +92,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final dio = ref.read(dioServiceProvider);
       final prefsData = await dio.getUserPreferences();
       final reminderEnabled = prefsData['reminderEnabled'] ?? true;
+      final reminderTimeStr = prefsData['reminderTime'] ?? '20:00';
       final themeMode = prefsData['themeMode'] ?? 'dark';
       final aiJournalAnalysisEnabled = prefsData['aiJournalAnalysisEnabled'] ?? false;
       final aiChatHistoryEnabled = prefsData['aiChatHistoryEnabled'] ?? false;
       final shareNotesWithAi = prefsData['shareNotesWithAi'] ?? false;
 
       await prefs.setBool('notifications_enabled', reminderEnabled);
+      await prefs.setString('reminder_time', reminderTimeStr);
       await prefs.setBool('theme_light_mode', themeMode == 'light');
       await prefs.setBool('ai_journal_analysis_enabled', aiJournalAnalysisEnabled);
       await prefs.setBool('ai_chat_history_enabled', aiChatHistoryEnabled);
       await prefs.setBool('share_notes_with_ai', shareNotesWithAi);
 
+      TimeOfDay parsedTime = const TimeOfDay(hour: 20, minute: 0);
+      try {
+        final parts = reminderTimeStr.split(':');
+        if (parts.length == 2) {
+          parsedTime = TimeOfDay(
+            hour: int.parse(parts[0]),
+            minute: int.parse(parts[1]),
+          );
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _notificationsEnabled = reminderEnabled;
+          _reminderTime = parsedTime;
           _aiJournalAnalysisEnabled = aiJournalAnalysisEnabled;
           _aiChatHistoryEnabled = aiChatHistoryEnabled;
           _shareNotesWithAi = shareNotesWithAi;
         });
         await ref.read(themeProvider.notifier).setThemeMode(themeMode);
+        await NotificationService().scheduleDaily(parsedTime, reminderEnabled);
       }
     } catch (e) {
       debugPrint('ProfileScreen: Error syncing preferences with backend: $e');
@@ -235,6 +252,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             prefs.getString('user_display_name') ?? 'Cosmic Practitioner';
         _email = email;
         _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+
+        final reminderTimeStr = prefs.getString('reminder_time') ?? '20:00';
+        try {
+          final parts = reminderTimeStr.split(':');
+          if (parts.length == 2) {
+            _reminderTime = TimeOfDay(
+              hour: int.parse(parts[0]),
+              minute: int.parse(parts[1]),
+            );
+          }
+        } catch (_) {}
+
         _aiJournalAnalysisEnabled = prefs.getBool('ai_journal_analysis_enabled') ?? false;
         _aiChatHistoryEnabled = prefs.getBool('ai_chat_history_enabled') ?? false;
         _shareNotesWithAi = prefs.getBool('share_notes_with_ai') ?? false;
@@ -294,6 +323,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // Sync notification toggle with backend
       await _syncAllPreferencesToBackend();
 
+      // Schedule or cancel local notification daily reminder
+      await NotificationService().scheduleDaily(_reminderTime, val);
+
       // FCM Subscription logic simulation
       if (val) {
         debugPrint('FCM: Subscribed to theme_calm_notifications topic.');
@@ -318,6 +350,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } catch (e) {
       debugPrint('ProfileScreen: Error toggling notifications: $e');
+    }
+  }
+
+  Future<void> _selectReminderTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _reminderTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: const Color(0xFF00D2C8),
+              onPrimary: Colors.black,
+              surface: Theme.of(context).cardColor,
+              onSurface: Colors.white,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF00D2C8),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _reminderTime) {
+      setState(() {
+        _reminderTime = picked;
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final reminderTimeString = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      await prefs.setString('reminder_time', reminderTimeString);
+
+      // Sync notification settings with backend
+      await _syncAllPreferencesToBackend();
+
+      // Schedule or update local notification daily reminder
+      await NotificationService().scheduleDaily(picked, _notificationsEnabled);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildCustomSnackBar(
+            message: 'Reminder scheduled for ${picked.format(context)}',
+            isSuccess: true,
+          ),
+        );
+      }
     }
   }
 
@@ -391,10 +471,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (token != null && token != 'fake_token') {
         final isLight = prefs.getBool('theme_light_mode') ?? false;
         final dio = ref.read(dioServiceProvider);
+        final reminderTimeString = '${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')}';
         await dio.updateUserPreferences({
           'themeMode': isLight ? 'light' : 'dark',
           'reminderEnabled': _notificationsEnabled,
-          'reminderTime': '20:00',
+          'reminderTime': reminderTimeString,
           'defaultCopingTechnique': 'Breathing',
           'privacyMode': 'standard',
           'aiJournalAnalysisEnabled': _aiJournalAnalysisEnabled,
@@ -735,6 +816,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         activeThumbColor: const Color(0xFF00D2C8),
                       ),
                     ),
+
+                    if (_notificationsEnabled)
+                      _buildSettingItem(
+                        icon: Icons.access_time_outlined,
+                        title: 'Reminder Time',
+                        subtitle: 'Currently scheduled for ${_reminderTime.format(context)}',
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
+                        onTap: _selectReminderTime,
+                      ),
 
                     // AI Privacy Controls
                     _buildSettingItem(

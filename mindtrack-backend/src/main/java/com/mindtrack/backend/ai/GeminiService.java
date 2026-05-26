@@ -124,6 +124,17 @@ public class GeminiService {
     }
 
     /**
+     * Returns true when the string is one of the known error/fallback strings returned by
+     * generateInsight() on API failure, so callers can guard before JSON-parsing the result.
+     */
+    public boolean isErrorResponse(String response) {
+        if (response == null) return true;
+        return response.startsWith("Unable to generate AI") ||
+               response.startsWith("No insight generated") ||
+               response.startsWith("Prompt cannot be empty");
+    }
+
+    /**
      * Generates a multi-turn chat response using system instructions and full conversation history.
      */
     public String generateChatResponse(List<GeminiRequest.Content> contents, String systemInstruction) {
@@ -185,7 +196,7 @@ public class GeminiService {
 
         } catch (Exception e) {
             log.error("Gemini Chat API call failed: {}", e.getMessage());
-            return "Unable to generate AI chat response at this time.";
+            throw new RuntimeException("Gemini Chat API call failed: " + e.getMessage(), e);
         }
     }
 

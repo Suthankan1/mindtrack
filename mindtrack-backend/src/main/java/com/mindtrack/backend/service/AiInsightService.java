@@ -225,6 +225,9 @@ public class AiInsightService {
 
         try {
             String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.2);
+            if (geminiService.isErrorResponse(rawResponse)) {
+                throw new RuntimeException("Gemini returned an error response: " + rawResponse);
+            }
             MoodAnomalyResponse parsed = jsonExtractionService.extractAndParse(rawResponse, MoodAnomalyResponse.class);
             parsed.setRiskLevel(riskLevel);
             parsed.setDetectedPatterns(patterns);
@@ -326,6 +329,9 @@ public class AiInsightService {
 
         try {
             String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.1);
+            if (geminiService.isErrorResponse(rawResponse)) {
+                throw new RuntimeException("Gemini returned an error response: " + rawResponse);
+            }
             SentimentAnalysisResponse parsed = jsonExtractionService.extractAndParse(rawResponse, SentimentAnalysisResponse.class);
             sentimentCache.put(entryId, parsed);
             return parsed;
@@ -384,6 +390,9 @@ public class AiInsightService {
 
         try {
             String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.1);
+            if (geminiService.isErrorResponse(rawResponse)) {
+                throw new RuntimeException("Gemini returned an error response: " + rawResponse);
+            }
             CopingSuggestResponse parsed = jsonExtractionService.extractAndParse(rawResponse, CopingSuggestResponse.class);
             return parsed;
         } catch (Exception e) {
@@ -530,6 +539,9 @@ public class AiInsightService {
         // 3. Call Gemini and Parse Response
         try {
             String rawResponse = geminiService.generateChatResponse(contents, systemPrompt, "application/json", 0.2);
+            if (geminiService.isErrorResponse(rawResponse)) {
+                throw new RuntimeException("Gemini returned an error response: " + rawResponse);
+            }
             ChatResponse parsed = jsonExtractionService.extractAndParse(rawResponse, ChatResponse.class);
             return parsed;
         } catch (Exception e) {
@@ -610,6 +622,9 @@ public class AiInsightService {
 
         try {
             String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.7);
+            if (geminiService.isErrorResponse(rawResponse)) {
+                throw new RuntimeException("Gemini returned an error response: " + rawResponse);
+            }
             JournalPromptResponse parsed = jsonExtractionService.extractAndParse(rawResponse, JournalPromptResponse.class);
             parsed.setAiAvailable(true);
             return parsed;
@@ -772,6 +787,9 @@ public class AiInsightService {
 
         try {
             String rawResponse = geminiService.generateInsight(prompt, "application/json", 0.3);
+            if (geminiService.isErrorResponse(rawResponse)) {
+                throw new RuntimeException("Gemini returned an error response: " + rawResponse);
+            }
             MoodReflectionResponse parsed = jsonExtractionService.extractAndParse(rawResponse, MoodReflectionResponse.class);
             parsed.setAiAvailable(true);
             // Ensure showCrisisResources is true if calculated as high risk

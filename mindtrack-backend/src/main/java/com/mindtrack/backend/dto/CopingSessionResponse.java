@@ -1,5 +1,6 @@
 package com.mindtrack.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mindtrack.backend.model.CopingSession;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +18,7 @@ public class CopingSessionResponse {
     private UUID id;
     private UUID userId;
     private String type;
+    @JsonProperty("durationSeconds")
     private int durationSeconds;
     private LocalDateTime completedAt;
 

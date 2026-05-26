@@ -279,7 +279,7 @@ public class AiInsightService {
                         .reminderTime("20:00")
                         .defaultCopingTechnique("Breathing")
                         .privacyMode("standard")
-                        .aiJournalAnalysisEnabled(false)
+                        .aiJournalAnalysisEnabled(true)
                         .aiChatHistoryEnabled(false)
                         .shareNotesWithAi(false)
                         .build());
@@ -466,7 +466,7 @@ public class AiInsightService {
                             .reminderTime("20:00")
                             .defaultCopingTechnique("Breathing")
                             .privacyMode("standard")
-                            .aiJournalAnalysisEnabled(false)
+                            .aiJournalAnalysisEnabled(true)
                             .aiChatHistoryEnabled(false)
                             .shareNotesWithAi(false)
                             .build());
@@ -570,7 +570,7 @@ public class AiInsightService {
                             .reminderTime("20:00")
                             .defaultCopingTechnique("Breathing")
                             .privacyMode("standard")
-                            .aiJournalAnalysisEnabled(false)
+                            .aiJournalAnalysisEnabled(true)
                             .aiChatHistoryEnabled(false)
                             .shareNotesWithAi(false)
                             .build());
@@ -731,7 +731,7 @@ public class AiInsightService {
                         .reminderTime("20:00")
                         .defaultCopingTechnique("Breathing")
                         .privacyMode("standard")
-                        .aiJournalAnalysisEnabled(false)
+                        .aiJournalAnalysisEnabled(true)
                         .aiChatHistoryEnabled(false)
                         .shareNotesWithAi(false)
                         .build());

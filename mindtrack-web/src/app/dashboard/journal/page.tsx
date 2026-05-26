@@ -19,7 +19,8 @@ import {
   ChevronUp,
   Download,
   Info,
-  Filter
+  Filter,
+  Settings
 } from "lucide-react";
 import CosmicErrorCard from "@/components/CosmicErrorCard";
 
@@ -29,6 +30,7 @@ interface SentimentResult {
   themes: string[];
   confidence: number;
   supportMessage?: string;
+  aiAvailable?: boolean;
 }
 
 // Mood Entry Interface mapping the backend response format
@@ -1565,15 +1567,35 @@ export default function JournalPage() {
 
                                               {/* Support Message */}
                                               {sentimentResults[entry.id].supportMessage && (
-                                                <div className={`p-3 rounded-xl text-xs font-sans italic border ${
-                                                  sentimentResults[entry.id].sentiment === "positive"
-                                                    ? "bg-accent-teal/5 border-accent-teal/10 text-accent-teal/90"
-                                                    : sentimentResults[entry.id].sentiment === "negative"
-                                                      ? "bg-accent-coral/5 border-accent-coral/10 text-accent-coral/90"
-                                                      : "bg-white/[0.02] border-white/5 text-gray-300/90"
-                                                }`}>
-                                                  &quot;{sentimentResults[entry.id].supportMessage}&quot;
-                                                </div>
+                                                sentimentResults[entry.id].aiAvailable === false ? (
+                                                  /* AI is disabled in privacy settings — show actionable CTA */
+                                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-400/90">
+                                                    <Settings className="w-4 h-4 shrink-0 mt-0.5 opacity-70" />
+                                                    <div className="space-y-1">
+                                                      <p className="text-[10px] font-bold uppercase tracking-wider">AI Analysis Paused</p>
+                                                      <p className="text-[10px] leading-relaxed">
+                                                        Enable <strong>AI Journal Analysis</strong> in{" "}
+                                                        <a
+                                                          href="/dashboard/settings"
+                                                          className="underline underline-offset-2 hover:text-amber-300 transition-colors font-semibold"
+                                                        >
+                                                          Settings → AI Privacy
+                                                        </a>{" "}
+                                                        to unlock emotional tone detection and theme insights.
+                                                      </p>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div className={`p-3 rounded-xl text-xs font-sans italic border ${
+                                                    sentimentResults[entry.id].sentiment === "positive"
+                                                      ? "bg-accent-teal/5 border-accent-teal/10 text-accent-teal/90"
+                                                      : sentimentResults[entry.id].sentiment === "negative"
+                                                        ? "bg-accent-coral/5 border-accent-coral/10 text-accent-coral/90"
+                                                        : "bg-white/[0.02] border-white/5 text-gray-300/90"
+                                                  }`}>
+                                                    &quot;{sentimentResults[entry.id].supportMessage}&quot;
+                                                  </div>
+                                                )
                                               )}
                                             </>
                                           )}

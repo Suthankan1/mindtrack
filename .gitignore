@@ -57,12 +57,12 @@ SourcePackages/
 *.bak
 
 # ─── Hackathon & PresentMe Exclusions ──────────────────────────────────────────
-node_modules/
-.next/
-build/
-target/
-.dart_tool/
-.env
+**/node_modules/
+**/.next/
+**/build/
+**/target/
+**/.dart_tool/
+**/.env
 .env.local
 .env.*.local
 *.secrets

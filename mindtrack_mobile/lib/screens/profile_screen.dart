@@ -34,6 +34,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _aiChatHistoryEnabled = false;
   bool _shareNotesWithAi = false;
 
+  bool _isLoadingPassport = true;
+  Map<String, dynamic>? _passportData;
+
   bool _isLoadingStats = true;
   bool _isExporting = false;
   int _totalEntries = 0;
@@ -79,6 +82,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     _loadProfileData();
     _fetchUserStats();
+    _fetchWellnessPassport();
   }
 
   Future<void> _syncPreferencesWithBackend(SharedPreferences prefs) async {
@@ -141,6 +145,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       setState(() {
         _isLoadingStats = false;
+      });
+    }
+  }
+
+  Future<void> _fetchWellnessPassport() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingPassport = true;
+    });
+    try {
+      final dio = ref.read(dioServiceProvider);
+      final data = await dio.getWellnessPassport();
+      if (!mounted) return;
+      setState(() {
+        _passportData = data;
+        _isLoadingPassport = false;
+      });
+    } catch (e) {
+      debugPrint('ProfileScreen: Error fetching wellness passport: $e');
+      if (!mounted) return;
+      setState(() {
+        _passportData = null;
+        _isLoadingPassport = false;
       });
     }
   }
@@ -583,7 +610,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+                    _buildWellnessPassportCard(theme, isLightTheme),
+                    const SizedBox(height: 24),
 
                     // Stats & Badges Grid
                     _isLoadingStats
@@ -1326,6 +1355,304 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _buildWellnessPassportCard(ThemeData theme, bool isLightTheme) {
+    if (_isLoadingPassport) {
+      return const ShimmerWellnessPassportCard();
+    }
+    if (_passportData == null) {
+      return _buildPassportErrorCard(theme, isLightTheme);
+    }
+
+    final borderGradient = LinearGradient(
+      colors: isLightTheme
+          ? [const Color(0xFF009C94), const Color(0xFF9B5DE5)]
+          : [const Color(0xFF00D2C8), const Color(0xFFF15BB5)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: borderGradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(2.0), // The gradient border width
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: isLightTheme
+                ? [Colors.white, const Color(0xFFF9FAFC)]
+                : [
+                    AppColors.surfaceColor,
+                    const Color(0xFF1B1B2F),
+                  ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: Title and Icon
+            Row(
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  color: isLightTheme
+                      ? const Color(0xFF009C94)
+                      : const Color(0xFF00D2C8),
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Wellness Passport',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: (isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8)).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: (isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8)).withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 12,
+                        color: isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'AI Insight',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isLightTheme ? const Color(0xFF009C94) : const Color(0xFF00D2C8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // AI Insight Text
+            Text(
+              _passportData?['aiWeeklyInsight'] ?? 'No weekly insight generated yet.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isLightTheme ? const Color(0xFF333345) : Colors.white.withValues(alpha: 0.9),
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: AppColors.borderOverlay, height: 1),
+            const SizedBox(height: 16),
+
+            // Bottom Section: Tags & Stats Row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Top Tags Badges
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Weekly Focus',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildTagsWrap(isLightTheme),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Coping Sessions Counter Card
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Coping Sessions',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isLightTheme ? const Color(0xFFF1F4FA) : AppColors.surfaceColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isLightTheme ? const Color(0xFFE0E4F2) : AppColors.borderOverlay,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.spa_outlined,
+                            size: 16,
+                            color: isLightTheme ? const Color(0xFF9B5DE5) : const Color(0xFFF15BB5),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_passportData?['copingSessionsCompleted'] ?? 0}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagsWrap(bool isLightTheme) {
+    final tagsList = _passportData?['topTags'];
+    if (tagsList == null || tagsList is! List || tagsList.isEmpty) {
+      return Text(
+        'No active tags',
+        style: TextStyle(
+          fontSize: 12,
+          fontStyle: FontStyle.italic,
+          color: isLightTheme ? const Color(0xFF8080A0) : AppColors.textMuted,
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: tagsList.map<Widget>((tag) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isLightTheme ? const Color(0xFFE4E8F5) : AppColors.surfaceColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isLightTheme ? const Color(0xFFD0D5E5) : AppColors.borderOverlay,
+            ),
+          ),
+          child: Text(
+            '#$tag',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPassportErrorCard(ThemeData theme, bool isLightTheme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isLightTheme
+              ? const Color(0xFFE0E4F2)
+              : AppColors.borderOverlay,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: AppColors.errorColor,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Wellness Passport Failed',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Could not retrieve wellness passport summary. Please try again.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isLightTheme ? const Color(0xFF606080) : AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _fetchWellnessPassport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isLightTheme
+                      ? const Color(0xFFE4E8F5)
+                      : AppColors.surfaceColor,
+                  foregroundColor: isLightTheme
+                      ? const Color(0xFF0A0A14)
+                      : Colors.white,
+                  elevation: 0,
+                  side: BorderSide(
+                    color: isLightTheme
+                        ? const Color(0xFFD0D5E5)
+                        : AppColors.borderOverlay,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.refresh, size: 14),
+                label: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatsCard({
     required ThemeData theme,
     required bool isLightTheme,
@@ -1604,6 +1931,201 @@ class _ShimmerCalmPracticeCardState extends State<ShimmerCalmPracticeCard>
                       ],
                     ),
                   )),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ShimmerWellnessPassportCard extends StatefulWidget {
+  const ShimmerWellnessPassportCard({super.key});
+
+  @override
+  State<ShimmerWellnessPassportCard> createState() =>
+      _ShimmerWellnessPassportCardState();
+}
+
+class _ShimmerWellnessPassportCardState
+    extends State<ShimmerWellnessPassportCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(
+      begin: 0.3,
+      end: 0.7,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLightTheme = theme.brightness == Brightness.light;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isLightTheme
+                  ? const Color(0xFFF1F4FA)
+                  : AppColors.surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isLightTheme
+                    ? const Color(0xFFE0E4F2)
+                    : AppColors.borderOverlay,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 140,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      width: 70,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: isLightTheme ? Colors.black12 : Colors.white10,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isLightTheme ? Colors.black12 : Colors.white10,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isLightTheme ? Colors.black12 : Colors.white10,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 180,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isLightTheme ? Colors.black12 : Colors.white10,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: AppColors.borderOverlay, height: 1),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: isLightTheme ? Colors.black12 : Colors.white10,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 60,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: isLightTheme ? Colors.black12 : Colors.white10,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          width: 90,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 48,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),

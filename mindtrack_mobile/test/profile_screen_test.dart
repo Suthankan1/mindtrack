@@ -97,6 +97,18 @@ class FakeDioService extends DioService {
   }
 
   @override
+  Future<Map<String, dynamic>> getWellnessPassport() async {
+    return {
+      'averageMood': 4.2,
+      'streak': 3,
+      'topTags': ['Mindfulness', 'Focus'],
+      'copingSessionsCompleted': 8,
+      'aiWeeklyInsight': 'You are maintaining a strong wellness routine.',
+      'anomalyRadarResult': null,
+    };
+  }
+
+  @override
   Future<Map<String, dynamic>> updateUserPreferences(Map<String, dynamic> preferences) async {
     return preferences;
   }
@@ -141,6 +153,13 @@ void main() {
 
       // Verify total entries (Fake history has 5 entries)
       expect(find.text('5'), findsOneWidget);
+
+      // Verify Wellness Passport card renders correctly
+      expect(find.text('Wellness Passport'), findsOneWidget);
+      expect(find.text('You are maintaining a strong wellness routine.'), findsOneWidget);
+      expect(find.text('#Mindfulness'), findsOneWidget);
+      expect(find.text('#Focus'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
 
       // Verify Calm Practice stats card renders correctly
       expect(find.text('Calm Practice'), findsOneWidget);

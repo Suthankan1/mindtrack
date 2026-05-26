@@ -10,8 +10,8 @@ class DioService {
   final Dio _dio;
   String? _token;
 
-  DioService()
-    : _dio = Dio(
+  DioService({Dio? dio})
+    : _dio = dio ?? Dio(
         BaseOptions(
           baseUrl: _determineBaseUrl(),
           connectTimeout: const Duration(seconds: 10),
@@ -73,6 +73,9 @@ class DioService {
     try {
       return await call();
     } on DioException catch (e) {
+      if (e.response?.statusCode == 429) {
+        throw RateLimitException(handleDioError(e));
+      }
       throw Exception(handleDioError(e));
     }
   }
@@ -553,3 +556,11 @@ class DioService {
 final dioServiceProvider = Provider<DioService>((ref) {
   return DioService();
 });
+
+class RateLimitException implements Exception {
+  final String message;
+  RateLimitException(this.message);
+
+  @override
+  String toString() => message;
+}

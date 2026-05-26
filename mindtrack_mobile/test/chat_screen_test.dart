@@ -245,11 +245,10 @@ void main() {
       {'role': 'model', 'text': "My custom response", 'suggestedFollowUps': <String>[]},
     ];
 
-    SharedPreferences.setMockInitialValues({
-      'user_email': 'customuser@example.com',
-      'chat_history_customuser@example.com': json.encode(messagesToSave),
-      'auth_jwt_token': 'fake_token',
-    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_email', 'customuser@example.com');
+    await prefs.setString('mindchat_history', json.encode(messagesToSave));
+    await prefs.setString('auth_jwt_token', 'fake_token');
 
     final fakeDio = FakeChatDioService(responseToReturn: {});
 
@@ -285,11 +284,10 @@ void main() {
       };
     });
 
-    SharedPreferences.setMockInitialValues({
-      'user_email': 'testuser@example.com',
-      'chat_history_testuser@example.com': json.encode(messagesToSave),
-      'auth_jwt_token': 'fake_token',
-    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_email', 'testuser@example.com');
+    await prefs.setString('mindchat_history', json.encode(messagesToSave));
+    await prefs.setString('auth_jwt_token', 'fake_token');
 
     final fakeDio = FakeChatDioService(responseToReturn: {
       'reply': 'Reply to newest message',

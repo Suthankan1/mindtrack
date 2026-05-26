@@ -436,6 +436,7 @@ final offlineQueueProvider =
 
 class SyncNotifier extends Notifier<bool> {
   Timer? _timer;
+  DateTime? _rateLimitBackoffUntil;
 
   @override
   bool build() {
@@ -452,6 +453,11 @@ class SyncNotifier extends Notifier<bool> {
 
   Future<void> syncPending() async {
     if (state) return;
+    if (_rateLimitBackoffUntil != null &&
+        DateTime.now().isBefore(_rateLimitBackoffUntil!)) {
+      debugPrint('SyncNotifier: Skipping sync due to active rate-limit backoff (active until $_rateLimitBackoffUntil).');
+      return;
+    }
     final offlineQueue = ref.read(offlineQueueProvider);
     if (offlineQueue.isEmpty) return;
 
@@ -478,6 +484,11 @@ class SyncNotifier extends Notifier<bool> {
           );
           await ref.read(offlineQueueProvider.notifier).dequeue(entry.id);
           debugPrint('SyncNotifier: Synced entry ${entry.id} successfully.');
+        } on RateLimitException catch (e) {
+          _rateLimitBackoffUntil = DateTime.now().add(const Duration(minutes: 10));
+          debugPrint('SyncNotifier: Rate limit (429) encountered when syncing entry ${entry.id}. '
+              'Backing off sync for 10 minutes (until $_rateLimitBackoffUntil).');
+          break;
         } catch (e) {
           debugPrint('SyncNotifier: Failed to sync entry ${entry.id}: $e');
           if (_isNetworkError(e)) {

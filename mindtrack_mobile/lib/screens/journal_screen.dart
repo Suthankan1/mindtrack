@@ -1105,36 +1105,37 @@ class _ExpandableJournalEntryCardState
                               !_isAnalyzing) ...[
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
+                              child: ElevatedButton.icon(
                                 onPressed: _analyzeSentiment,
                                 icon: const Icon(
                                   Icons.auto_awesome_rounded,
-                                  color: AppColors.primaryColor,
-                                  size: 16,
+                                  size: 14,
                                 ),
                                 label: const Text(
-                                  'Analyze Vibe with AI',
+                                  'Analyze Vibe',
                                   style: TextStyle(
-                                    color: AppColors.primaryColor,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 12.5,
                                   ),
                                 ),
-                                style: TextButton.styleFrom(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryColor
+                                      .withValues(alpha: 0.12),
+                                  foregroundColor: AppColors.primaryColor,
+                                  side: BorderSide(
+                                    color: AppColors.primaryColor.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    width: 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
-                                    vertical: 8,
+                                    vertical: 6,
                                   ),
-                                  backgroundColor: AppColors.primaryColor
-                                      .withValues(alpha: 0.08),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: BorderSide(
-                                      color: AppColors.primaryColor.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                    ),
-                                  ),
+                                  elevation: 0,
                                 ),
                               ),
                             ),

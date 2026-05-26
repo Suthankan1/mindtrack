@@ -298,6 +298,9 @@ export default function DashboardPage() {
   const generateHeatmapGrid = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const gridStart = new Date(today);
+    const daysSinceMonday = (today.getDay() + 6) % 7;
+    gridStart.setDate(today.getDate() - daysSinceMonday - (4 * 7));
     
     const grid: { date: Date; dateStr: string; score: number | null; dateLabel: string }[] = [];
     const moodMap: Record<string, { total: number; count: number }> = {};
@@ -313,16 +316,12 @@ export default function DashboardPage() {
       }
     });
 
-    // 7 rows x 5 columns = 35 days total.
-    // GitHub contribution layouts use column-major order:
-    // col 0..4, row 0..6
-    // Cell index = col * 7 + row.
-    // Cell at index 34 represents today.
-    for (let col = 0; col < 5; col++) {
-      for (let row = 0; row < 7; row++) {
-        const cellIndex = col * 7 + row;
-        const cellDate = new Date(today);
-        cellDate.setDate(today.getDate() - (34 - cellIndex));
+    // Five Monday-to-Sunday rows, including the current week.
+    for (let week = 0; week < 5; week++) {
+      for (let day = 0; day < 7; day++) {
+        const cellIndex = week * 7 + day;
+        const cellDate = new Date(gridStart);
+        cellDate.setDate(gridStart.getDate() + cellIndex);
         
         const key = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, '0')}-${String(cellDate.getDate()).padStart(2, '0')}`;
         
@@ -938,13 +937,13 @@ export default function DashboardPage() {
                   <h3 className="text-md font-bold text-white font-display">Clarity Matrix</h3>
                 </div>
                 <div className="flex items-center gap-1.5 text-[8px] text-muted">
-                  <span>Less</span>
+                  <span>Stress</span>
                   <div className="w-2 h-2 rounded-sm bg-[#581C1C]" />
                   <div className="w-2 h-2 rounded-sm bg-[#B91C1C]" />
                   <div className="w-2 h-2 rounded-sm bg-[#4B5563]" />
                   <div className="w-2 h-2 rounded-sm bg-[#00A39C]" />
                   <div className="w-2 h-2 rounded-sm bg-[#00D2C8]" />
-                  <span>More</span>
+                  <span>Calm</span>
                 </div>
               </div>
 
@@ -953,22 +952,20 @@ export default function DashboardPage() {
                   <div className="h-36 w-full shimmer-pulse rounded-2xl" />
                 ) : (
                   <>
-                    {/* 7 rows x 5 columns calendar grid */}
-                    <div className={`flex gap-2 relative ${error || entries.length === 0 ? "blur-[1.5px] pointer-events-none select-none opacity-40" : ""}`}>
-                      
-                      {/* Left Label column */}
-                      <div className="grid grid-rows-7 text-[8px] text-muted font-bold h-36 items-center pr-1 select-none">
+                    {/* 5 weeks x 7 weekdays calendar grid */}
+                    <div className={`flex flex-col gap-2 relative ${error || entries.length === 0 ? "blur-[1.5px] pointer-events-none select-none opacity-40" : ""}`}>
+                      <div className="grid grid-cols-7 gap-2 text-[8px] text-muted font-bold select-none">
                         <span>Mon</span>
-                        <span className="opacity-0">Tue</span>
+                        <span>Tue</span>
                         <span>Wed</span>
-                        <span className="opacity-0">Thu</span>
+                        <span>Thu</span>
                         <span>Fri</span>
-                        <span className="opacity-0">Sat</span>
+                        <span>Sat</span>
                         <span>Sun</span>
                       </div>
 
-                      {/* Grid element */}
-                      <div className="grid grid-flow-col grid-rows-7 gap-2">
+                      {/* Grid element: each row is one week, Monday through Sunday. */}
+                      <div className="grid grid-cols-7 gap-2">
                         {heatmapCells.map((cell) => (
                           <div 
                             key={cell.dateStr}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_theme.dart';
 import '../providers/mood_provider.dart';
@@ -26,14 +27,55 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLogging = false;
+  String _userEmail = '';
+
+  final List<Color> _avatarColors = const [
+    Color(0xFF00D2C8),
+    Color(0xFFFF6B6B),
+    Color(0xFFFFB347),
+    Color(0xFF9B5DE5),
+    Color(0xFF00F5D4),
+    Color(0xFFF15BB5),
+    Color(0xFF3A86C8),
+  ];
 
   @override
   void initState() {
     super.initState();
+    _loadUserEmail();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncProvider.notifier).syncPending();
     });
   }
+
+  Future<void> _loadUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userEmail = prefs.getString('user_email') ?? '';
+    });
+  }
+
+  String _getEmailInitials(String email) {
+    if (email.trim().isEmpty) return '??';
+    final parts = email.split('@');
+    final namePart = parts[0];
+    if (namePart.length >= 2) {
+      return namePart.substring(0, 2).toUpperCase();
+    } else if (namePart.isNotEmpty) {
+      return namePart.toUpperCase();
+    }
+    return '??';
+  }
+
+  Color _getAvatarColor(String email) {
+    if (email.trim().isEmpty) return _avatarColors[0];
+    final firstChar = email.trim()[0].toLowerCase();
+    final code = firstChar.codeUnitAt(0);
+    final index = code % _avatarColors.length;
+    return _avatarColors[index];
+  }
+
   /// Returns a time-appropriate greeting string based on the current local hour.
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -403,25 +445,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       height: 48,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        color: _getAvatarColor(_userEmail),
                         border: Border.all(
                           color: AppColors.primaryColor,
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryColor.withValues(
-                              alpha: 0.15,
-                            ),
+                            color: _getAvatarColor(
+                              _userEmail,
+                            ).withValues(alpha: 0.15),
                             blurRadius: 10,
                             spreadRadius: 1,
                           ),
                         ],
                       ),
-                      child: const CircleAvatar(
-                        backgroundColor: AppColors.surfaceColor,
-                        child: Icon(
-                          Icons.person_outline,
-                          color: AppColors.primaryColor,
+                      child: Center(
+                        child: Text(
+                          _getEmailInitials(_userEmail),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

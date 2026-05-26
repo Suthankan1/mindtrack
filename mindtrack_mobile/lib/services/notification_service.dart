@@ -13,15 +13,19 @@ class NotificationService {
 
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
     tz.initializeTimeZones();
     try {
-      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName =
+          (await FlutterTimezone.getLocalTimezone()).identifier;
       tz.setLocalLocation(tz.getLocation(timeZoneName));
     } catch (e) {
-      debugPrint('NotificationService: Failed to detect local timezone, falling back to UTC. Error: $e');
+      debugPrint(
+        'NotificationService: Failed to detect local timezone, falling back to UTC. Error: $e',
+      );
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
 
@@ -30,22 +34,25 @@ class NotificationService {
 
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await _plugin.initialize(initializationSettings);
 
     // Explicitly create the high-importance channel on Android
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+        _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
 
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'mindtrack_daily',
@@ -63,7 +70,7 @@ class NotificationService {
   Future<void> scheduleDaily(TimeOfDay time, bool enabled) async {
     if (enabled) {
       final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-      
+
       // Construct the scheduled time for today
       tz.TZDateTime scheduledDate = tz.TZDateTime(
         tz.local,
@@ -104,8 +111,10 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-      
-      debugPrint('NotificationService: Scheduled daily notification at ${time.hour}:${time.minute}');
+
+      debugPrint(
+        'NotificationService: Scheduled daily notification at ${time.hour}:${time.minute}',
+      );
     } else {
       await _plugin.cancelAll();
       debugPrint('NotificationService: Cancelled all notifications.');

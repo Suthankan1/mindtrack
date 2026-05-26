@@ -2,6 +2,7 @@ package com.mindtrack.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mindtrack.backend.dto.MoodLogRequest;
+import com.mindtrack.backend.dto.MoodUpdateRequest;
 import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.model.Streak;
 import com.mindtrack.backend.model.StressPattern;
@@ -21,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -437,5 +440,112 @@ public class MoodControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.crisisAlert", is(true)))
                 .andExpect(jsonPath("$.crisisMessage", is("Compasionate AI crisis advice message.")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updateMoodEntry_Success() throws Exception {
+        MoodEntry entry = MoodEntry.builder()
+                .user(testUser)
+                .moodScore(4)
+                .note("Initial note")
+                .tags(List.of("Sleep", "Work"))
+                .timestamp(LocalDateTime.now())
+                .build();
+        entry = moodEntryRepository.save(entry);
+
+        MoodUpdateRequest request = new MoodUpdateRequest();
+        request.setNote("Updated note");
+        request.setTags(List.of("Exercise", "Social"));
+
+        mockMvc.perform(patch("/api/mood/entry/" + entry.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(entry.getId().toString())))
+                .andExpect(jsonPath("$.note", is("Updated note")))
+                .andExpect(jsonPath("$.tags", hasSize(2)))
+                .andExpect(jsonPath("$.tags", hasItems("Exercise", "Social")));
+
+        MoodEntry updated = moodEntryRepository.findById(entry.getId()).orElseThrow();
+        assertEquals("Updated note", updated.getNote());
+        assertEquals(2, updated.getTags().size());
+        assertTrue(updated.getTags().containsAll(List.of("Exercise", "Social")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updateMoodEntry_PartialUpdate() throws Exception {
+        MoodEntry entry = MoodEntry.builder()
+                .user(testUser)
+                .moodScore(3)
+                .note("Initial note")
+                .tags(List.of("Sleep", "Work"))
+                .timestamp(LocalDateTime.now())
+                .build();
+        entry = moodEntryRepository.save(entry);
+
+        // Only update note
+        MoodUpdateRequest request = new MoodUpdateRequest();
+        request.setNote("Only update note");
+
+        mockMvc.perform(patch("/api/mood/entry/" + entry.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note", is("Only update note")))
+                .andExpect(jsonPath("$.tags", hasSize(2)))
+                .andExpect(jsonPath("$.tags", hasItems("Sleep", "Work")));
+
+        // Only update tags
+        MoodUpdateRequest request2 = new MoodUpdateRequest();
+        request2.setTags(List.of("Mindfulness"));
+
+        mockMvc.perform(patch("/api/mood/entry/" + entry.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note", is("Only update note")))
+                .andExpect(jsonPath("$.tags", hasSize(1)))
+                .andExpect(jsonPath("$.tags", hasItems("Mindfulness")));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updateMoodEntry_Forbidden() throws Exception {
+        User otherUser = User.builder()
+                .email("otheruser@example.com")
+                .passwordHash("passwordHash")
+                .anonymousMode(false)
+                .build();
+        otherUser = userRepository.save(otherUser);
+
+        MoodEntry entry = MoodEntry.builder()
+                .user(otherUser)
+                .moodScore(3)
+                .note("Other user's entry")
+                .timestamp(LocalDateTime.now())
+                .build();
+        entry = moodEntryRepository.save(entry);
+
+        MoodUpdateRequest request = new MoodUpdateRequest();
+        request.setNote("Trying to steal/update");
+
+        mockMvc.perform(patch("/api/mood/entry/" + entry.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updateMoodEntry_NotFound() throws Exception {
+        MoodUpdateRequest request = new MoodUpdateRequest();
+        request.setNote("Updated note");
+
+        mockMvc.perform(patch("/api/mood/entry/" + java.util.UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
     }
 }

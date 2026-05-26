@@ -237,6 +237,40 @@ class DioService {
     });
   }
 
+  /// Updates an existing mood entry (PATCH /api/mood/entry/{id}).
+  Future<Map<String, dynamic>> updateMoodEntry(
+    String id, {
+    String? note,
+    List<String>? tags,
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.patch(
+        '/api/mood/entry/$id',
+        data: {
+          // ignore: use_null_aware_elements
+          if (note != null) 'note': note,
+          // ignore: use_null_aware_elements
+          if (tags != null) 'tags': tags,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        debugPrint('DioService: Mood entry updated successfully. Entry ID: $id');
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception(
+        'DioService: Failed to update mood entry. Status: ${response.statusCode}',
+      );
+    });
+  }
+
   /// Logs a new mood entry.
   Future<Map<String, dynamic>> logMood(
     int score, {

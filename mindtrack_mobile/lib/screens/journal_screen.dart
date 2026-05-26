@@ -697,6 +697,22 @@ class _ExpandableJournalEntryCardState
     }
   }
 
+  void _showEditBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return _MoodEditingBottomSheet(
+          entry: widget.entry,
+          onSaved: () {
+            ref.read(moodHistoryProvider.notifier).refresh();
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildShimmerLoading() {
     return Container(
       width: double.infinity,
@@ -1076,14 +1092,34 @@ class _ExpandableJournalEntryCardState
                     secondChild: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.entry.note.isEmpty
-                              ? 'No notes recorded.'
-                              : widget.entry.note,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
-                            height: 1.45,
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.entry.note.isEmpty
+                                    ? 'No notes recorded.'
+                                    : widget.entry.note,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                            if (!widget.entry.isPending) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(
+                                  Icons.edit_rounded,
+                                  size: 18,
+                                  color: AppColors.textMuted,
+                                ),
+                                onPressed: () => _showEditBottomSheet(context),
+                              ),
+                            ],
+                          ],
                         ),
                         if (widget.entry.tags.isNotEmpty) ...[
                           const SizedBox(height: 16),
@@ -2095,6 +2131,290 @@ class _MoodLoggingBottomSheetState
                       )
                     : const Text(
                         'Commit to Cosmos',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoodEditingBottomSheet extends ConsumerStatefulWidget {
+  final MoodEntry entry;
+  final VoidCallback onSaved;
+
+  const _MoodEditingBottomSheet({
+    required this.entry,
+    required this.onSaved,
+  });
+
+  @override
+  ConsumerState<_MoodEditingBottomSheet> createState() =>
+      _MoodEditingBottomSheetState();
+}
+
+class _MoodEditingBottomSheetState
+    extends ConsumerState<_MoodEditingBottomSheet> {
+  late final TextEditingController _noteController;
+  late final List<String> _selectedTags;
+  bool _isSaving = false;
+
+  final List<String> _availableTags = [
+    'Work',
+    'Sleep',
+    'Exercise',
+    'Social',
+    'Other',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController(text: widget.entry.note);
+    _selectedTags = List<String>.from(widget.entry.tags);
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveChanges() async {
+    setState(() => _isSaving = true);
+    try {
+      final noteVal = _noteController.text.trim();
+      final dio = ref.read(dioServiceProvider);
+
+      await dio.updateMoodEntry(
+        widget.entry.id,
+        note: noteVal,
+        tags: _selectedTags,
+      );
+
+      widget.onSaved();
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.surfaceColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.primaryColor, width: 1.5),
+            ),
+            content: const Text(
+              'Entry updated',
+              style: TextStyle(
+                color: AppColors.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.surfaceColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.errorColor, width: 1.5),
+            ),
+            content: Text(
+              'Failed to update entry: $e',
+              style: const TextStyle(
+                color: AppColors.errorColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(
+          top: BorderSide(color: AppColors.borderOverlay, width: 1.5),
+        ),
+      ),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: 32 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Bottom Sheet handle
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.borderOverlay,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Header Title
+            Text(
+              'Edit Mood Star Note & Constellations',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Adjust the notes or associations for this mood star.',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+
+            // Notes Title
+            const Text(
+              'Cosmic Notes',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Note Text Field
+            TextField(
+              controller: _noteController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Describe the gravity of this moment...',
+                hintStyle: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 14,
+                ),
+                filled: true,
+                fillColor: AppColors.borderOverlay.withValues(alpha: 0.3),
+                contentPadding: const EdgeInsets.all(16),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.borderOverlay),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: AppColors.primaryColor,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Activity Tags Section
+            const Text(
+              'Activity Constellations',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _availableTags.map((tag) {
+                final isSelected = _selectedTags.contains(tag);
+                return FilterChip(
+                  label: Text(tag),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedTags.add(tag);
+                      } else {
+                        _selectedTags.remove(tag);
+                      }
+                    });
+                  },
+                  selectedColor: AppColors.primaryColor.withValues(alpha: 0.12),
+                  checkmarkColor: AppColors.primaryColor,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : AppColors.textMuted,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  backgroundColor: AppColors.borderOverlay.withValues(
+                    alpha: 0.4,
+                  ),
+                  side: BorderSide(
+                    color: isSelected
+                        ? AppColors.primaryColor
+                        : AppColors.borderOverlay,
+                    width: isSelected ? 1.2 : 1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 32),
+
+            // Save Changes Button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _saveChanges,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: AppColors.backgroundColor,
+                  disabledBackgroundColor: AppColors.primaryColor.withValues(
+                    alpha: 0.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                ),
+                child: _isSaving
+                    ? const CircularProgressIndicator(
+                        color: AppColors.backgroundColor,
+                      )
+                    : const Text(
+                        'Save Changes',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

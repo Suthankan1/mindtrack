@@ -3,6 +3,7 @@ package com.mindtrack.backend.controller;
 import com.mindtrack.backend.ai.GeminiService;
 import com.mindtrack.backend.dto.MoodEntryResponse;
 import com.mindtrack.backend.dto.MoodLogRequest;
+import com.mindtrack.backend.dto.MoodUpdateRequest;
 import com.mindtrack.backend.model.MoodEntry;
 import com.mindtrack.backend.model.User;
 import com.mindtrack.backend.repository.MoodEntryRepository;
@@ -219,6 +220,47 @@ public class MoodController {
         moodEntryRepository.deleteById(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Updates an existing mood entry (PATCH /api/mood/entry/{id}).
+     *
+     * <p>Verifies ownership, updates only the provided fields, and returns
+     * the updated MoodEntryResponse.
+     *
+     * @param id             the UUID of the mood entry to update
+     * @param request        the update payload (optional note, optional tags)
+     * @param authentication the Spring Security authentication context
+     * @return {@code 200 OK} with the updated {@link MoodEntryResponse},
+     *         {@code 403 Forbidden} if the user doesn't own the entry,
+     *         or {@code 404 Not Found} if the entry doesn't exist
+     */
+    @PatchMapping("/entry/{id}")
+    public ResponseEntity<MoodEntryResponse> updateMoodEntry(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody MoodUpdateRequest request,
+            Authentication authentication) {
+
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        MoodEntry entry = moodEntryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mood entry not found"));
+
+        if (!entry.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to update this entry");
+        }
+
+        if (request.getNote() != null) {
+            entry.setNote(request.getNote());
+        }
+        if (request.getTags() != null) {
+            entry.setTags(request.getTags());
+        }
+
+        MoodEntry updatedEntry = moodEntryRepository.save(entry);
+        return ResponseEntity.ok(MoodEntryResponse.fromEntity(updatedEntry));
     }
 
     private boolean isCrisisRisk(User user) {

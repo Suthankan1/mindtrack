@@ -288,6 +288,45 @@ public class MoodControllerTest {
     }
 
     @Test
+    void moodPatternService_AiInsightValidationAndFallback() {
+        LocalDateTime now = LocalDateTime.now();
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(4).timestamp(now.minusDays(1)).build());
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(4).timestamp(now.minusDays(2)).build());
+
+        // Call 1: Valid insight
+        org.mockito.Mockito.when(geminiService.generateInsight(
+                        org.mockito.Mockito.anyString(),
+                        org.mockito.Mockito.any(),
+                        org.mockito.Mockito.any()))
+                .thenReturn("This is a beautiful valid insight.");
+
+        StressPattern pattern1 = moodPatternService.calculateWeeklyPattern(testUser, now.minusDays(7), now);
+        assertNotNull(pattern1);
+        assertEquals("This is a beautiful valid insight.", pattern1.getAiInsight());
+
+        // Call 2: Error insight, should leave the previous valid insight intact
+        org.mockito.Mockito.when(geminiService.generateInsight(
+                        org.mockito.Mockito.anyString(),
+                        org.mockito.Mockito.any(),
+                        org.mockito.Mockito.any()))
+                .thenReturn("Unable to generate AI insight due to error.");
+
+        StressPattern pattern2 = moodPatternService.calculateWeeklyPattern(testUser, now.minusDays(7), now);
+        assertNotNull(pattern2);
+        // The id should be the same as it updates the existing pattern
+        assertEquals(pattern1.getId(), pattern2.getId());
+        assertEquals("This is a beautiful valid insight.", pattern2.getAiInsight());
+
+        // Call 3: New pattern but with an error insight. Should set null instead of error message.
+        // We delete the previous pattern to simulate a fresh pattern calculation.
+        stressPatternRepository.deleteAll();
+
+        StressPattern pattern3 = moodPatternService.calculateWeeklyPattern(testUser, now.minusDays(7), now);
+        assertNotNull(pattern3);
+        assertNull(pattern3.getAiInsight());
+    }
+
+    @Test
     @WithMockUser(username = "testuser@example.com")
     void logMood_CrisisRisk_FewerThanThreeDistinctDays() throws Exception {
         LocalDateTime now = LocalDateTime.now();

@@ -74,6 +74,15 @@ class FakeDioService extends DioService {
   }
 
   @override
+  Future<Map<String, dynamic>> getCopingStats() async {
+    return {
+      'totalSessions': 12,
+      'totalMinutes': 45,
+      'mostUsedType': 'breathing_box',
+    };
+  }
+
+  @override
   Future<Map<String, dynamic>> getUserPreferences() async {
     return {
       'themeMode': 'dark',
@@ -132,6 +141,12 @@ void main() {
 
       // Verify total entries (Fake history has 5 entries)
       expect(find.text('5'), findsOneWidget);
+
+      // Verify Calm Practice stats card renders correctly
+      expect(find.text('Calm Practice'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+      expect(find.text('45 mins'), findsOneWidget);
+      expect(find.text('Box Breathing'), findsOneWidget);
 
       // Verify settings options exist
       expect(find.text('Breathing Reminders'), findsOneWidget);

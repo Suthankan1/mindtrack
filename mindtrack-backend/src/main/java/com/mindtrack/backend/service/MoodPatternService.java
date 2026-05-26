@@ -125,15 +125,33 @@ public class MoodPatternService {
 
         String aiInsight = geminiService.generateInsight(geminiPrompt, null, 0.7);
 
-        StressPattern pattern = StressPattern.builder()
-                .user(user)
-                .weeklyAverage(average)
-                .peakStressDay(peakDayStr)
-                .aiInsight(aiInsight)
-                .weekStartDate(start.toLocalDate())
-                .weekEndDate(end.toLocalDate())
-                .calculatedAt(LocalDateTime.now())
-                .build();
+        StressPattern pattern = stressPatternRepository.findByUserOrderByWeekStartDateDesc(user).stream()
+                .filter(p -> p.getWeekStartDate().equals(start.toLocalDate()) && p.getWeekEndDate().equals(end.toLocalDate()))
+                .findFirst()
+                .orElse(null);
+
+        boolean isNew = pattern == null;
+        if (isNew) {
+            pattern = StressPattern.builder()
+                    .user(user)
+                    .weekStartDate(start.toLocalDate())
+                    .weekEndDate(end.toLocalDate())
+                    .build();
+        }
+
+        pattern.setWeeklyAverage(average);
+        pattern.setPeakStressDay(peakDayStr);
+        pattern.setCalculatedAt(LocalDateTime.now());
+
+        if (aiInsight != null && !aiInsight.trim().isEmpty() &&
+                !aiInsight.startsWith("Unable to generate") &&
+                !aiInsight.startsWith("No insight generated")) {
+            pattern.setAiInsight(aiInsight);
+        } else {
+            if (isNew) {
+                pattern.setAiInsight(null);
+            }
+        }
 
         return stressPatternRepository.save(pattern);
     }

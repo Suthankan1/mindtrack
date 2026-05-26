@@ -40,6 +40,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _currentStreak = 0;
   int _longestStreak = 0;
   double _avgMoodScore = 0.0;
+  int _copingSessions = 0;
+  int _copingMinutes = 0;
+  String _favoriteTechnique = '--';
 
   final List<Color> _avatarColors = const [
     Color(0xFF00D2C8), // Teal
@@ -116,6 +119,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final dio = ref.read(dioServiceProvider);
       final stats = await dio.getUserStats();
+      final copingStats = await dio.getCopingStats();
       if (!mounted) return;
       setState(() {
         _totalEntries = stats['totalEntries'] ?? 0;
@@ -127,6 +131,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         } else {
           _avgMoodScore = 0.0;
         }
+        _copingSessions = copingStats['totalSessions'] ?? 0;
+        _copingMinutes = copingStats['totalMinutes'] ?? 0;
+        _favoriteTechnique = copingStats['mostUsedType'] ?? '--';
         _isLoadingStats = false;
       });
     } catch (e) {
@@ -597,6 +604,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   Expanded(child: ShimmerStatsCard()),
                                 ],
                               ),
+                              const SizedBox(height: 16),
+                              const ShimmerCalmPracticeCard(),
                             ],
                           )
                         : Column(
@@ -655,6 +664,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 16),
+                              _buildCalmPracticeCard(theme, isLightTheme),
                             ],
                           ),
                     const SizedBox(height: 32),
@@ -1169,6 +1180,152 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  String _getHumanizedTechnique(String tech) {
+    if (tech == 'breathing_box') return 'Box Breathing';
+    if (tech == 'breathing_478') return '4-7-8 Breathing';
+    if (tech == 'breathing_deep') return 'Deep Breathing';
+    if (tech == 'N/A' || tech == '--') return '--';
+    return tech;
+  }
+
+  Widget _buildCalmPracticeCard(ThemeData theme, bool isLightTheme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isLightTheme
+              ? const Color(0xFFE0E4F2)
+              : AppColors.borderOverlay,
+        ),
+        gradient: LinearGradient(
+          colors: isLightTheme
+              ? [Colors.white, const Color(0xFFF1F8F6)]
+              : [
+                  AppColors.surfaceColor,
+                  const Color(0xFF16252A),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.spa_outlined,
+                color: isLightTheme
+                    ? const Color(0xFF009C94)
+                    : const Color(0xFF00D2C8),
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Calm Practice',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$_copingSessions',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sessions',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isLightTheme
+                            ? const Color(0xFF606080)
+                            : AppColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$_copingMinutes mins',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Total Time',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isLightTheme
+                            ? const Color(0xFF606080)
+                            : AppColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _getHumanizedTechnique(_favoriteTechnique),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isLightTheme ? const Color(0xFF0A0A14) : Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Favorite',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isLightTheme
+                            ? const Color(0xFF606080)
+                            : AppColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatsCard({
     required ThemeData theme,
     required bool isLightTheme,
@@ -1332,6 +1489,121 @@ class _ShimmerStatsCardState extends State<ShimmerStatsCard>
                     color: isLightTheme ? Colors.black12 : Colors.white10,
                     borderRadius: BorderRadius.circular(4),
                   ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ShimmerCalmPracticeCard extends StatefulWidget {
+  const ShimmerCalmPracticeCard({super.key});
+
+  @override
+  State<ShimmerCalmPracticeCard> createState() => _ShimmerCalmPracticeCardState();
+}
+
+class _ShimmerCalmPracticeCardState extends State<ShimmerCalmPracticeCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(
+      begin: 0.3,
+      end: 0.7,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLightTheme = theme.brightness == Brightness.light;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isLightTheme
+                  ? const Color(0xFFF1F4FA)
+                  : AppColors.surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isLightTheme
+                    ? const Color(0xFFE0E4F2)
+                    : AppColors.borderOverlay,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: isLightTheme ? Colors.black12 : Colors.white10,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 100,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: isLightTheme ? Colors.black12 : Colors.white10,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: List.generate(3, (index) => Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 50,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: isLightTheme ? Colors.black12 : Colors.white10,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
                 ),
               ],
             ),

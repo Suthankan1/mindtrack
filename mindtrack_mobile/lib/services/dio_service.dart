@@ -314,6 +314,24 @@ class DioService {
     });
   }
 
+  /// Fetches coping statistics from the API.
+  Future<Map<String, dynamic>> getCopingStats() async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_kTokenKey);
+    }
+    if (_token == null) {
+      throw Exception('Not authenticated. Please log in.');
+    }
+    return _request(() async {
+      final response = await _dio.get('/api/coping/stats');
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Failed to load coping stats: status ${response.statusCode}');
+    });
+  }
+
   /// Fetches sentiment analysis for a specific mood entry.
   Future<Map<String, dynamic>> getSentimentAnalysis(String entryId) async {
     if (_token == null) {

@@ -1,6 +1,5 @@
 package com.mindtrack.backend.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,7 +17,6 @@ public class CopingSessionRequest {
     @NotBlank(message = "Type is required")
     private String type;
 
-    @JsonProperty("duration")
     @NotNull(message = "Duration is required")
     @Min(value = 1, message = "Duration must be at least 1 second")
     private Integer durationSeconds;

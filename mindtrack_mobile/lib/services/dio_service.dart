@@ -272,9 +272,6 @@ class DioService {
         '/api/coping/session',
         data: {
           'type': type,
-          // Send both keys for forward compatibility: Flutter uses `duration` elsewhere
-          // while server currently expects `durationSeconds`.
-          'duration': durationSeconds,
           'durationSeconds': durationSeconds,
         },
       );

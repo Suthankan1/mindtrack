@@ -61,13 +61,34 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
+    /**
+     * Configures CORS to respect allowed origins set via the 'cors.allowed-origins' property.
+     * For production web/mobile deployments, configure origins in application.properties or
+     * via the CORS_ORIGINS environment variable as a comma-separated list of origins.
+     * Example: CORS_ORIGINS=https://app.mindtrack.com,https://admin.mindtrack.com
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        
+        if (allowedOrigins != null && !allowedOrigins.isBlank()) {
+            List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+            configuration.setAllowedOrigins(origins);
+        } else {
+            // Default fallback if not configured
+            configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        }
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
         configuration.setExposedHeaders(List.of("Authorization"));
+        
+        // Set credentials intentionally:
+        // - false because we are using stateless Bearer JWT in the Authorization header
+        // - No cookies are used for authentication in the MindTrack application
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -75,3 +96,4 @@ public class SecurityConfig {
         return source;
     }
 }
+

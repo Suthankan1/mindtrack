@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -11,7 +12,8 @@ import {
   Users, 
   Settings, 
   X,
-  BrainCircuit
+  BrainCircuit,
+  MessageSquare
 } from "lucide-react";
 import { useUIStore } from "@/store/useStore";
 
@@ -24,14 +26,18 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Journal", href: "/dashboard/journal", icon: BookOpen },
+  { name: "MindChat", href: "/dashboard/chat", icon: MessageSquare },
   { name: "Insights", href: "/dashboard/insights", icon: Sparkles },
   { name: "Therapists", href: "/dashboard/therapists", icon: Users },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
+  const { data: session } = useSession();
   const pathname = usePathname();
   const { isSidebarOpen, setSidebarOpen } = useUIStore();
+  const initials = session?.user?.email?.substring(0, 2).toUpperCase() ?? "MT";
+  const email = session?.user?.email ?? "mindtrack@app.io";
 
   return (
     <>
@@ -116,14 +122,14 @@ export default function Sidebar() {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-6 border-t border-white/5 bg-background/30 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-elevated flex items-center justify-center text-sm font-semibold text-accent-coral ring-1 ring-white/10">
-              MT
+        <div className="p-6 border-t border-white/5 bg-background/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-full bg-accent-coral flex items-center justify-center text-sm font-semibold text-white ring-1 ring-white/10 shrink-0">
+              {initials}
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-white">MindTrack Engine</span>
-              <span className="text-[10px] text-muted">v1.0.0-Beta</span>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-xs font-semibold text-white truncate">{email}</span>
+              <span className="text-[10px] text-muted">v1.0.0</span>
             </div>
           </div>
         </div>

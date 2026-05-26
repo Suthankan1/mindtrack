@@ -116,6 +116,7 @@ class DioService {
         if (_token != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_kTokenKey, _token!);
+          await prefs.setString('user_email', data['email']);
         }
         return data;
       }

@@ -38,11 +38,18 @@ class AppRouter {
     redirect: (context, state) async {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_jwt_token');
+      final email = prefs.getString('user_email') ?? '';
+      final onboardingComplete = email.isNotEmpty &&
+          (prefs.getBool('onboarding_complete_$email') ?? false);
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
           state.matchedLocation == '/onboarding' ||
           state.matchedLocation == '/';
-      if (token == null && !isAuthRoute) return '/login';
+      if (!isAuthRoute) {
+        if (token == null || !onboardingComplete) {
+          return '/onboarding';
+        }
+      }
       return null;
     },
     routes: [
@@ -185,17 +192,17 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
     final token = prefs.getString('auth_jwt_token');
+    final email = prefs.getString('user_email') ?? '';
+    final onboardingComplete = email.isNotEmpty &&
+        (prefs.getBool('onboarding_complete_$email') ?? false);
 
     if (!mounted) return;
 
-    if (!onboardingCompleted) {
-      context.go('/onboarding');
-    } else if (token == null) {
-      context.go('/login');
-    } else {
+    if (token != null && onboardingComplete) {
       context.go('/home');
+    } else {
+      context.go('/onboarding');
     }
   }
 

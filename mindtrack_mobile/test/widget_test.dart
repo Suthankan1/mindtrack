@@ -30,6 +30,8 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'onboarding_completed': true,
       'auth_jwt_token': 'fake_token',
+      'user_email': 'test@example.com',
+      'onboarding_complete_test@example.com': true,
     });
   });
 

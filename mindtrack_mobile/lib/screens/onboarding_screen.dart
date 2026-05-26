@@ -94,6 +94,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       // Save onboarding completion flag
       final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_email', anonEmail);
+      await prefs.setBool('onboarding_complete_$anonEmail', true);
       await prefs.setBool('onboarding_completed', true);
 
       if (!mounted) return;
@@ -117,9 +119,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _skipOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email') ?? '';
+    if (email.isNotEmpty) {
+      await prefs.setBool('onboarding_complete_$email', true);
+    }
     await prefs.setBool('onboarding_completed', true);
     if (!mounted) return;
-    context.go('/login');
+    final token = prefs.getString('auth_jwt_token');
+    if (token != null && email.isNotEmpty) {
+      context.go('/home');
+    } else {
+      context.go('/login');
+    }
   }
 
   @override
@@ -313,9 +324,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   final prefs = await SharedPreferences.getInstance();
+                                  final email = prefs.getString('user_email') ?? '';
+                                  if (email.isNotEmpty) {
+                                    await prefs.setBool('onboarding_complete_$email', true);
+                                  }
                                   await prefs.setBool('onboarding_completed', true);
                                   if (!context.mounted) return;
-                                  context.go('/login');
+                                  final token = prefs.getString('auth_jwt_token');
+                                  if (token != null && email.isNotEmpty) {
+                                    context.go('/home');
+                                  } else {
+                                    context.go('/login');
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primaryColor,

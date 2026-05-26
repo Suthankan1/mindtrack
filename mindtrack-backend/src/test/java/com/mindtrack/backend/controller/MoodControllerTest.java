@@ -286,4 +286,74 @@ public class MoodControllerTest {
         assertEquals(4.5, happyPattern.getWeeklyAverage(), 0.001);
         assertEquals("Great week! Keep it up", happyPattern.getAiInsight());
     }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void logMood_CrisisRisk_FewerThanThreeDistinctDays() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        // Log entries on only 2 distinct days (e.g., today and yesterday)
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(1).timestamp(now.minusDays(1)).build());
+
+        MoodLogRequest request = new MoodLogRequest();
+        request.setMoodScore(1);
+        request.setNote("Low mood");
+
+        mockMvc.perform(post("/api/mood/log")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.crisisAlert", is(false)));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void logMood_CrisisRisk_ThreeDaysButOneDayMaxScoreGreaterThanTwo() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        // Log entries on 2 distinct days: yesterday (score 3) and day before yesterday (score 1)
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(3).timestamp(now.minusDays(1)).build());
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(1).timestamp(now.minusDays(2)).build());
+
+        // Log an entry today with score 1 (we now have entries on 3 distinct days: today (1), yesterday (3), day before yesterday (1))
+        // Since yesterday's max score was 3 (which is > 2), this should NOT trigger a crisis alert.
+        MoodLogRequest request = new MoodLogRequest();
+        request.setMoodScore(1);
+        request.setNote("Low mood");
+
+        mockMvc.perform(post("/api/mood/log")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.crisisAlert", is(false)));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void logMood_CrisisRisk_ThreeDaysAllMaxScoresLessThanOrEqualToTwo() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        // Mock Gemini service
+        org.mockito.Mockito.when(geminiService.generateInsight(
+                        org.mockito.Mockito.anyString(),
+                        org.mockito.Mockito.any(),
+                        org.mockito.Mockito.any()))
+                .thenReturn("Compasionate AI crisis advice message.");
+
+        // Log entries on 2 distinct days:
+        // Yesterday: 2 entries, scores 1 and 2 (max is 2)
+        // Day before yesterday: 1 entry, score 1 (max is 1)
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(1).timestamp(now.minusDays(1)).build());
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(2).timestamp(now.minusDays(1).minusHours(2)).build());
+        moodEntryRepository.save(MoodEntry.builder().user(testUser).moodScore(1).timestamp(now.minusDays(2)).build());
+
+        // Log an entry today with score 2 (we now have entries on 3 distinct days, all with max score <= 2)
+        MoodLogRequest request = new MoodLogRequest();
+        request.setMoodScore(2);
+        request.setNote("Feeling down");
+
+        mockMvc.perform(post("/api/mood/log")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.crisisAlert", is(true)))
+                .andExpect(jsonPath("$.crisisMessage", is("Compasionate AI crisis advice message.")));
+    }
 }

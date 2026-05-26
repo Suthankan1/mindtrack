@@ -18,18 +18,18 @@ import {
 import { useUIStore } from "@/store/useStore";
 
 interface NavItem {
-  name: string;
+  label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const navItems: NavItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Journal", href: "/dashboard/journal", icon: BookOpen },
-  { name: "MindChat", href: "/dashboard/chat", icon: MessageSquare },
-  { name: "Insights", href: "/dashboard/insights", icon: Sparkles },
-  { name: "Therapists", href: "/dashboard/therapists", icon: Users },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Journal", href: "/dashboard/journal", icon: BookOpen },
+  { label: "Insights", href: "/dashboard/insights", icon: Sparkles },
+  { label: "Therapists", href: "/dashboard/therapists", icon: Users },
+  { href: '/dashboard/chat', label: 'MindChat', icon: MessageSquare },
+  { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -85,11 +85,13 @@ export default function Sidebar() {
           {/* Navigation Links */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {navItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = item.href === '/dashboard/chat'
+                ? (pathname?.startsWith('/dashboard/chat') ?? false)
+                : pathname === item.href;
               
               return (
                 <Link
-                  key={item.name}
+                  key={item.label}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl font-medium text-sm transition-all ${
@@ -111,7 +113,7 @@ export default function Sidebar() {
                     isActive ? "text-accent-teal" : "text-muted group-hover:text-white"
                   }`} />
                   
-                  <span className="relative z-10">{item.name}</span>
+                  <span className="relative z-10">{item.label}</span>
 
                   {/* Subtle hover glow card overlay */}
                   <span className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 bg-gradient-to-r from-accent-teal/5 to-transparent transition-opacity duration-300 pointer-events-none" />

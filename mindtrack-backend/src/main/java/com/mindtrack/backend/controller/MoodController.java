@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -193,8 +194,18 @@ public class MoodController {
         // Get last 3 days of entries
         LocalDateTime threeDaysAgo = LocalDateTime.now().minusDays(3);
         List<MoodEntry> recentEntries = moodEntryRepository.findByUserAndTimestampAfterOrderByTimestampDesc(user, threeDaysAgo);
-        if (recentEntries.size() < 3) return false;
-        double avg = recentEntries.stream().mapToInt(MoodEntry::getMoodScore).average().orElse(5.0);
-        return avg <= 1.5; // Average of 1-2 for 3+ consecutive days
+        
+        Map<LocalDate, List<MoodEntry>> entriesByDate = recentEntries.stream()
+                .collect(Collectors.groupingBy(entry -> entry.getTimestamp().toLocalDate()));
+        
+        if (entriesByDate.size() < 3) {
+            return false;
+        }
+        
+        return entriesByDate.values().stream()
+                .allMatch(entries -> entries.stream()
+                        .mapToInt(MoodEntry::getMoodScore)
+                        .max()
+                        .orElse(0) <= 2);
     }
 }

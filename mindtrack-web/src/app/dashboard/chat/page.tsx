@@ -38,8 +38,10 @@ export default function MindChatPage() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [weeklyAverage, setWeeklyAverage] = useState(3.0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const initialisedRef = useRef(false);
+  const storageKey = "mindchat_web_history";
 
   const appendAssistantGreeting = (weeklyAverage: number) => {
     setMessages([
@@ -80,10 +82,12 @@ export default function MindChatPage() {
           },
         });
 
-        const weeklyAverage = response.data.avgMoodScoreThisWeek ?? response.data.avgMoodScore ?? 3;
-        appendAssistantGreeting(weeklyAverage);
+        const loadedWeeklyAverage = response.data.avgMoodScoreThisWeek ?? response.data.avgMoodScore ?? 3;
+        setWeeklyAverage(loadedWeeklyAverage);
+        appendAssistantGreeting(loadedWeeklyAverage);
       } catch (statsError) {
         console.error("Error loading user stats for MindChat:", statsError);
+        setWeeklyAverage(3.0);
         appendAssistantGreeting(3);
       } finally {
         setIsBootstrapping(false);
@@ -94,8 +98,45 @@ export default function MindChatPage() {
   }, [status, session]);
 
   useEffect(() => {
+    if (isBootstrapping || status !== "authenticated") {
+      return;
+    }
+
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) {
+        setMessages(JSON.parse(saved));
+      }
+    } catch (storageError) {
+      console.error("Error restoring MindChat session:", storageError);
+    }
+  }, [isBootstrapping, status]);
+
+  useEffect(() => {
+    if (isBootstrapping || status !== "authenticated") {
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch (storageError) {
+      console.error("Error saving MindChat session:", storageError);
+    }
+  }, [messages, isBootstrapping, status]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isSending]);
+
+  const handleClearChat = () => {
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch (storageError) {
+      console.error("Error clearing MindChat session:", storageError);
+    }
+
+    appendAssistantGreeting(weeklyAverage);
+  };
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
@@ -135,7 +176,7 @@ export default function MindChatPage() {
           conversationHistory,
           moodContext: {
             currentScore: undefined,
-            weeklyAverage: undefined,
+            weeklyAverage: weeklyAverage ?? 3.0,
           },
         },
         {
@@ -206,6 +247,14 @@ export default function MindChatPage() {
           <Sparkles className="h-3.5 w-3.5 text-[#6EA8FF]" />
           Google Blue
         </div>
+
+        <button
+          type="button"
+          onClick={handleClearChat}
+          className="inline-flex items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.24em] text-white/80 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08]"
+        >
+          Clear Chat
+        </button>
       </header>
 
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-7">

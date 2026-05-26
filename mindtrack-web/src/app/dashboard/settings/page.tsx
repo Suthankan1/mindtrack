@@ -23,7 +23,11 @@ import {
   Brain,
   Cpu,
   History,
-  EyeOff
+  EyeOff,
+  Activity,
+  Wifi,
+  WifiOff,
+  Sparkles
 } from "lucide-react";
 
 // Robust inline custom SVG GithubIcon to prevent version mismatches in Lucide imports
@@ -80,6 +84,13 @@ export default function SettingsPage() {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isClearingData, setIsClearingData] = useState(false);
 
+  // System Status State
+  type HealthStatus = "loading" | "up" | "down";
+  const [backendStatus, setBackendStatus] = useState<HealthStatus>("loading");
+  const [aiStatus, setAiStatus] = useState<HealthStatus>("loading");
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+  const [lastChecked, setLastChecked] = useState<string | null>(null);
+
   // Mount logic to handle localstorage & fetch settings from server
   useEffect(() => {
     setMounted(true);
@@ -120,6 +131,30 @@ export default function SettingsPage() {
       fetchPreferences();
     }
   }, [session, status]);
+
+  // System status health check
+  const fetchSystemStatus = async () => {
+    setIsRefreshingStatus(true);
+    try {
+      const response = await axios.get("/api/health");
+      const data = response.data;
+      setBackendStatus(data.status === "UP" ? "up" : "down");
+      setAiStatus(data.aiEnabled === true ? "up" : "down");
+    } catch {
+      setBackendStatus("down");
+      setAiStatus("down");
+    } finally {
+      setIsRefreshingStatus(false);
+      setLastChecked(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemStatus();
+    const interval = setInterval(fetchSystemStatus, 60_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Show a toast message helper
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -986,7 +1021,151 @@ export default function SettingsPage() {
           </a>
         </motion.div>
 
-        {/* 4. Danger Zone Section Card */}
+        {/* 4. System Status Card */}
+        <motion.div
+          variants={itemVariants}
+          className="p-6 md:p-8 rounded-3xl bg-[#12122A] border border-white/[0.04] space-y-6 hover:border-white/[0.08] transition-all flex flex-col justify-between"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-teal/10 flex items-center justify-center text-accent-teal">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-display text-white">System Status</h3>
+                  <p className="text-[10px] text-muted">Live backend and AI service availability.</p>
+                </div>
+              </div>
+              <button
+                id="refresh-system-status"
+                onClick={fetchSystemStatus}
+                disabled={isRefreshingStatus}
+                title="Refresh status"
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-muted hover:text-accent-teal transition-all disabled:opacity-40"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStatus ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
+            <div className="border-t border-white/[0.04] pt-4 space-y-3">
+              {/* Backend Status Row */}
+              <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#0A0A14]/50 border border-white/[0.03]">
+                <div className="flex items-center gap-2.5">
+                  {backendStatus === "up" ? (
+                    <Wifi className="w-4 h-4 text-accent-teal" />
+                  ) : backendStatus === "down" ? (
+                    <WifiOff className="w-4 h-4 text-accent-coral" />
+                  ) : (
+                    <Wifi className="w-4 h-4 text-muted animate-pulse" />
+                  )}
+                  <div>
+                    <span className="text-xs font-semibold text-gray-200">Backend Service</span>
+                    <span className="text-[10px] text-muted block leading-none mt-0.5">Spring Boot REST API</span>
+                  </div>
+                </div>
+                <AnimatePresence mode="wait">
+                  {backendStatus === "loading" ? (
+                    <motion.div
+                      key="loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
+                      <span className="text-[10px] font-bold text-muted tracking-wider uppercase">Checking</span>
+                    </motion.div>
+                  ) : backendStatus === "up" ? (
+                    <motion.div
+                      key="up"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-teal/10 border border-accent-teal/25 shadow-[0_0_10px_rgba(0,210,200,0.1)]"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-teal animate-pulse" />
+                      <span className="text-[10px] font-bold text-accent-teal tracking-wider uppercase">Connected</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="down"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-coral/10 border border-accent-coral/25 shadow-[0_0_10px_rgba(255,107,107,0.1)]"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-coral" />
+                      <span className="text-[10px] font-bold text-accent-coral tracking-wider uppercase">Unavailable</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* AI Status Row */}
+              <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-[#0A0A14]/50 border border-white/[0.03]">
+                <div className="flex items-center gap-2.5">
+                  {aiStatus === "up" ? (
+                    <Sparkles className="w-4 h-4 text-accent-teal" />
+                  ) : aiStatus === "down" ? (
+                    <Brain className="w-4 h-4 text-accent-coral" />
+                  ) : (
+                    <Brain className="w-4 h-4 text-muted animate-pulse" />
+                  )}
+                  <div>
+                    <span className="text-xs font-semibold text-gray-200">Gemini AI Layer</span>
+                    <span className="text-[10px] text-muted block leading-none mt-0.5">Generative insights &amp; reflections</span>
+                  </div>
+                </div>
+                <AnimatePresence mode="wait">
+                  {aiStatus === "loading" ? (
+                    <motion.div
+                      key="ai-loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
+                      <span className="text-[10px] font-bold text-muted tracking-wider uppercase">Checking</span>
+                    </motion.div>
+                  ) : aiStatus === "up" ? (
+                    <motion.div
+                      key="ai-up"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-teal/10 border border-accent-teal/25 shadow-[0_0_10px_rgba(0,210,200,0.1)]"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-teal animate-pulse" />
+                      <span className="text-[10px] font-bold text-accent-teal tracking-wider uppercase">Enabled</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="ai-down"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-coral/10 border border-accent-coral/25 shadow-[0_0_10px_rgba(255,107,107,0.1)]"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-coral" />
+                      <span className="text-[10px] font-bold text-accent-coral tracking-wider uppercase">Unavailable</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+
+          {lastChecked && (
+            <p className="text-[10px] text-muted flex items-center gap-1.5">
+              <Clock className="w-3 h-3" />
+              Last checked at {lastChecked} · Auto-refreshes every 60s
+            </p>
+          )}
+        </motion.div>
+
+        {/* 5. Danger Zone Section Card */}
         <motion.div
           variants={itemVariants}
           className="p-6 md:p-8 rounded-3xl bg-[#12122A] border border-accent-coral/20 space-y-6 hover:border-accent-coral/30 hover:shadow-[0_0_24px_rgba(255,107,107,0.05)] transition-all flex flex-col justify-between"

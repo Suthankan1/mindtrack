@@ -189,6 +189,18 @@ final streakProvider = FutureProvider<int>((ref) async {
   }
 });
 
+/// Backend-backed longest streak, aligned with the profile stats calculation.
+final longestStreakProvider = FutureProvider<int>((ref) async {
+  final dio = ref.read(dioServiceProvider);
+  try {
+    final stats = await dio.getUserStats();
+    return stats['longestStreak'] as int? ?? 0;
+  } catch (e) {
+    debugPrint('MoodProvider: Error fetching longest streak: $e');
+    return 0;
+  }
+});
+
 /// Shared controller for actions, specifically logging the mood
 class MoodActions {
   final Ref _ref;
@@ -210,6 +222,7 @@ class MoodActions {
       _ref.read(todayMoodProvider.notifier).updateState(score);
       _ref.read(moodHistoryProvider.notifier).addLocalEntry(newEntry);
       _ref.invalidate(streakProvider);
+      _ref.invalidate(longestStreakProvider);
 
       return jsonResult;
     } catch (e) {
@@ -450,6 +463,7 @@ class SyncNotifier extends Notifier<bool> {
       await ref.read(moodHistoryProvider.notifier).refresh();
       ref.invalidate(todayMoodProvider);
       ref.invalidate(streakProvider);
+      ref.invalidate(longestStreakProvider);
       await ref.read(moodAnomalyProvider.notifier).refresh();
     } finally {
       state = false;

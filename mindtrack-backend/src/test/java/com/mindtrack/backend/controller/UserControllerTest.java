@@ -166,7 +166,7 @@ public class UserControllerTest {
                 .themeMode("light")
                 .reminderEnabled(false)
                 .reminderTime("08:00")
-                .defaultCopingTechnique("Meditation")
+                .defaultCopingTechnique("Journaling")
                 .privacyMode("strict")
                 .aiJournalAnalysisEnabled(true)
                 .aiChatHistoryEnabled(true)
@@ -180,7 +180,7 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.themeMode", is("light")))
                 .andExpect(jsonPath("$.reminderEnabled", is(false)))
                 .andExpect(jsonPath("$.reminderTime", is("08:00")))
-                .andExpect(jsonPath("$.defaultCopingTechnique", is("Meditation")))
+                .andExpect(jsonPath("$.defaultCopingTechnique", is("Journaling")))
                 .andExpect(jsonPath("$.privacyMode", is("strict")))
                 .andExpect(jsonPath("$.aiJournalAnalysisEnabled", is(true)))
                 .andExpect(jsonPath("$.aiChatHistoryEnabled", is(true)))
@@ -225,5 +225,77 @@ public class UserControllerTest {
     void getWellnessPassport_Unauthenticated() throws Exception {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/wellness-passport"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updatePreferences_InvalidThemeMode() throws Exception {
+        com.mindtrack.backend.dto.UserPreferenceDto updateDto = com.mindtrack.backend.dto.UserPreferenceDto.builder()
+                .themeMode("invalid_theme")
+                .build();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updatePreferences_InvalidPrivacyMode() throws Exception {
+        com.mindtrack.backend.dto.UserPreferenceDto updateDto = com.mindtrack.backend.dto.UserPreferenceDto.builder()
+                .privacyMode("invalid_privacy")
+                .build();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updatePreferences_InvalidReminderTime() throws Exception {
+        com.mindtrack.backend.dto.UserPreferenceDto updateDto1 = com.mindtrack.backend.dto.UserPreferenceDto.builder()
+                .reminderTime("25:00") // invalid hour
+                .build();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto1)))
+                .andExpect(status().isBadRequest());
+
+        com.mindtrack.backend.dto.UserPreferenceDto updateDto2 = com.mindtrack.backend.dto.UserPreferenceDto.builder()
+                .reminderTime("9:30") // invalid format (no leading zero)
+                .build();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto2)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser@example.com")
+    void updatePreferences_PartialUpdate() throws Exception {
+        // First get default preferences to initialize them
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/user/preferences"))
+                .andExpect(status().isOk());
+
+        // Perform partial update
+        com.mindtrack.backend.dto.UserPreferenceDto updateDto = com.mindtrack.backend.dto.UserPreferenceDto.builder()
+                .themeMode("light")
+                .build();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/user/preferences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.themeMode", is("light")))
+                // Ensure other fields are preserved and not set to null or default
+                .andExpect(jsonPath("$.reminderEnabled", is(true)))
+                .andExpect(jsonPath("$.reminderTime", is("20:00")))
+                .andExpect(jsonPath("$.defaultCopingTechnique", is("Breathing")))
+                .andExpect(jsonPath("$.privacyMode", is("standard")));
     }
 }

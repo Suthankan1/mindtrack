@@ -278,14 +278,30 @@ public class UserController {
         UserPreference preference = userPreferenceRepository.findByUser(user)
                 .orElseGet(() -> UserPreference.builder().user(user).build());
 
-        preference.setThemeMode(dto.getThemeMode());
-        preference.setReminderEnabled(dto.isReminderEnabled());
-        preference.setReminderTime(dto.getReminderTime());
-        preference.setDefaultCopingTechnique(dto.getDefaultCopingTechnique());
-        preference.setPrivacyMode(dto.getPrivacyMode());
-        preference.setAiJournalAnalysisEnabled(dto.isAiJournalAnalysisEnabled());
-        preference.setAiChatHistoryEnabled(dto.isAiChatHistoryEnabled());
-        preference.setShareNotesWithAi(dto.isShareNotesWithAi());
+        if (dto.getThemeMode() != null) {
+            preference.setThemeMode(dto.getThemeMode());
+        }
+        if (dto.getReminderEnabled() != null) {
+            preference.setReminderEnabled(dto.getReminderEnabled());
+        }
+        if (dto.getReminderTime() != null) {
+            preference.setReminderTime(dto.getReminderTime());
+        }
+        if (dto.getDefaultCopingTechnique() != null) {
+            preference.setDefaultCopingTechnique(dto.getDefaultCopingTechnique());
+        }
+        if (dto.getPrivacyMode() != null) {
+            preference.setPrivacyMode(dto.getPrivacyMode());
+        }
+        if (dto.getAiJournalAnalysisEnabled() != null) {
+            preference.setAiJournalAnalysisEnabled(dto.getAiJournalAnalysisEnabled());
+        }
+        if (dto.getAiChatHistoryEnabled() != null) {
+            preference.setAiChatHistoryEnabled(dto.getAiChatHistoryEnabled());
+        }
+        if (dto.getShareNotesWithAi() != null) {
+            preference.setShareNotesWithAi(dto.getShareNotesWithAi());
+        }
 
         UserPreference saved = userPreferenceRepository.save(preference);
         return ResponseEntity.ok(convertToDto(saved));
